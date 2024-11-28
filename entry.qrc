@@ -1,0 +1,6 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/icons/light">
+        <file alias="totem.svg">humanity_0.4.6/Humanity/apps/48/totem.svg</file>
+    </qresource>
+</RCC>
