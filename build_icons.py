@@ -2,10 +2,12 @@
 import os
 import re
 from pathlib import Path
-import json
-from typing import List, TypedDict, Optional
+from dataclasses import dataclass, asdict
+from pprint import pprint
+from typing import List, Optional
 
-class _IconFileInfo_Base(TypedDict):
+@dataclass
+class _IconFileInfo_Base():
     themeType: str
     iconCategory: str
     iconSize: str
@@ -15,9 +17,11 @@ class _IconFileInfo_Base(TypedDict):
     srcFileAbsPath: str
     """To find the aliases"""
 
+@dataclass
 class IconSrcFileInfo(_IconFileInfo_Base):
     isASymlinkToAbsPath: Optional[str]
 
+@dataclass
 class IconDistFileInfo(_IconFileInfo_Base):
     distFileAbsPath: str
     aliases: List[str]
@@ -40,45 +44,45 @@ def get_src_file_info_arr() -> List[IconSrcFileInfo]:
         if os.path.islink(svg_path):
             symlink_target: str = os.readlink(svg_path)
             symlink_target_abs_path = os.path.abspath(os.path.join(os.path.dirname(svg_path), symlink_target))
-        final_arr.append({
-            "themeType": m.group(1),
-            "iconCategory": m.group(2),
-            "iconSize": m.group(3),
-            "iconFileName": m.group(4),
-            "srcFileAbsPath": svg_path,
-            "isASymlinkToAbsPath": symlink_target_abs_path
-        })
+        final_arr.append(IconSrcFileInfo(
+            themeType = m.group(1),
+            iconCategory = m.group(2),
+            iconSize = m.group(3),
+            iconFileName = m.group(4),
+            srcFileAbsPath = svg_path,
+            isASymlinkToAbsPath = symlink_target_abs_path
+        ))
     return final_arr
 
 def gen_dist_files(src_file_arr: List[IconSrcFileInfo]) -> List[IconDistFileInfo]:
     final_arr: List[IconDistFileInfo] = []
     for src_file in src_file_arr:
-        if src_file["isASymlinkToAbsPath"]:
+        if src_file.isASymlinkToAbsPath:
             existed_dist_file: IconDistFileInfo | None = None
             for dist_file in final_arr:
-                if dist_file["distFileAbsPath"] == src_file["isASymlinkToAbsPath"]:
+                if dist_file.distFileAbsPath == src_file.isASymlinkToAbsPath:
                     existed_dist_file = dist_file
-                    existed_dist_file["aliases"].append(src_file["iconFileName"])
-                    existed_dist_file["srcFileAbsPath"] = src_file["srcFileAbsPath"]
+                    existed_dist_file.aliases.append(src_file.iconFileName)
+                    existed_dist_file.srcFileAbsPath = src_file.srcFileAbsPath
                     break
         else:
-            dist_file_path: str = os.path.join(DIST_SVG_ROOT, src_file['iconSize'], src_file["iconFileName"])
-            final_arr.append({
-                "themeType": src_file["themeType"],
-                "iconCategory": src_file["iconCategory"],
-                "iconSize": src_file["iconSize"],
-                "iconFileName": src_file["iconFileName"],
-                "srcFileAbsPath": src_file["srcFileAbsPath"],
-                "distFileAbsPath": dist_file_path,
-                "aliases": [src_file["iconFileName"]]
-            })
+            dist_file_path: str = os.path.join(DIST_SVG_ROOT, src_file.iconSize, src_file.iconFileName)
+            final_arr.append(IconDistFileInfo(
+                themeType = src_file.themeType,
+                iconCategory = src_file.iconCategory,
+                iconSize = src_file.iconSize,
+                iconFileName = src_file.iconFileName,
+                srcFileAbsPath = src_file.srcFileAbsPath,
+                distFileAbsPath = dist_file_path,
+                aliases = [src_file.iconFileName]
+            ))
     return final_arr
 
 def main():
     src_file_arr = get_src_file_info_arr()
     dist_file_arr = gen_dist_files(src_file_arr)
-    # print(json.dumps(src_file_arr, indent=2))
-    print(json.dumps(dist_file_arr, indent=2))
+    for x in dist_file_arr:
+        pprint(asdict(x), indent=2)
 
 if __name__ == "__main__":
     main()
