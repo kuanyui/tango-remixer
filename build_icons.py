@@ -5,18 +5,30 @@ from pathlib import Path
 import json
 from typing import List, TypedDict, Optional
 
-class IconSrcFileInfo(TypedDict):
+class _IconFileInfo_Base(TypedDict):
     themeType: str
     iconCategory: str
     iconSize: str
     iconFileName: str
+    """totem.svg"""
+
     srcFileAbsPath: str
+    """To find the aliases"""
+
+class IconSrcFileInfo(_IconFileInfo_Base):
     isASymlinkToAbsPath: Optional[str]
 
+class IconDistFileInfo(_IconFileInfo_Base):
+    distFileAbsPath: str
+    aliases: List[str]
+
 SCRIPT_DIR: str = os.path.dirname(__file__)
-SRC_ROOT: Path = Path(os.path.join(SCRIPT_DIR, "humanity_0.4.6"))
-SRC_SVG_FILES: List[Path] = list(SRC_ROOT.rglob("*.svg"))
+SRC_REPO_ROOT: Path = Path(os.path.join(SCRIPT_DIR, "humanity_0.4.6"))
+SRC_SVG_FILES: List[Path] = list(SRC_REPO_ROOT.rglob("*.svg"))
 SRC_SVG_FILEPATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9]+)/(.+\.svg)$")
+
+DIST_ROOT: Path = Path(os.path.join(SCRIPT_DIR, "dist"))
+DIST_SVG_ROOT: Path = Path(os.path.join(DIST_ROOT, "svg"))
 
 def get_src_file_info_arr() -> List[IconSrcFileInfo]:
     final_arr: List[IconSrcFileInfo] = []
@@ -38,12 +50,35 @@ def get_src_file_info_arr() -> List[IconSrcFileInfo]:
         })
     return final_arr
 
-def gen_dist_files():
-    pass
+def gen_dist_files(src_file_arr: List[IconSrcFileInfo]) -> List[IconDistFileInfo]:
+    final_arr: List[IconDistFileInfo] = []
+    for src_file in src_file_arr:
+        if src_file["isASymlinkToAbsPath"]:
+            existed_dist_file: IconDistFileInfo | None = None
+            for dist_file in final_arr:
+                if dist_file["distFileAbsPath"] == src_file["isASymlinkToAbsPath"]:
+                    existed_dist_file = dist_file
+                    existed_dist_file["aliases"].append(src_file["iconFileName"])
+                    existed_dist_file["srcFileAbsPath"] = src_file["srcFileAbsPath"]
+                    break
+        else:
+            dist_file_path: str = os.path.join(DIST_SVG_ROOT, src_file['iconSize'], src_file["iconFileName"])
+            final_arr.append({
+                "themeType": src_file["themeType"],
+                "iconCategory": src_file["iconCategory"],
+                "iconSize": src_file["iconSize"],
+                "iconFileName": src_file["iconFileName"],
+                "srcFileAbsPath": src_file["srcFileAbsPath"],
+                "distFileAbsPath": dist_file_path,
+                "aliases": [src_file["iconFileName"]]
+            })
+    return final_arr
 
 def main():
     src_file_arr = get_src_file_info_arr()
-    print(json.dumps(src_file_arr, indent=2))
+    dist_file_arr = gen_dist_files(src_file_arr)
+    # print(json.dumps(src_file_arr, indent=2))
+    print(json.dumps(dist_file_arr, indent=2))
 
 if __name__ == "__main__":
     main()
