@@ -23,7 +23,7 @@ class IconSrcFileInfo():
     """`totem.svg`. This will become the qresource > file[alias="totem.svg"]"""
     src_file_abs_path: str
     """To find the aliases"""
-    symlink_to_src_abs_path: Optional[str]
+    symlink_to_src_canonical_abs_path: Optional[str]
     """If this is a symlink, this will be the absolute path to the target file.
 
     None if this is not a symlink"""
@@ -65,10 +65,10 @@ def get_src_file_info_arr() -> List[IconSrcFileInfo]:
         src_svg_path: str = str(src_svg_file)
         m: re.Match[str] | None = SRC_SVG_FILEPATH_PATTERN.search(src_svg_path)
         if not m: continue
-        symlink_target_abs_path: str | None = None
+        symlink_target_canonical_path: str | None = None
         if os.path.islink(src_svg_path):
             symlink_target: str = os.readlink(src_svg_path)
-            symlink_target_abs_path = os.path.abspath(os.path.join(os.path.dirname(src_svg_path), symlink_target))
+            symlink_target_canonical_path = str(Path(os.path.join(os.path.dirname(src_svg_path), symlink_target)).resolve())
         _iconSize = m.group(3)
         final_arr.append(IconSrcFileInfo(
             theme_type = "dark" if m.group(1) == "Humanity-Dark" else "light",
@@ -76,13 +76,13 @@ def get_src_file_info_arr() -> List[IconSrcFileInfo]:
             icon_size = _iconSize if is_icon_size_type(_iconSize) else "scalable",
             icon_file_name = m.group(4),
             src_file_abs_path = src_svg_path,
-            symlink_to_src_abs_path = symlink_target_abs_path
+            symlink_to_src_canonical_abs_path = symlink_target_canonical_path
         ))
     return final_arr
 
 
 def find_or_create_canonical_dist_file (canonical_dist_arr: List[IconDistFileInfo], src_file: IconSrcFileInfo) -> IconDistFileInfo:
-    if src_file.symlink_to_src_abs_path == None:    # This is 100% a canonical file (non-symlink file)
+    if src_file.symlink_to_src_canonical_abs_path == None:    # This is 100% a canonical file (non-symlink file)
         canonical_dist_file = next((c for c in canonical_dist_arr if c.src_canonical_file_abs_path == src_file.src_file_abs_path), None)
         if canonical_dist_file == None:
             canonical_src_file_path = Path(src_file.src_file_abs_path).resolve()
@@ -97,16 +97,16 @@ def find_or_create_canonical_dist_file (canonical_dist_arr: List[IconDistFileInf
             canonical_dist_arr.append(canonical_dist_file)
         return canonical_dist_file
     else:    # This is a symlink file
-        dist_file_ref = next((c for c in canonical_dist_arr if c.src_canonical_file_abs_path == src_file.symlink_to_src_abs_path), None)
+        dist_file_ref = next((c for c in canonical_dist_arr if c.src_canonical_file_abs_path == src_file.symlink_to_src_canonical_abs_path), None)
         if dist_file_ref == None:
-            canonical_src_file_abs_path = Path(src_file.symlink_to_src_abs_path).resolve()
+            canonical_src_file_abs_path_obj = Path(src_file.symlink_to_src_canonical_abs_path).resolve()
             dist_file_ref = IconDistFileInfo(
               theme_type=src_file.theme_type,
               icon_size=src_file.icon_size,
               aliases=[],
-              canonical_name=canonical_src_file_abs_path.name,
-              src_canonical_file_abs_path=str(canonical_src_file_abs_path),
-              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_type, src_file.icon_size, canonical_src_file_abs_path.name)
+              canonical_name=canonical_src_file_abs_path_obj.name,
+              src_canonical_file_abs_path=str(canonical_src_file_abs_path_obj),
+              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_type, src_file.icon_size, canonical_src_file_abs_path_obj.name)
             )
             canonical_dist_arr.append(dist_file_ref)
         dist_file_ref.aliases.append(src_file.icon_file_name)
