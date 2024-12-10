@@ -15,8 +15,17 @@ However, Tango Desktop Project has already discontinued and seems not to be prom
 
 Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Humanity](https://launchpad.net/humanity/) Project for their Ubuntu GNOME desktop, maybe in around 2006, which provides a larger amount of icons for daily usage. So I hereby express my highest respect for their work.
 
+# Prerequisite
+Download the latest [humanity_0.4.6.tar.gz](https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz) from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
+
+
 # What Are This Project Do?
-> ## Terminology:
+> ## References
+> - https://specifications.freedesktop.org/icon-theme-spec/latest/
+> - https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+> ### Other tutorials
+> - https://openapplibrary.org/dev-tutorials/qt-icon-themes
+> ## Terminology
 > - THIS_REPO is this icon repo, that it, `tango_icons_for_qt/`
 > - SRC_REPO is the original Humanity icon repo, that is, `tango_icons_for_qt/src/humanity_0.4.6/`
 

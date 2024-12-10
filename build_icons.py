@@ -56,7 +56,7 @@ class IconDistFileInfo:
     """A symlink file to this dist file will be seen as an alias"""
     src_canonical_file_abs_path: str
     """The absolute path to the canonical (non-symlink) src file."""
-    dest_canonical_file_abs_path: str
+    dist_canonical_file_abs_path: str
     """The absolute path to the canonical (non-symlink) dist file (expected, should be copied from canonical src file). ONLY NON-SYMLINK FILE WILL BE COPIED.
     ```sh
     lrwxrwxrwx 1 ono ono     9 Dec  4  2009 video-player.svg -> totem.svg
@@ -111,7 +111,7 @@ def find_or_create_canonical_dist_file (canonical_dist_arr: List[IconDistFileInf
               aliases=[],
               canonical_name=src_file.icon_file_name,
               src_canonical_file_abs_path=str(canonical_src_file_path),
-              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_brightness_type, src_file.icon_size, str(canonical_src_file_path.name))
+              dist_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_brightness_type, src_file.icon_size, str(canonical_src_file_path.name))
             )
             canonical_dist_arr.append(canonical_dist_file)
         return canonical_dist_file
@@ -126,7 +126,7 @@ def find_or_create_canonical_dist_file (canonical_dist_arr: List[IconDistFileInf
               aliases=[],
               canonical_name=canonical_src_file_abs_path_obj.name,
               src_canonical_file_abs_path=str(canonical_src_file_abs_path_obj),
-              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_brightness_type, src_file.icon_size, canonical_src_file_abs_path_obj.name)
+              dist_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_brightness_type, src_file.icon_size, canonical_src_file_abs_path_obj.name)
             )
             canonical_dist_arr.append(dist_file_ref)
         dist_file_ref.aliases.append(src_file.icon_file_name)
