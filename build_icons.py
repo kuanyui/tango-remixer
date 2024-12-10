@@ -1,4 +1,13 @@
 # -*- coding: utf-8 -*-
+"""
+References:
+
+https://specifications.freedesktop.org/icon-theme-spec/latest/
+https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+
+https://gist.github.com/peteristhegreat/c0ca6e1a57e5d4b9cd0bb1d7b3be1d6a
+"""
+
 import os
 import re
 from pathlib import Path
@@ -6,16 +15,23 @@ from dataclasses import dataclass, asdict
 from pprint import pprint
 from typing import List, Optional, Literal, TypeGuard, get_args
 
-IconThemeType = Literal["light", "dark"]
+IconThemeBrightnessType = Literal["light", "dark"]
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
+IconContextType = Literal["actions", "apps", "categories", "devices", "emblems", "emotes", "mimetypes", "places", "status"]
+"""
+Standard context list:
+https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html"""
 
 def is_icon_size_type(x: str) -> TypeGuard[IconSizeType]:
     return x in get_args(IconSizeType)
 
+def is_icon_context_type(x: str) -> TypeGuard[IconContextType]:
+    return x in get_args(IconContextType)
+
 @dataclass
 class IconSrcFileInfo():
-    theme_type: IconThemeType
-    icon_category: str
+    theme_brightness_type: IconThemeBrightnessType
+    icon_context: IconContextType
     """`actions`, `apps`, `categories`, `devices`, `emblems`, `emotes`, `mimetypes`, `places`, `status`"""
     icon_size: IconSizeType
     """`16`, `22`, `24`, `32`, `48`, `64`, `scalable`"""
@@ -31,8 +47,9 @@ class IconSrcFileInfo():
 @dataclass
 class IconDistFileInfo:
     """This class is to describe a non-symlink file."""
-    theme_type: IconThemeType
+    theme_brightness_type: IconThemeBrightnessType
     icon_size: IconSizeType
+    icon_context: IconContextType
     canonical_name: str
     """This is actually the `iconFileName`, is the file name of a non-symlink file. Will become the `qresource > file[alias="totem.svg"]`"""
     aliases: List[str]
@@ -69,11 +86,12 @@ def get_src_file_info_arr() -> List[IconSrcFileInfo]:
         if os.path.islink(src_svg_path):
             symlink_target: str = os.readlink(src_svg_path)
             symlink_target_canonical_path = str(Path(os.path.join(os.path.dirname(src_svg_path), symlink_target)).resolve())
-        _iconSize = m.group(3)
+        _size = m.group(3)
+        _context = m.group(2)
         final_arr.append(IconSrcFileInfo(
-            theme_type = "dark" if m.group(1) == "Humanity-Dark" else "light",
-            icon_category = m.group(2),
-            icon_size = _iconSize if is_icon_size_type(_iconSize) else "scalable",
+            theme_brightness_type = "dark" if m.group(1) == "Humanity-Dark" else "light",
+            icon_context = _context if is_icon_context_type(_context) else "apps",
+            icon_size = _size if is_icon_size_type(_size) else "scalable",
             icon_file_name = m.group(4),
             src_file_abs_path = src_svg_path,
             symlink_to_src_canonical_abs_path = symlink_target_canonical_path
@@ -87,12 +105,13 @@ def find_or_create_canonical_dist_file (canonical_dist_arr: List[IconDistFileInf
         if canonical_dist_file == None:
             canonical_src_file_path = Path(src_file.src_file_abs_path).resolve()
             canonical_dist_file = IconDistFileInfo(
-              theme_type=src_file.theme_type,
+              theme_brightness_type=src_file.theme_brightness_type,
+              icon_context=src_file.icon_context,
               icon_size=src_file.icon_size,
               aliases=[],
               canonical_name=src_file.icon_file_name,
               src_canonical_file_abs_path=str(canonical_src_file_path),
-              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_type, src_file.icon_size, str(canonical_src_file_path.name))
+              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_brightness_type, src_file.icon_size, str(canonical_src_file_path.name))
             )
             canonical_dist_arr.append(canonical_dist_file)
         return canonical_dist_file
@@ -101,12 +120,13 @@ def find_or_create_canonical_dist_file (canonical_dist_arr: List[IconDistFileInf
         if dist_file_ref == None:
             canonical_src_file_abs_path_obj = Path(src_file.symlink_to_src_canonical_abs_path).resolve()
             dist_file_ref = IconDistFileInfo(
-              theme_type=src_file.theme_type,
+              theme_brightness_type=src_file.theme_brightness_type,
+              icon_context=src_file.icon_context,
               icon_size=src_file.icon_size,
               aliases=[],
               canonical_name=canonical_src_file_abs_path_obj.name,
               src_canonical_file_abs_path=str(canonical_src_file_abs_path_obj),
-              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_type, src_file.icon_size, canonical_src_file_abs_path_obj.name)
+              dest_canonical_file_abs_path=os.path.join(DIST_ROOT, src_file.theme_brightness_type, src_file.icon_size, canonical_src_file_abs_path_obj.name)
             )
             canonical_dist_arr.append(dist_file_ref)
         dist_file_ref.aliases.append(src_file.icon_file_name)
