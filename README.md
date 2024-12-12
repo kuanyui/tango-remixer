@@ -131,16 +131,30 @@ So the full dist files list is:
 {REPO}/dist/Tango/apps/48/totem.svg
 ```
 ### index.theme
-`@2` and `Scale=2` is extra (but significant) definition. Qt / QIcon will handle these definitions to generate pixmap of corresponding sizes.
-- It seems that `@2` suffix is merely a naming convention... but:
-  > `QIcon` will use Qt's "@nx" high DPI syntax ([quoted from Qt official doc](https://doc.qt.io/qt-6/qicon.html#high-dpi-icons))
 
-- `Scale=2` is defined in [Freedesktop Icon Theme Specification](https://specifications.freedesktop.org/icon-theme-spec/latest/)
+`@2` and `Scale=2` `Size=32` is extra (but significant) definition. Qt / QIcon will handle these definitions to generate pixmap of corresponding sizes.
+
+- It seems that `@2` suffix is merely a naming convention... but:
+  > `QIcon` will use Qt's "@nx" high DPI syntax.
+  > ([quoted from Qt official doc - QIcon](https://doc.qt.io/qt-6/qicon.html#high-dpi-icons))
+
+  > **High Resolution Versions of Images**
+  >
+  > It is possible to provide high resolution versions of images should a scaling between device pixels and device independent pixels be in effect.
+  >
+  > The high resolution version is marked by the suffix `@2x` on the base name. The image read will have its device pixel ratio set to a value of 2.
+  >
+  > This can be disabled by setting the environment variable `QT_HIGHDPI_DISABLE_2X_IMAGE_LOADING`.
+  > ([quoted from Qt official doc - QImageReader](https://doc.qt.io/qt-6/qimagereader.html#high-resolution-versions-of-images))
+
+- `Scale=2` and `Size=32` is defined in [Freedesktop Icon Theme Specification](https://specifications.freedesktop.org/icon-theme-spec/latest/)
 
 The `*.svg` files themselves already define the image size (via `<svg width="16" height="16">`.) So when you are using a HiDPI screen:
 
 - If without `@2` in `index.theme`, Qt may select a (too sophisticated and complex) 32x32 icon and render + draw it directly in a 16x16 area.
-- If without `Scale=2`, Qt may select a 16x16 svg, render to a 16x16 pixmap cache, then draw on a 16x16 (actual pixel is 32x32) area... Yes, it blurred.
+- If without `Scale=2` and `Size=32`, Qt may select a 16x16 svg, render to a 16x16 pixmap cache, then draw on a 16x16 (actual physical pixel is 32x32) area... Yes, it blurred.
+
+> I don't sure the detailed implementation of `@2` or `@2x` naming convention in Qt... And don't want to do more experiments for it neither. After all, I think the way Humanity did should be "standard enough".
 
 ```conf
 [Icon Theme]
@@ -150,17 +164,11 @@ Inherits=gnome,hicolor
 
 Example=directory-x-normal
 
-#Directory list
-Directories=apps/24,apps/48,
+# Directory list (includes extra definition for HiDPI)
+Directories=apps/16,apps/48,apps/16@2,apps/48@2
 
 [apps/16]
 Size=16
-Context=Applications
-Type=Fixed
-
-[apps/16@2]
-Size=32
-Scale=2
 Context=Applications
 Type=Fixed
 
@@ -169,6 +177,20 @@ Size=48
 Context=Applications
 Type=Fixed
 
+# Following are definition for `{context}/{size}@2`
+#
+# (Actually, the path `apps/16@2/` is not existed in real file system,
+# but it is defined in our .qrc via <file alias="apps/16@2/..."> and
+# accessible in Qt, just like a virtual file system.)
+
+# 16 * 2 = 32
+[apps/16@2]
+Size=32
+Scale=2
+Context=Applications
+Type=Fixed
+
+# 48 * 2 = 96
 [apps/48@2]
 Size=96
 Scale=2
