@@ -12,7 +12,7 @@ import os
 import re
 import shutil
 from pathlib import Path
-from dataclasses import dataclass, asdict
+from dataclasses import dataclass, asdict, field
 from pprint import pprint
 from typing import List, Optional, Literal, TypeGuard, get_args
 
@@ -46,6 +46,19 @@ class IconSrcFileInfo():
     src_file_path: Path
     """The absolute path to the source file (Be careful this may be a symlink, and symlink will not be resolved here)"""
 
+@dataclass
+class QrcFile():
+    alias: str
+    file: str
+
+@dataclass
+class QrcQresource():
+    prefix: str
+    files: List[QrcFile] = field(default_factory=list)
+
+@dataclass
+class QrcRoot():
+    resources: List[QrcQresource] = field(default_factory=list)
 
 SCRIPT_DIR: str = os.path.dirname(__file__)
 
@@ -57,6 +70,11 @@ According for XDG standard:
 """
 
 ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
+
+QRC_QRESOURCE_PREFIX: str = "/xdg_icon_themes/"
+"""The extra prefix for the QRC resource path.
+
+e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
 
 DIST_ROOT: str = os.path.join(SCRIPT_DIR, "dist")
 
@@ -98,20 +116,52 @@ def easy_copy_file(src: str | Path, dst: str | Path) -> None:
     shutil.copy2(src, dst)
 
 
-def copy_icon_to_dist(icon: IconSrcFileInfo):
-    dist_root = Path(DIST_ROOT).joinpath()
-    dist_file_path = dist_root.joinpath(icon.theme_name, icon.context, icon.size, icon.file_name)
-    easy_copy_file(icon.src_file_path, dist_file_path)
+# def copy_icon_to_dist(icon: IconSrcFileInfo):
+#     dist_root = Path(DIST_ROOT).joinpath()
+#     dist_file_path = dist_root.joinpath(icon.theme_name, icon.context, icon.size, icon.file_name)
+#     easy_copy_file(icon.src_file_path, dist_file_path)
 
+def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: List[IconSrcFileInfo]) -> IconSrcFileInfo:
+    for canonical_icon in all_icons:
+        if canonical_icon.src_file_path.is_symlink():
+            continue
+        if canonical_icon.src_file_path == symlink_icon.src_file_path.resolve():
+            return canonical_icon
+    raise FileNotFoundError(f"Cannot find symlink target for {symlink_icon.src_file_path}")
 
 def main():
     icon_theme_folders = get_icon_theme_folder_list(SRC_ICON_THEME_FOLDER_SEARCH_ROOT)
+    dist_root = Path(DIST_ROOT).joinpath()
     clear_dist()
-    for icon_theme_folder in icon_theme_folders:
-        icon_list = get_icon_list_in_theme(icon_theme_folder)
+    for src_icon_theme_folder in icon_theme_folders:
+        qrc = QrcRoot()
+        # e.g. /xdg_icon_themes/Humanity
+        qrc.resources.append(QrcQresource(prefix=QRC_QRESOURCE_PREFIX + src_icon_theme_folder.name))
+        icon_list = get_icon_list_in_theme(src_icon_theme_folder)
         for icon in icon_list:
-            if not icon.src_file_path.is_symlink():
-                copy_icon_to_dist(icon)
+            dist_icon_theme_folder = dist_root.joinpath(icon.theme_name)
+            qrc_resource_file_path: Path  # string in <file>...</file> tag.
+            if icon.src_file_path.is_symlink():
+                canonical_icon = search_symlinked_canonical_icon(icon, icon_list)
+                dist_icon_file_path = dist_root / canonical_icon.theme_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
+                qrc_resource_file_path = dist_icon_file_path.resolve().relative_to(dist_icon_theme_folder)
+                # print(dist_icon_file_path)
+                # print(dist_icon_file_path.resolve())
+                # print()
+            else:
+                dist_icon_file_path = dist_root / icon.theme_name / icon.context / icon.size / icon.file_name
+                qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
+
+            qrc.resources[0].files.append(QrcFile(
+                alias=f"{icon.context}/{icon.size}/{icon.file_name}",
+                file=str(qrc_resource_file_path)
+            ))
+            # qrc.resources[0].files.append(QrcFile(
+            #     alias=f"{icon.context}/{icon.size}@2x/{icon.file_name}",
+            #     file=str(qrc_resource_file_path)
+            # ))
+            print(asdict(qrc.resources[0].files[-1]))
+
         # print(f"Icon Theme: {icon_theme_folder.name}")
         # for icon in icon_list:
         #     pprint(asdict(icon), indent=2)
