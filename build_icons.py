@@ -15,6 +15,8 @@ from pathlib import Path
 from dataclasses import dataclass, asdict, field
 from pprint import pprint
 from typing import List, Optional, Literal, TypeGuard, get_args
+import cProfile
+import pstats
 
 IconThemeName = Literal["Humanity", "Humanity-Dark"]
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
@@ -44,7 +46,10 @@ class IconSrcFileInfo():
     file_name: str
     """ex: `totem.svg`. (this file may be a symlink, and symlink will not be resolved here """
     src_file_path: Path
-    """The absolute path to the source file (Be careful this may be a symlink, and symlink will not be resolved here)"""
+    """The absolute path to the source file (Be careful: this may be a symlink, and symlink will not be resolved here)"""
+    src_file_path_is_symlink: bool
+    src_file_path_resolved: Path
+
 
 @dataclass
 class QrcFile():
@@ -101,6 +106,8 @@ def get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
             size = _size if is_icon_size_type(_size) else "scalable",
             file_name = m.group(4),
             src_file_path = src_svg_file_path,
+            src_file_path_is_symlink = src_svg_file_path.is_symlink(),
+            src_file_path_resolved = src_svg_file_path.resolve()
         ))
     return final_arr
 
@@ -123,9 +130,9 @@ def easy_copy_file(src: str | Path, dst: str | Path) -> None:
 
 def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: List[IconSrcFileInfo]) -> IconSrcFileInfo:
     for canonical_icon in all_icons:
-        if canonical_icon.src_file_path.is_symlink():
+        if canonical_icon.src_file_path_is_symlink:
             continue
-        if canonical_icon.src_file_path == symlink_icon.src_file_path.resolve():
+        if canonical_icon.src_file_path == symlink_icon.src_file_path_resolved:
             return canonical_icon
     raise FileNotFoundError(f"Cannot find symlink target for {symlink_icon.src_file_path}")
 
@@ -139,6 +146,8 @@ def main():
         qrc.resources.append(QrcQresource(prefix=QRC_QRESOURCE_PREFIX + src_icon_theme_folder.name))
         icon_list = get_icon_list_in_theme(src_icon_theme_folder)
         for icon in icon_list:
+            # if icon.size != '16' or icon.context != 'apps':
+            #     continue
             dist_icon_theme_folder = dist_root.joinpath(icon.theme_name)
             qrc_resource_file_path: Path  # string in <file>...</file> tag.
             if icon.src_file_path.is_symlink():
@@ -167,4 +176,9 @@ def main():
         #     pprint(asdict(icon), indent=2)
 
 if __name__ == "__main__":
+    # profiler = cProfile.Profile()
+    # profiler.enable()
     main()
+    # profiler.disable()
+    # stats = pstats.Stats(profiler).sort_stats('cumulative')
+    # stats.print_stats()
