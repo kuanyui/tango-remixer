@@ -164,7 +164,7 @@ class IconThemeOptions:
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=['1', '2'],
-            help='Comma-separated list of scaling factors. (Default: 1, 2). Default: all'
+            help=f'Comma-separated list of scaling factors. (Available: "{", ".join(get_args(IconScaleType))}). Default: 1,2'
         )
 
         args = parser.parse_args()
@@ -234,7 +234,7 @@ def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: Li
     raise FileNotFoundError(f"Cannot find symlink target for {symlink_icon.src_file_path}")
 
 
-def create_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
+def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
     root = ET.Element("RCC")
     root.set("version", "1.0")
     for resource in qrc_root.resources:
@@ -255,8 +255,6 @@ def create_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
         print(f"File created: {output_file_path}")
     except Exception as e:
         print(f"Error when creating {output_file_path}: {e}")
-
-# def create_index_theme_file(output_file_path: Path):
 
 
 def main():
@@ -282,9 +280,6 @@ def main():
                 canonical_icon = search_symlinked_canonical_icon(icon, icon_list)
                 dist_icon_file_path = dist_root / canonical_icon.theme_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
                 qrc_resource_file_path = dist_icon_file_path.resolve().relative_to(dist_icon_theme_folder)
-                # print(dist_icon_file_path)
-                # print(dist_icon_file_path.resolve())
-                # print()
             else:
                 dist_icon_file_path = dist_root / icon.theme_name / icon.context / icon.size / icon.file_name
                 qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
@@ -298,12 +293,8 @@ def main():
                     alias=f"{icon.context}/{icon.size}{scale_suffix}/{icon.file_name}",
                     file=str(qrc_resource_file_path)
                 ))
-            print(asdict(qrc.resources[0].files[-1]))
-        create_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
-        # create_index_theme_file(dist_root / src_icon_theme_folder.name / "index.theme")
-        # print(f"Icon Theme: {icon_theme_folder.name}")
-        # for icon in icon_list:
-        #     pprint(asdict(icon), indent=2)
+            # print(asdict(qrc.resources[0].files[-1]))
+        write_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
 
 
 
