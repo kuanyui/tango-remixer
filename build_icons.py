@@ -17,38 +17,74 @@ from dataclasses import dataclass, asdict, field
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Optional, Literal, TypeGuard, get_args, Dict
+from typing import List, Optional, Literal, TypeGuard, get_args, Dict, Final
 import cProfile
 import pstats
 import argparse
 
-IconThemeName = Literal["Humanity", "Humanity-Dark"]
+
+
+
+
+IconThemeSrcFolderName = Literal["Humanity", "Humanity-Dark"]
+"""Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
-IconContextType = Literal["actions", "apps", "categories", "devices", "emblems", "emotes", "mimetypes", "places", "status"]
+IconContextDirType = Literal["actions", "animations", "apps", "categories",
+                             "devices", "emblems", "emotes", "intl",
+                             "mimetypes", "places", "status"]
+"""https://specifications.freedesktop.org/icon-naming-spec/latest/#context"""
+XdgContextNameType = Literal["Actions", "Animations", "Applications", "Categories",
+                             "Devices", "Emblems", "Emotes", "International",
+                             "MimeTypes", "Places", "Status"]
+"""https://specifications.freedesktop.org/icon-naming-spec/latest/#context"""
+
+CONTEXT_MAPPING: Final[dict[IconContextDirType, XdgContextNameType]] = {
+    "actions": "Actions",
+    "animations": "Animations",
+    "apps": "Applications",
+    "categories": "Categories",
+    "devices": "Devices",
+    "emblems": "Emblems",
+    "emotes": "Emotes",
+    "intl": "International",
+    "mimetypes": "MimeTypes",
+    "places": "Places",
+    "status": "Status"
+}
+
 """
 Standard context list:
-https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html"""
+https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
+https://specifications.freedesktop.org/icon-naming-spec/latest/#context
+"""
 IconScaleType = Literal["1", "2", "3", "4"]
 
-def is_icon_theme_name(x: str) -> TypeGuard[IconThemeName]:
-    return x in get_args(IconThemeName)
+
+def is_icon_theme_src_folder_name(x: str) -> TypeGuard[IconThemeSrcFolderName]:
+    return x in get_args(IconThemeSrcFolderName)
 
 def is_icon_size_type(x: str) -> TypeGuard[IconSizeType]:
     return x in get_args(IconSizeType)
 
-def is_icon_context_type(x: str) -> TypeGuard[IconContextType]:
-    return x in get_args(IconContextType)
+def is_icon_context_dir_type(x: str) -> TypeGuard[IconContextDirType]:
+    return x in get_args(IconContextDirType)
 
 def is_icon_scale_type(x: str) -> TypeGuard[IconScaleType]:
     return x in get_args(IconScaleType)
+
+ColorizationType = Literal["humanity", "tango"]
+"""Colorization type of the icon theme pack. `humanity` is vanilla Humanity icon theme, `tango` will try to colorize the orange to blue."""
+
+def is_colorization_type(x: str) -> TypeGuard[ColorizationType]:
+    return x in get_args(ColorizationType)
 
 @dataclass
 class IconSrcFileInfo():
     """Basic information of an SVG source file in the unmodified icon theme.
     You can use these information to generate a XDG-compatible icon path."""
-    theme_name: IconThemeName
-    context: IconContextType
+    theme_src_folder_name: IconThemeSrcFolderName
+    context: IconContextDirType
     size: IconSizeType
     file_name: str
     """ex: `totem.svg`. (this file may be a symlink, and symlink will not be resolved here """
@@ -98,8 +134,9 @@ class IconThemeOptions:
     themes_scan_path: Path
     output_dist_path: Path
     sizes: List[IconSizeType]
-    contexts: List[IconContextType]
+    contexts: List[IconContextDirType]
     generate_scales: List[IconScaleType]
+    colorizations: List[ColorizationType]
 
     def __post_init__(self):
         """Validate types"""
@@ -113,12 +150,16 @@ class IconThemeOptions:
                 raise ValueError(f"Invalid size: {size}")
 
         for context in self.contexts:
-            if not is_icon_context_type(context):
+            if not is_icon_context_dir_type(context):
                 raise ValueError(f"Invalid context: {context}")
 
         for scale in self.generate_scales:
             if not is_icon_scale_type(scale):
                 raise ValueError(f"Invalid scale factor: {scale}. Must be one of {get_args(IconScaleType)}")
+
+        for colorization in self.colorizations:
+            if not is_colorization_type(colorization):
+                raise ValueError(f"Invalid colorization: {colorization}. Must be one of {get_args(ColorizationType)}")
 
     @classmethod
     def from_args(cls) -> 'IconThemeOptions':
@@ -144,7 +185,15 @@ class IconThemeOptions:
         )
 
         parser.add_argument(
-            '--sizes', '-s',
+            '--colorize', '-c',
+            type=lambda x: [s.strip() for s in x.split(',')],
+            required=False,
+            default=['humanity', 'tango'],
+            help='Comma-separated list of colorization types (Available: "humanity", "tango"). Default: humanity,tango'
+        )
+
+        parser.add_argument(
+            '--sizes', '-S',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=list(get_args(IconSizeType)),
@@ -152,15 +201,15 @@ class IconThemeOptions:
         )
 
         parser.add_argument(
-            '--contexts', '-c',
+            '--contexts', '-C',
             type=lambda x: [c.strip() for c in x.split(',')],
             required=False,
-            default=list(get_args(IconContextType)),
-            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextType))}"). Default: all'
+            default=list(get_args(IconContextDirType)),
+            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextDirType))}"). Default: all'
         )
 
         parser.add_argument(
-            '--generate-scales', '-S',
+            '--generate-scales', '-s',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=['1', '2'],
@@ -174,7 +223,8 @@ class IconThemeOptions:
             output_dist_path=args.output_dist_path,
             sizes=args.sizes,
             contexts=args.contexts,
-            generate_scales=args.generate_scales
+            generate_scales=args.generate_scales,
+            colorizations=args.colorize
         )
 
 OPTIONS = IconThemeOptions.from_args()
@@ -193,12 +243,12 @@ def get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
     for src_svg_file_path in icon_theme_folder.rglob("*.svg"):
         m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(str(src_svg_file_path))
         if not m: continue
-        _theme_name = m.group(1)
+        _theme_src_folder_name = m.group(1)
         _context = m.group(2)
         _size = m.group(3)
         final_arr.append(IconSrcFileInfo(
-            theme_name = _theme_name if is_icon_theme_name(_theme_name) else "Humanity",
-            context = _context if is_icon_context_type(_context) else "apps",
+            theme_src_folder_name = _theme_src_folder_name if is_icon_theme_src_folder_name(_theme_src_folder_name) else "Humanity",
+            context = _context if is_icon_context_dir_type(_context) else "apps",
             size = _size if is_icon_size_type(_size) else "scalable",
             file_name = m.group(4),
             src_file_path = src_svg_file_path,
@@ -256,6 +306,24 @@ def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
     except Exception as e:
         print(f"Error when creating {output_file_path}: {e}")
 
+# def create_index_theme_file(output_file_path: Path):
+#     content = """\
+# # This is my custom icon theme
+# # Created by someone
+
+# [Icon Theme]
+# Name={theme_name}
+# Comment=An example icon theme
+# Directories=scalable,16x16,32x32
+# Inherits=hicolor
+
+# [scalable]
+# Size=48
+# Type=Scalable
+# MinSize=32
+# MaxSize=256
+# Context=Applications
+# """
 
 def main():
     icon_theme_folders = get_icon_theme_folder_list(SRC_ICON_THEME_FOLDER_SEARCH_ROOT)
@@ -274,14 +342,14 @@ def main():
             qrc.resources.append(scaled_qresource)
         icon_list = get_icon_list_in_theme(src_icon_theme_folder)
         for icon in icon_list:
-            dist_icon_theme_folder = dist_root.joinpath(icon.theme_name)
+            dist_icon_theme_folder = dist_root.joinpath(icon.theme_src_folder_name)
             qrc_resource_file_path: Path  # string in <file>...</file> tag.
             if icon.src_file_path.is_symlink():
                 canonical_icon = search_symlinked_canonical_icon(icon, icon_list)
-                dist_icon_file_path = dist_root / canonical_icon.theme_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
+                dist_icon_file_path = dist_root / canonical_icon.theme_src_folder_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
                 qrc_resource_file_path = dist_icon_file_path.resolve().relative_to(dist_icon_theme_folder)
             else:
-                dist_icon_file_path = dist_root / icon.theme_name / icon.context / icon.size / icon.file_name
+                dist_icon_file_path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
                 qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
                 easy_copy_file(icon.src_file_path, dist_icon_file_path)
 
