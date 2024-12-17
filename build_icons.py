@@ -17,9 +17,9 @@ from dataclasses import dataclass, asdict, field
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Optional, Literal, TypeGuard, get_args, Dict, Final
-import cProfile
-import pstats
+from typing import List, Literal, TypeGuard, get_args, Dict, Final
+# import cProfile
+# import pstats
 import argparse
 
 
@@ -109,34 +109,35 @@ class QrcRoot():
     resources: List[QrcQresource] = field(default_factory=list)
 
 
-SCRIPT_DIR: str = os.path.dirname(__file__)
 
-SRC_ICON_THEME_FOLDER_SEARCH_ROOT: str = os.path.join(SCRIPT_DIR, "thirdparty/humanity_0.4.6")
-"""
-According for XDG standard:
-- This search root should directly (instead of recursively) contain the XDG icon theme pack folders (e.g. `Humanity`, `Humanity-Dark`).
-- Each icon theme pack folder should contain `index.theme`
-"""
 
 ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
 
 QRC_QRESOURCE_PREFIX: str = "/xdg_icon_themes/"
-"""The extra prefix for the QRC resource path.
+"""To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
 e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
 
-DIST_ROOT: str = os.path.join(SCRIPT_DIR, "dist")
 
 
-
+class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
+    """Copied from https://qiita.com/yuji38kwmt/items/c7c4d487e3188afd781e """
+    def _format_action(self, action: argparse.Action) -> str:
+        return super()._format_action(action) + "\n"
 @dataclass
 class IconThemeOptions:
     themes_scan_path: Path
+    """
+According for XDG standard:
+- This search root should directly (instead of recursively) contain the XDG icon theme pack folders (e.g. `Humanity`, `Humanity-Dark`).
+- Each icon theme pack folder should contain `index.theme`
+"""
     output_dist_path: Path
     sizes: List[IconSizeType]
     contexts: List[IconContextDirType]
     generate_scales: List[IconScaleType]
     colorizations: List[ColorizationType]
+    SCRIPT_DIR: Path = Path(os.path.dirname(__file__))
 
     def __post_init__(self):
         """Validate types"""
@@ -165,22 +166,27 @@ class IconThemeOptions:
     def from_args(cls) -> 'IconThemeOptions':
         parser = argparse.ArgumentParser(
             description='Icon theme configuration and processing tool',
-            formatter_class=argparse.RawDescriptionHelpFormatter
+            formatter_class=MyHelpFormatter
         )
 
         parser.add_argument(
             '--themes-scan-path', '-i',
             type=Path,
             required=False,
-            default=Path(SRC_ICON_THEME_FOLDER_SEARCH_ROOT),
-            help='Path to scan for XDG icon theme packs'
+            default=IconThemeOptions.SCRIPT_DIR / "thirdparty" / "humanity_0.4.6",
+            help='''Path to scan for XDG icon theme packs.
+
+According for XDG standard:
+- This search root should directly (instead of recursively) contain the XDG icon theme pack folders (e.g. `Humanity`, `Humanity-Dark`).
+- Each icon theme pack folder should contain `index.theme`
+'''
         )
 
         parser.add_argument(
             '--output-dist-path', '-o',
             type=Path,
             required=False,
-            default=Path(DIST_ROOT),
+            default=IconThemeOptions.SCRIPT_DIR / "dist",
             help='Output directory for generated files'
         )
 
@@ -189,7 +195,7 @@ class IconThemeOptions:
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=['humanity', 'tango'],
-            help='Comma-separated list of colorization types (Available: "humanity", "tango"). Default: humanity,tango'
+            help='Comma-separated list of colorization types (Available: "humanity", "tango")'
         )
 
         parser.add_argument(
@@ -197,7 +203,7 @@ class IconThemeOptions:
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=list(get_args(IconSizeType)),
-            help=f'Comma-separated list of icon sizes (Available: "{", ".join(get_args(IconSizeType))}") Default: all'
+            help=f'Comma-separated list of icon sizes (Available: "{", ".join(get_args(IconSizeType))}")'
         )
 
         parser.add_argument(
@@ -205,7 +211,7 @@ class IconThemeOptions:
             type=lambda x: [c.strip() for c in x.split(',')],
             required=False,
             default=list(get_args(IconContextDirType)),
-            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextDirType))}"). Default: all'
+            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextDirType))}").'
         )
 
         parser.add_argument(
@@ -213,7 +219,7 @@ class IconThemeOptions:
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=['1', '2'],
-            help=f'Comma-separated list of scaling factors. (Available: "{", ".join(get_args(IconScaleType))}). Default: 1,2'
+            help=f'Comma-separated list of scaling factors. (Available: "{", ".join(get_args(IconScaleType))}).'
         )
 
         args = parser.parse_args()
@@ -230,7 +236,7 @@ class IconThemeOptions:
 OPTIONS = IconThemeOptions.from_args()
 pprint(asdict(OPTIONS), indent=2)
 
-def get_icon_theme_folder_list(icon_theme_search_root: str) -> List[Path]:
+def get_icon_theme_folder_list(icon_theme_search_root: Path) -> List[Path]:
     final_arr: List[Path] = []
     for folder in Path(icon_theme_search_root).iterdir():
         if not folder.is_dir(): continue
@@ -259,7 +265,7 @@ def get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
     return final_arr
 
 def clear_dist():
-    shutil.rmtree(DIST_ROOT, ignore_errors=True)
+    shutil.rmtree(OPTIONS.output_dist_path, ignore_errors=True)
 
 def easy_copy_file(src: str | Path, dst: str | Path) -> None:
     src_path: Path = Path(src)
@@ -326,8 +332,8 @@ def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
 # """
 
 def main():
-    icon_theme_folders = get_icon_theme_folder_list(SRC_ICON_THEME_FOLDER_SEARCH_ROOT)
-    dist_root = Path(DIST_ROOT).joinpath()
+    icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
+    dist_root = OPTIONS.output_dist_path
     clear_dist()
     for src_icon_theme_folder in icon_theme_folders:
         qrc = QrcRoot()
