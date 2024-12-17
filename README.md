@@ -120,7 +120,7 @@ To folder (category like `apps`, `actions` are omitted):
 ```
 
 **And generate:**
-- `{REPO}/dist/Tango/tango_icons.qrc`
+- `{REPO}/dist/Tango/index.qrc`
 - `{REPO}/dist/Tango/index.theme`
 
 So the full dist files list is:

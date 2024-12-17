@@ -13,6 +13,9 @@ import re
 import shutil
 from pathlib import Path
 from dataclasses import dataclass, asdict, field
+# from lxml import etree
+# from lxml.etree import _Element, _ElementTree
+from xml.etree import ElementTree as ET
 from pprint import pprint
 from typing import List, Optional, Literal, TypeGuard, get_args
 import cProfile
@@ -109,6 +112,7 @@ def get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
             src_file_path_is_symlink = src_svg_file_path.is_symlink(),
             src_file_path_resolved = src_svg_file_path.resolve()
         ))
+    final_arr.sort(key=lambda x: (x.size))
     return final_arr
 
 def clear_dist():
@@ -136,6 +140,29 @@ def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: Li
             return canonical_icon
     raise FileNotFoundError(f"Cannot find symlink target for {symlink_icon.src_file_path}")
 
+
+def create_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
+    root = ET.Element("RCC")
+    root.set("version", "1.0")
+    for resource in qrc_root.resources:
+        qresource = ET.SubElement(root, "qresource", { 'prefix': resource.prefix })
+        for file in resource.files:
+            ET.SubElement(qresource, "file", { 'alias': file.alias }).text = file.file
+
+    tree = ET.ElementTree(root)
+    ET.indent(tree, space="  ", level=0)
+    xml_string = ET.tostring(root, encoding="UTF-8").decode("utf-8")
+    xml_string_with_header = f'<!DOCTYPE RCC>\n{xml_string}'
+    try:
+        with open(output_file_path, "w", encoding="utf-8") as f:
+            f.write(xml_string_with_header)
+        print(f"File created: {output_file_path}")
+    except Exception as e:
+        print(f"Error when creating {output_file_path}: {e}")
+
+# def create_index_theme_file(output_file_path: Path):
+
+
 def main():
     icon_theme_folders = get_icon_theme_folder_list(SRC_ICON_THEME_FOLDER_SEARCH_ROOT)
     dist_root = Path(DIST_ROOT).joinpath()
@@ -146,8 +173,6 @@ def main():
         qrc.resources.append(QrcQresource(prefix=QRC_QRESOURCE_PREFIX + src_icon_theme_folder.name))
         icon_list = get_icon_list_in_theme(src_icon_theme_folder)
         for icon in icon_list:
-            # if icon.size != '16' or icon.context != 'apps':
-            #     continue
             dist_icon_theme_folder = dist_root.joinpath(icon.theme_name)
             qrc_resource_file_path: Path  # string in <file>...</file> tag.
             if icon.src_file_path.is_symlink():
@@ -160,6 +185,7 @@ def main():
             else:
                 dist_icon_file_path = dist_root / icon.theme_name / icon.context / icon.size / icon.file_name
                 qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
+                easy_copy_file(icon.src_file_path, dist_icon_file_path)
 
             qrc.resources[0].files.append(QrcFile(
                 alias=f"{icon.context}/{icon.size}/{icon.file_name}",
@@ -170,10 +196,13 @@ def main():
             #     file=str(qrc_resource_file_path)
             # ))
             print(asdict(qrc.resources[0].files[-1]))
-
+        create_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
+        # create_index_theme_file(dist_root / src_icon_theme_folder.name / "index.theme")
         # print(f"Icon Theme: {icon_theme_folder.name}")
         # for icon in icon_list:
         #     pprint(asdict(icon), indent=2)
+
+
 
 if __name__ == "__main__":
     # profiler = cProfile.Profile()
