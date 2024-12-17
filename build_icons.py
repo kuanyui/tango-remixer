@@ -20,13 +20,13 @@ from pprint import pprint
 from typing import List, Optional, Literal, TypeGuard, get_args
 import cProfile
 import pstats
+import argparse
 
 IconThemeName = Literal["Humanity", "Humanity-Dark"]
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
 IconContextType = Literal["actions", "apps", "categories", "devices", "emblems", "emotes", "mimetypes", "places", "status"]
-""" `actions`, `apps`, `categories`, `devices`, `emblems`, `emotes`, `mimetypes`, `places`, `status`
-
+"""
 Standard context list:
 https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html"""
 
@@ -68,6 +68,7 @@ class QrcQresource():
 class QrcRoot():
     resources: List[QrcQresource] = field(default_factory=list)
 
+
 SCRIPT_DIR: str = os.path.dirname(__file__)
 
 SRC_ICON_THEME_FOLDER_SEARCH_ROOT: str = os.path.join(SCRIPT_DIR, "thirdparty/humanity_0.4.6")
@@ -86,6 +87,95 @@ e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will b
 
 DIST_ROOT: str = os.path.join(SCRIPT_DIR, "dist")
 
+
+
+@dataclass
+class IconThemeOptions:
+    themes_scan_path: Path
+    output_dist_path: Path
+    sizes: List[IconSizeType]
+    contexts: List[IconContextType]
+    generate_scales: List[str]
+
+    def __post_init__(self):
+        """Validate types"""
+        if not self.themes_scan_path.exists():
+            raise ValueError(f"Themes scan path does not exist: {self.themes_scan_path}")
+
+        self.output_dist_path.mkdir(parents=True, exist_ok=True)
+
+        for size in self.sizes:
+            if not is_icon_size_type(size):
+                raise ValueError(f"Invalid size: {size}")
+
+        for context in self.contexts:
+            if not is_icon_context_type(context):
+                raise ValueError(f"Invalid context: {context}")
+
+        for scale in self.generate_scales:
+            if not scale.isdigit() or int(scale) < 1:
+                raise ValueError(f"Invalid scale factor: {scale}. Must be a positive integer")
+
+    @classmethod
+    def from_args(cls) -> 'IconThemeOptions':
+        parser = argparse.ArgumentParser(
+            description='Icon theme configuration and processing tool',
+            formatter_class=argparse.RawDescriptionHelpFormatter
+        )
+
+        parser.add_argument(
+            '--themes-scan-path', '-i',
+            type=Path,
+            required=False,
+            default=Path(SRC_ICON_THEME_FOLDER_SEARCH_ROOT),
+            help='Path to scan for XDG icon theme packs'
+        )
+
+        parser.add_argument(
+            '--output-dist-path', '-o',
+            type=Path,
+            required=False,
+            default=Path(DIST_ROOT),
+            help='Output directory for generated files'
+        )
+
+        parser.add_argument(
+            '--sizes', '-s',
+            type=lambda x: [s.strip() for s in x.split(',')],
+            required=False,
+            default=list(get_args(IconSizeType)),
+            help=f'Comma-separated list of icon sizes (Available: "{", ".join(get_args(IconSizeType))}")'
+        )
+
+        parser.add_argument(
+            '--contexts', '-c',
+            type=lambda x: [c.strip() for c in x.split(',')],
+            required=False,
+            default=list(get_args(IconContextType)),
+            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextType))}")'
+        )
+
+        parser.add_argument(
+            '--generate-scales', '-S',
+            type=lambda x: [s.strip() for s in x.split(',')],
+            required=False,
+            default=['1', '2', '3'],
+            help='Comma-separated list of scaling factors'
+        )
+
+        args = parser.parse_args()
+
+        return cls(
+            themes_scan_path=args.themes_scan_path,
+            output_dist_path=args.output_dist_path,
+            sizes=args.sizes,
+            contexts=args.contexts,
+            generate_scales=args.generate_scales
+        )
+
+OPTIONS = IconThemeOptions.from_args()
+pprint(asdict(OPTIONS), indent=2)
+exit(0)
 
 def get_icon_theme_folder_list(icon_theme_search_root: str) -> List[Path]:
     final_arr: List[Path] = []
