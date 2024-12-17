@@ -17,7 +17,7 @@ from dataclasses import dataclass, asdict, field
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Optional, Literal, TypeGuard, get_args
+from typing import List, Optional, Literal, TypeGuard, get_args, Dict
 import cProfile
 import pstats
 import argparse
@@ -29,6 +29,7 @@ IconContextType = Literal["actions", "apps", "categories", "devices", "emblems",
 """
 Standard context list:
 https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html"""
+IconScaleType = Literal["1", "2", "3", "4"]
 
 def is_icon_theme_name(x: str) -> TypeGuard[IconThemeName]:
     return x in get_args(IconThemeName)
@@ -38,6 +39,9 @@ def is_icon_size_type(x: str) -> TypeGuard[IconSizeType]:
 
 def is_icon_context_type(x: str) -> TypeGuard[IconContextType]:
     return x in get_args(IconContextType)
+
+def is_icon_scale_type(x: str) -> TypeGuard[IconScaleType]:
+    return x in get_args(IconScaleType)
 
 @dataclass
 class IconSrcFileInfo():
@@ -95,7 +99,7 @@ class IconThemeOptions:
     output_dist_path: Path
     sizes: List[IconSizeType]
     contexts: List[IconContextType]
-    generate_scales: List[str]
+    generate_scales: List[IconScaleType]
 
     def __post_init__(self):
         """Validate types"""
@@ -113,8 +117,8 @@ class IconThemeOptions:
                 raise ValueError(f"Invalid context: {context}")
 
         for scale in self.generate_scales:
-            if not scale.isdigit() or int(scale) < 1:
-                raise ValueError(f"Invalid scale factor: {scale}. Must be a positive integer")
+            if not is_icon_scale_type(scale):
+                raise ValueError(f"Invalid scale factor: {scale}. Must be one of {get_args(IconScaleType)}")
 
     @classmethod
     def from_args(cls) -> 'IconThemeOptions':
@@ -144,7 +148,7 @@ class IconThemeOptions:
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=list(get_args(IconSizeType)),
-            help=f'Comma-separated list of icon sizes (Available: "{", ".join(get_args(IconSizeType))}")'
+            help=f'Comma-separated list of icon sizes (Available: "{", ".join(get_args(IconSizeType))}") Default: all'
         )
 
         parser.add_argument(
@@ -152,15 +156,15 @@ class IconThemeOptions:
             type=lambda x: [c.strip() for c in x.split(',')],
             required=False,
             default=list(get_args(IconContextType)),
-            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextType))}")'
+            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextType))}"). Default: all'
         )
 
         parser.add_argument(
             '--generate-scales', '-S',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
-            default=['1', '2', '3'],
-            help='Comma-separated list of scaling factors'
+            default=['1', '2'],
+            help='Comma-separated list of scaling factors. (Default: 1, 2). Default: all'
         )
 
         args = parser.parse_args()
@@ -175,7 +179,6 @@ class IconThemeOptions:
 
 OPTIONS = IconThemeOptions.from_args()
 pprint(asdict(OPTIONS), indent=2)
-exit(0)
 
 def get_icon_theme_folder_list(icon_theme_search_root: str) -> List[Path]:
     final_arr: List[Path] = []
@@ -237,7 +240,10 @@ def create_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
     for resource in qrc_root.resources:
         qresource = ET.SubElement(root, "qresource", { 'prefix': resource.prefix })
         for file in resource.files:
-            ET.SubElement(qresource, "file", { 'alias': file.alias }).text = file.file
+            if file.alias == file.file:
+                ET.SubElement(qresource, "file").text = file.file
+            else:
+                ET.SubElement(qresource, "file", { 'alias': file.alias }).text = file.file
 
     tree = ET.ElementTree(root)
     ET.indent(tree, space="  ", level=0)
@@ -260,7 +266,14 @@ def main():
     for src_icon_theme_folder in icon_theme_folders:
         qrc = QrcRoot()
         # e.g. /xdg_icon_themes/Humanity
-        qrc.resources.append(QrcQresource(prefix=QRC_QRESOURCE_PREFIX + src_icon_theme_folder.name))
+        scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcFile]] = {}
+        for icon_scale in OPTIONS.generate_scales:
+            scaled_qresource = QrcQresource(
+                prefix=f"{QRC_QRESOURCE_PREFIX}{src_icon_theme_folder.name}",
+                files=[]
+            )
+            scaled_qresource_file_list_dict[icon_scale] = scaled_qresource.files
+            qrc.resources.append(scaled_qresource)
         icon_list = get_icon_list_in_theme(src_icon_theme_folder)
         for icon in icon_list:
             dist_icon_theme_folder = dist_root.joinpath(icon.theme_name)
@@ -277,14 +290,14 @@ def main():
                 qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
                 easy_copy_file(icon.src_file_path, dist_icon_file_path)
 
-            qrc.resources[0].files.append(QrcFile(
-                alias=f"{icon.context}/{icon.size}/{icon.file_name}",
-                file=str(qrc_resource_file_path)
-            ))
-            # qrc.resources[0].files.append(QrcFile(
-            #     alias=f"{icon.context}/{icon.size}@2x/{icon.file_name}",
-            #     file=str(qrc_resource_file_path)
-            # ))
+            for scale_int in OPTIONS.generate_scales:
+                scale_suffix = ""
+                if scale_int != "1":
+                    scale_suffix = f"@{scale_int}x"
+                scaled_qresource_file_list_dict[scale_int].append(QrcFile(
+                    alias=f"{icon.context}/{icon.size}{scale_suffix}/{icon.file_name}",
+                    file=str(qrc_resource_file_path)
+                ))
             print(asdict(qrc.resources[0].files[-1]))
         create_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
         # create_index_theme_file(dist_root / src_icon_theme_folder.name / "index.theme")
