@@ -113,11 +113,6 @@ class QrcRoot():
 
 ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
 
-QRC_QRESOURCE_PREFIX: str = "/xdg_icon_themes/"
-"""To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
-
-e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
-
 
 
 class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
@@ -131,13 +126,18 @@ class IconThemeOptions:
 According for XDG standard:
 - This search root should directly (instead of recursively) contain the XDG icon theme pack folders (e.g. `Humanity`, `Humanity-Dark`).
 - Each icon theme pack folder should contain `index.theme`
-"""
+    """
     output_dist_path: Path
     sizes: List[IconSizeType]
     contexts: List[IconContextDirType]
     generate_scales: List[IconScaleType]
     colorizations: List[ColorizationType]
+    qrc_qresource_prefix: str
+    """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
+
+    e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
     SCRIPT_DIR: Path = Path(os.path.dirname(__file__))
+
 
     def __post_init__(self):
         """Validate types"""
@@ -222,6 +222,16 @@ According for XDG standard:
             help=f'Comma-separated list of scaling factors. (Available: "{", ".join(get_args(IconScaleType))}).'
         )
 
+        parser.add_argument(
+            '--qrc-qresource-prefix', '-q',
+            type=str,
+            required=False,
+            default="/xdg_icon_themes/",
+            help= """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
+
+    e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
+        )
+
         args = parser.parse_args()
 
         return cls(
@@ -230,7 +240,8 @@ According for XDG standard:
             sizes=args.sizes,
             contexts=args.contexts,
             generate_scales=args.generate_scales,
-            colorizations=args.colorize
+            colorizations=args.colorize,
+            qrc_qresource_prefix=args.qrc_qresource_prefix
         )
 
 OPTIONS = IconThemeOptions.from_args()
@@ -305,6 +316,7 @@ def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
     ET.indent(tree, space="  ", level=0)
     xml_string = ET.tostring(root, encoding="UTF-8").decode("utf-8")
     xml_string_with_header = f'<!DOCTYPE RCC>\n{xml_string}'
+    output_file_path.parent.mkdir(parents=True, exist_ok=True)
     try:
         with open(output_file_path, "w", encoding="utf-8") as f:
             f.write(xml_string_with_header)
@@ -331,17 +343,29 @@ def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
 # Context=Applications
 # """
 
+def get_tango_theme_folder_name(src_theme_folder_name: IconThemeSrcFolderName) -> str:
+    match src_theme_folder_name:
+        case "Humanity":
+            return "Tango"
+        case "Humanity-Dark":
+            return "Tango-Dark"
+
 def main():
     icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
     dist_root = OPTIONS.output_dist_path
     clear_dist()
     for src_icon_theme_folder in icon_theme_folders:
+        src_icon_theme_name = src_icon_theme_folder.name
+        if not is_icon_theme_src_folder_name(src_icon_theme_name):
+            print(f'Folder "{src_icon_theme_name}" is not explicitly supported. Skip.')
+            continue
+        tango_theme_foler_name = get_tango_theme_folder_name(src_icon_theme_name)
         qrc = QrcRoot()
         # e.g. /xdg_icon_themes/Humanity
         scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcFile]] = {}
         for icon_scale in OPTIONS.generate_scales:
             scaled_qresource = QrcQresource(
-                prefix=f"{QRC_QRESOURCE_PREFIX}{src_icon_theme_folder.name}",
+                prefix=f"{OPTIONS.qrc_qresource_prefix}{src_icon_theme_folder.name}",
                 files=[]
             )
             scaled_qresource_file_list_dict[icon_scale] = scaled_qresource.files
@@ -369,6 +393,10 @@ def main():
                 ))
             # print(asdict(qrc.resources[0].files[-1]))
         write_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
+        if "tango" in OPTIONS.colorizations:
+            for resource in qrc.resources:
+                resource.prefix = f"{OPTIONS.qrc_qresource_prefix}{tango_theme_foler_name}"
+            write_qrc_file(qrc, dist_root / tango_theme_foler_name / "index.qrc")
 
 
 
