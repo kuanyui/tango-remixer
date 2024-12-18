@@ -108,8 +108,15 @@ class QrcQresource():
 class QrcRoot():
     resources: List[QrcQresource] = field(default_factory=list)
 
-
-
+@dataclass
+class IniSection():
+    section_key: str
+    """ex: `apps/16`, `app/16@2x` """
+    context: XdgContextNameType
+    ori_size: IconSizeType
+    """Original size. If original size is 16, scale is 2, then `Size=` in index.theme should be `16 * 2 = 32` """
+    scaled_size: int
+    scale: IconScaleType
 
 ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
 
