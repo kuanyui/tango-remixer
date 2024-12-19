@@ -438,6 +438,8 @@ def main():
             for resource in qrc.resources:
                 resource.prefix = f"{OPTIONS.qrc_qresource_prefix}{tango_theme_foler_name}"
             write_qrc_file(qrc, dist_root / tango_theme_foler_name / "index.qrc")
+            write_index_theme_file(tango_theme_foler_name, "Tango flavour icon (forked from Ubuntu Humanity)", ini_sections,
+                                dist_root / tango_theme_foler_name / "index.theme")
 
 
 
