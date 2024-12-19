@@ -30,16 +30,16 @@ IconThemeSrcFolderName = Literal["Humanity", "Humanity-Dark"]
 """Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
-IconContextDirType = Literal["actions", "animations", "apps", "categories",
+IconContextType = Literal["actions", "animations", "apps", "categories",
                              "devices", "emblems", "emotes", "intl",
                              "mimetypes", "places", "status"]
 """https://specifications.freedesktop.org/icon-naming-spec/latest/#context"""
-XdgContextNameType = Literal["Actions", "Animations", "Applications", "Categories",
+IniContextNameType = Literal["Actions", "Animations", "Applications", "Categories",
                              "Devices", "Emblems", "Emotes", "International",
                              "MimeTypes", "Places", "Status"]
 """https://specifications.freedesktop.org/icon-naming-spec/latest/#context"""
 
-CONTEXT_MAPPING: Final[dict[IconContextDirType, XdgContextNameType]] = {
+CONTEXT_MAPPING: Final[dict[IconContextType, IniContextNameType]] = {
     "actions": "Actions",
     "animations": "Animations",
     "apps": "Applications",
@@ -52,12 +52,15 @@ CONTEXT_MAPPING: Final[dict[IconContextDirType, XdgContextNameType]] = {
     "places": "Places",
     "status": "Status"
 }
-
 """
 Standard context list:
 https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
 https://specifications.freedesktop.org/icon-naming-spec/latest/#context
 """
+
+def folder_context_to_ini_context (context: IconContextType) -> IniContextNameType:
+    return CONTEXT_MAPPING[context]
+
 IconScaleType = Literal["1", "2", "3", "4"]
 
 
@@ -67,8 +70,8 @@ def is_icon_theme_src_folder_name(x: str) -> TypeGuard[IconThemeSrcFolderName]:
 def is_icon_size_type(x: str) -> TypeGuard[IconSizeType]:
     return x in get_args(IconSizeType)
 
-def is_icon_context_dir_type(x: str) -> TypeGuard[IconContextDirType]:
-    return x in get_args(IconContextDirType)
+def is_icon_context_dir_type(x: str) -> TypeGuard[IconContextType]:
+    return x in get_args(IconContextType)
 
 def is_icon_scale_type(x: str) -> TypeGuard[IconScaleType]:
     return x in get_args(IconScaleType)
@@ -84,7 +87,7 @@ class IconSrcFileInfo():
     """Basic information of an SVG source file in the unmodified icon theme.
     You can use these information to generate a XDG-compatible icon path."""
     theme_src_folder_name: IconThemeSrcFolderName
-    context: IconContextDirType
+    context: IconContextType
     size: IconSizeType
     file_name: str
     """ex: `totem.svg`. (this file may be a symlink, and symlink will not be resolved here """
@@ -110,12 +113,12 @@ class QrcRoot():
 
 @dataclass
 class IniSection():
-    section_key: str
-    """ex: `apps/16`, `app/16@2x` """
-    context: XdgContextNameType
+    directory: str
+    """ex: `apps/16`, `app/16@2x`
+    Used as ini section, and in `[Icon Theme] -> Directories=...`"""
+    context: IconContextType
     ori_size: IconSizeType
     """Original size. If original size is 16, scale is 2, then `Size=` in index.theme should be `16 * 2 = 32` """
-    scaled_size: int
     scale: IconScaleType
 
 ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
@@ -136,7 +139,7 @@ According for XDG standard:
     """
     output_dist_path: Path
     sizes: List[IconSizeType]
-    contexts: List[IconContextDirType]
+    contexts: List[IconContextType]
     generate_scales: List[IconScaleType]
     colorizations: List[ColorizationType]
     qrc_qresource_prefix: str
@@ -217,8 +220,8 @@ According for XDG standard:
             '--contexts', '-C',
             type=lambda x: [c.strip() for c in x.split(',')],
             required=False,
-            default=list(get_args(IconContextDirType)),
-            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextDirType))}").'
+            default=list(get_args(IconContextType)),
+            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextType))}").'
         )
 
         parser.add_argument(
@@ -331,24 +334,35 @@ def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
     except Exception as e:
         print(f"Error when creating {output_file_path}: {e}")
 
-# def create_index_theme_file(output_file_path: Path):
-#     content = """\
-# # This is my custom icon theme
-# # Created by someone
+def write_index_theme_file(name: str, comment: str, entries: List[IniSection], output_index_theme_file_path: Path):
+    fmtted_directories: str = ",".join([x.directory for x in entries])
+    file_content = f"""\
+[Icon Theme]
+Name={name}
+Comment={comment}
+Inherits=gnome,hicolor
 
-# [Icon Theme]
-# Name={theme_name}
-# Comment=An example icon theme
-# Directories=scalable,16x16,32x32
-# Inherits=hicolor
+Example=directory-x-normal
 
-# [scalable]
-# Size=48
-# Type=Scalable
-# MinSize=32
-# MaxSize=256
-# Context=Applications
-# """
+# Directory list
+Directories={fmtted_directories}
+
+"""
+    for entry in entries:
+        lines: List[str] = [f'[{entry.directory}]']
+        if entry.scale != '1':
+            lines.append(f'Scale={entry.scale}')
+        lines.append(f'Size={int(entry.ori_size) * int(entry.scale)}')
+        lines.append(f'Context={folder_context_to_ini_context(entry.context)}')
+        lines.append(f'Type=Fixed')
+        file_content += "\n".join(lines)
+        file_content += "\n\n"
+    try:
+        with open(output_index_theme_file_path, "w", encoding="utf-8") as f:
+            f.write(file_content)
+        print(f"File created: {output_index_theme_file_path}")
+    except Exception as e:
+        print(f"Error when creating {output_index_theme_file_path}: {e}")
 
 def get_tango_theme_folder_name(src_theme_folder_name: IconThemeSrcFolderName) -> str:
     match src_theme_folder_name:
@@ -356,6 +370,22 @@ def get_tango_theme_folder_name(src_theme_folder_name: IconThemeSrcFolderName) -
             return "Tango"
         case "Humanity-Dark":
             return "Tango-Dark"
+
+def add_ini_section(ini_sections: List[IniSection], context: IconContextType, size: IconSizeType) -> None:
+    for exist_section in ini_sections:
+        if exist_section.context == context and exist_section.ori_size == size:
+            return
+    for scale in OPTIONS.generate_scales:
+        scale_int: int = int(scale)
+        directory: str = f'{context}/{size}'
+        if scale != '1':
+            directory = f'{context}/{size}@{scale_int}x'
+        ini_sections.append(IniSection(
+            directory=directory,
+            context=context,
+            scale=scale,
+            ori_size=size
+        ))
 
 def main():
     icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
@@ -368,6 +398,7 @@ def main():
             continue
         tango_theme_foler_name = get_tango_theme_folder_name(src_icon_theme_name)
         qrc = QrcRoot()
+        ini_sections: List[IniSection] = []
         # e.g. /xdg_icon_themes/Humanity
         scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcFile]] = {}
         for icon_scale in OPTIONS.generate_scales:
@@ -398,8 +429,11 @@ def main():
                     alias=f"{icon.context}/{icon.size}{scale_suffix}/{icon.file_name}",
                     file=str(qrc_resource_file_path)
                 ))
+            add_ini_section(ini_sections, icon.context, icon.size)
             # print(asdict(qrc.resources[0].files[-1]))
         write_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
+        write_index_theme_file(src_icon_theme_name, "Humanity from Ubuntu", ini_sections,
+                               dist_root / src_icon_theme_folder.name / "index.theme")
         if "tango" in OPTIONS.colorizations:
             for resource in qrc.resources:
                 resource.prefix = f"{OPTIONS.qrc_qresource_prefix}{tango_theme_foler_name}"
