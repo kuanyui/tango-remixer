@@ -418,8 +418,11 @@ def main():
                 qrc_resource_file_path = dist_icon_file_path.resolve().relative_to(dist_icon_theme_folder)
             else:
                 dist_icon_file_path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
-                qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
                 easy_copy_file(icon.src_file_path, dist_icon_file_path)
+                qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
+                if "tango" in OPTIONS.colorizations:
+                    dist_icon_file_path = dist_root / tango_theme_foler_name / icon.context / icon.size / icon.file_name
+                    easy_copy_file(icon.src_file_path, dist_icon_file_path)
 
             for scale_int in OPTIONS.generate_scales:
                 scale_suffix = ""
