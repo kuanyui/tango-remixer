@@ -439,6 +439,12 @@ def main():
             continue
         tango_theme_foler_name = get_tango_theme_folder_name(src_icon_theme_name)
         qrc = QrcRoot()
+        qrc.resources.append(
+            QrcQresource(
+                    prefix=f"{OPTIONS.qrc_qresource_prefix}{src_icon_theme_folder.name}",
+                    files=[QrcFile(alias="index.theme", file="index.theme")]
+            )
+        )
         ini_sections: List[IniSection] = []
         # e.g. /xdg_icon_themes/Humanity
         scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcFile]] = {}
