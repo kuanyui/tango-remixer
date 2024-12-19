@@ -17,7 +17,7 @@ from dataclasses import dataclass, asdict, field
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Literal, TypeGuard, get_args, Dict, Final
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Set
 # import cProfile
 # import pstats
 import argparse
@@ -95,14 +95,14 @@ class IconSrcFileInfo():
 
 
 @dataclass
-class QrcFile():
+class QrcQresourceFile():
     alias: str
     file: str
 
 @dataclass
 class QrcQresource():
     prefix: str
-    files: List[QrcFile] = field(default_factory=list)
+    files: List[QrcQresourceFile] = field(default_factory=list)
 
 @dataclass
 class QrcRoot():
@@ -134,6 +134,7 @@ According for XDG standard:
 - This search root should directly (instead of recursively) contain the XDG icon theme pack folders (e.g. `Humanity`, `Humanity-Dark`).
 - Each icon theme pack folder should contain `index.theme`
     """
+    optimizer_scan_path: Path | None
     output_dist_path: Path
     sizes: List[IconSizeType]
     contexts: List[IconContextType]
@@ -175,7 +176,14 @@ According for XDG standard:
             description='Icon theme configuration and processing tool',
             formatter_class=MyHelpFormatter
         )
+        parser.add_argument(
+            '--optimizer-scan-path', '-O',
+            type=Path,
+            required=False,
+            help='''The root path of your Qt project (which contains C++ / QML files).
 
+            If specified, this will try to scan all .cpp, .h, .hpp, .c, .qml files and generate minimalized .qrc files. '''
+        )
         parser.add_argument(
             '--themes-scan-path', '-i',
             type=Path,
@@ -196,7 +204,6 @@ According for XDG standard:
             default=IconThemeOptions.SCRIPT_DIR / "dist",
             help='Output directory for generated files'
         )
-
         parser.add_argument(
             '--colorize', '-c',
             type=lambda x: [s.strip() for s in x.split(',')],
@@ -242,6 +249,7 @@ According for XDG standard:
         args = parser.parse_args()
 
         return cls(
+            optimizer_scan_path=args.optimizer_scan_path,
             themes_scan_path=args.themes_scan_path,
             output_dist_path=args.output_dist_path,
             sizes=args.sizes,
@@ -249,6 +257,7 @@ According for XDG standard:
             generate_scales=args.generate_scales,
             colorizations=args.colorize,
             qrc_qresource_prefix=args.qrc_qresource_prefix
+
         )
 
 OPTIONS = IconThemeOptions.from_args()
@@ -263,7 +272,7 @@ def get_icon_theme_folder_list(icon_theme_search_root: Path) -> List[Path]:
             final_arr.append(folder)
     return final_arr
 
-def get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
+def recursive_get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
     final_arr: List[IconSrcFileInfo] = []
     for src_svg_file_path in icon_theme_folder.rglob("*.svg"):
         m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(str(src_svg_file_path))
@@ -395,6 +404,38 @@ def add_ini_section(ini_sections: List[IniSection], context: IconContextType, si
             ori_size=size
         ))
 
+def scan_used_icon_in_project(all_icon_names: Set[str]) -> Set[str]:
+    """Scan Qt project, and returns a minimal set of referenced icon names. For generate an optimized and minimal qrc file."""
+    used_icons: Set[str] = set()
+    all_icon_patterns: Dict[str, re.Pattern[str]] = {}
+    if OPTIONS.optimizer_scan_path is None:
+        return all_icon_names
+    for icon_name in all_icon_names:
+        candidates: List[str] = []
+        candidates.append(icon_name)
+        candidates.append(re.sub(r'-', '_', icon_name))
+        candidates.append(re.sub(r'-', '', icon_name))
+        patt_str: str = '|'.join(candidates)
+        # all_icon_patterns[icon_name] = re.compile(rf'\b{icon_name}\b', re.IGNORECASE)
+        all_icon_patterns[icon_name] = re.compile(patt_str, re.IGNORECASE)
+
+    for file_path in OPTIONS.optimizer_scan_path.rglob("*"):
+        if not file_path.is_file():
+            continue
+        try:
+            file_content = file_path.read_text(encoding='utf-8')
+            for icon_name in all_icon_patterns:
+                if icon_name in used_icons:
+                    continue
+                if all_icon_patterns[icon_name].search(file_content):
+                    used_icons.add(icon_name)
+        except (UnicodeDecodeError, PermissionError):
+            continue
+        except Exception as e:
+            print(f"Error reading {file_path}: {e}")
+
+    return used_icons
+
 def main():
     icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
     dist_root = OPTIONS.output_dist_path
@@ -409,12 +450,12 @@ def main():
         qrc.resources.append(
             QrcQresource(
                     prefix=f"{OPTIONS.qrc_qresource_prefix}{src_icon_theme_folder.name}",
-                    files=[QrcFile(alias="index.theme", file="index.theme")]
+                    files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
             )
         )
         ini_sections: List[IniSection] = []
         # e.g. /xdg_icon_themes/Humanity
-        scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcFile]] = {}
+        scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcQresourceFile]] = {}
         for icon_scale in OPTIONS.generate_scales:
             scaled_qresource = QrcQresource(
                 prefix=f"{OPTIONS.qrc_qresource_prefix}{src_icon_theme_folder.name}",
@@ -422,7 +463,13 @@ def main():
             )
             scaled_qresource_file_list_dict[icon_scale] = scaled_qresource.files
             qrc.resources.append(scaled_qresource)
-        icon_list = get_icon_list_in_theme(src_icon_theme_folder)
+        icon_list = recursive_get_icon_list_in_theme(src_icon_theme_folder)
+        # Optimizer
+        ALL_ICON_NAMES: Set[str] = set()
+        for icon in icon_list:
+            ALL_ICON_NAMES.add(icon.src_file_path.stem)
+        icons_used_in_project = scan_used_icon_in_project(ALL_ICON_NAMES)
+        # iterate over all icon files in this theme folder
         for icon in icon_list:
             dist_icon_theme_folder = dist_root.joinpath(icon.theme_src_folder_name)
             qrc_resource_file_path: Path  # string in <file>...</file> tag.
@@ -442,10 +489,11 @@ def main():
                 scale_suffix = ""
                 if scale_int != "1":
                     scale_suffix = f"@{scale_int}x"
-                scaled_qresource_file_list_dict[scale_int].append(QrcFile(
-                    alias=f"{icon.context}/{icon.size}{scale_suffix}/{icon.file_name}",
-                    file=str(qrc_resource_file_path)
-                ))
+                if icon.src_file_path.stem in icons_used_in_project:
+                    scaled_qresource_file_list_dict[scale_int].append(QrcQresourceFile(
+                        alias=f"{icon.context}/{icon.size}{scale_suffix}/{icon.file_name}",
+                        file=str(qrc_resource_file_path)
+                    ))
             add_ini_section(ini_sections, icon.context, icon.size)
             # print(asdict(qrc.resources[0].files[-1]))
         write_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
