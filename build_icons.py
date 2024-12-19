@@ -21,9 +21,7 @@ from typing import List, Literal, TypeGuard, get_args, Dict, Final
 # import cProfile
 # import pstats
 import argparse
-
-
-
+import colorsys
 
 
 IconThemeSrcFolderName = Literal["Humanity", "Humanity-Dark"]
@@ -257,6 +255,39 @@ According for XDG standard:
 OPTIONS = IconThemeOptions.from_args()
 pprint(asdict(OPTIONS), indent=2)
 
+
+def color_hex_to_hsl(hex_color: str) -> List[int]:
+   hex_color = hex_color.lstrip('#')
+   if len(hex_color) == 3:
+       hex_color = ''.join(c * 2 for c in hex_color)
+   r = int(hex_color[0:2], 16) / 255.0
+   g = int(hex_color[2:4], 16) / 255.0
+   b = int(hex_color[4:6], 16) / 255.0
+   h, l, s = colorsys.rgb_to_hls(r, g, b)
+   return [
+       round(h * 360),
+       round(s * 100),
+       round(l * 100)
+   ]
+
+def color_hsl_to_hex(hsl_color: List[int]) -> str:
+    h, s, l = hsl_color
+    r, g, b = colorsys.hls_to_rgb(h / 360, l / 100, s / 100)
+    return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
+
+def color_tango_colorizer(hex_color: str) -> str:
+    h, s, l = color_hex_to_hsl(hex_color)
+    if 15 <= h <= 55:
+        h += 170
+        h = h % 360
+        if s > 50:
+            s -= 10
+    return color_hsl_to_hex([h, s, l])
+
+def tango_colorize_svg_content(svg_file_content: str) -> str:
+    pattern = r'#[A-Fa-f0-9]{3}(?:[A-Fa-f0-9]{3})?'
+    return re.sub(pattern, lambda m: color_tango_colorizer(m.group(0)), svg_file_content)
+
 def get_icon_theme_folder_list(icon_theme_search_root: Path) -> List[Path]:
     final_arr: List[Path] = []
     for folder in Path(icon_theme_search_root).iterdir():
@@ -288,19 +319,29 @@ def get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
 def clear_dist():
     shutil.rmtree(OPTIONS.output_dist_path, ignore_errors=True)
 
-def easy_copy_file(src: str | Path, dst: str | Path) -> None:
+
+
+def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none", "tango_colorizer"]) -> None:
     src_path: Path = Path(src)
     if src_path.is_symlink():
         return None
     dst_path: Path = Path(dst)
     dst_path.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src, dst)
+    if preprocessor == 'none':
+        shutil.copy2(src, dst)
+        return
+    if preprocessor == 'tango_colorizer':
+        with open(src, 'r', encoding='utf-8') as f:
+            raw_content = f.read()
+        with open(dst, 'w', encoding='utf-8') as f:
+            f.write(tango_colorize_svg_content(raw_content))
+        return
 
 
 # def copy_icon_to_dist(icon: IconSrcFileInfo):
 #     dist_root = Path(DIST_ROOT).joinpath()
 #     dist_file_path = dist_root.joinpath(icon.theme_name, icon.context, icon.size, icon.file_name)
-#     easy_copy_file(icon.src_file_path, dist_file_path)
+#     copy_svg_file(icon.src_file_path, dist_file_path)
 
 def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: List[IconSrcFileInfo]) -> IconSrcFileInfo:
     for canonical_icon in all_icons:
@@ -418,11 +459,11 @@ def main():
                 qrc_resource_file_path = dist_icon_file_path.resolve().relative_to(dist_icon_theme_folder)
             else:
                 dist_icon_file_path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
-                easy_copy_file(icon.src_file_path, dist_icon_file_path)
+                copy_svg_file(icon.src_file_path, dist_icon_file_path, "none")
                 qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
                 if "tango" in OPTIONS.colorizations:
                     dist_icon_file_path = dist_root / tango_theme_foler_name / icon.context / icon.size / icon.file_name
-                    easy_copy_file(icon.src_file_path, dist_icon_file_path)
+                    copy_svg_file(icon.src_file_path, dist_icon_file_path, "tango_colorizer")
 
             for scale_int in OPTIONS.generate_scales:
                 scale_suffix = ""
