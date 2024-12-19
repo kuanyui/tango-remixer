@@ -301,7 +301,7 @@ def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none"
         with open(src, 'r', encoding='utf-8') as f:
             raw_content = f.read()
         with open(dst, 'w', encoding='utf-8') as f:
-            f.write(tango_colorize_svg_content(raw_content))
+            f.write(tango_colorize_svg_content(raw_content, dst_path.stem))
         return
 
 
