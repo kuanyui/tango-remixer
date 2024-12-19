@@ -3,7 +3,7 @@ from dataclasses import dataclass, asdict, field
 from typing import List, Literal
 import re
 
-ColorizeRule = Literal["orange_to_blue", "orange_to_green", "orange_to_dim_green", "orange_to_red", "wine_to_blue"]
+ColorizeRule = Literal["orange_to_blue", "orange_to_green", "orange_to_dim_green", "orange_to_red", "red_to_blue", ]
 
 @dataclass
 class IncludedFile():
@@ -40,6 +40,9 @@ INCLUDED_FILES: List[IncludedFile] = [
     IncludedFile(name="preferences-desktop-wallpaper", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="video-x-generic", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="system-file-manager", colorize_rules=["orange_to_blue"]),
+    # IncludedFile(name="system-upgrade", colorize_rules=["orange_to_red"]),
+    IncludedFile(name="gnome-panel-workspace-switcher", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="preferences-desktop-theme", colorize_rules=["orange_to_blue"]),
     # =================
     # actions
     # =================
@@ -75,7 +78,7 @@ INCLUDED_FILES: List[IncludedFile] = [
     # =================
     # devices
     # =================
-    IncludedFile(name="computer", colorize_rules=["wine_to_blue"]),
+    IncludedFile(name="computer", colorize_rules=["red_to_blue"]),
     # IncludedFile(name="", colorize_rules=[]),
 ]
 
@@ -98,37 +101,38 @@ def color_hsl_to_hex(hsl_color: List[int]) -> str:
     r, g, b = colorsys.hls_to_rgb(h / 360, l / 100, s / 100)
     return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
 
-def tango_colorize_hex_code_with_rule(hex_color: str, rule: ColorizeRule) -> str:
+def tango_colorize_hex_code_with_rule(hex_color: str, rules: List[ColorizeRule]) -> str:
     h, s, l = color_hex_to_hsl(hex_color)
-    match rule:
-        case "orange_to_blue":
-            if 15 <= h <= 55:
-                h += 170
-                if s > 50:
+    for rule in rules:
+        match rule:
+            case "orange_to_blue":
+                if 15 <= h <= 55:
+                    h += 170
+                    if s > 50:
+                        s -= 20
+                    if l > 50:
+                        l += 10
+                    else:
+                        l -= 5
+            case "orange_to_green":
+                if 15 <= h <= 55:
+                    h += 40
+                    s -= 30
+                    l -= 0
+            case "orange_to_dim_green":
+                if 15 <= h <= 55:
+                    h += 40
+                    s -= 50
+                    l -= 10
+            case "orange_to_red":
+                if 15 <= h <= 55:
+                    h -= 15
+                    s -= 10
+            case "red_to_blue":
+                if 0 <= h <= 30:
+                    h += 185
                     s -= 20
-                if l > 50:
-                    l += 10
-                else:
-                    l -= 5
-        case "orange_to_green":
-            if 15 <= h <= 55:
-                h += 40
-                s -= 30
-                l -= 0
-        case "orange_to_dim_green":
-            if 15 <= h <= 55:
-                h += 40
-                s -= 50
-                l -= 10
-        case "orange_to_red":
-            if 15 <= h <= 55:
-                h -= 15
-                s -= 10
-        case "wine_to_blue":
-            if 0 <= h <= 30:
-                h += 185
-                s -= 20
-                l += 30
+                    l += 30
     h = h % 360
     s = max(0, s)
     s = min(100, s)
@@ -140,8 +144,6 @@ def tango_colorize_svg_content(svg_file_content: str, svg_file_name_without_ext:
     included_file = next((x for x in INCLUDED_FILES if x.name == svg_file_name_without_ext), None)
     if included_file is None:
         return svg_file_content
-    if len(included_file.colorize_rules) == 0:
-        return svg_file_content
     pattern = r'#[A-Fa-f0-9]{3}(?:[A-Fa-f0-9]{3})?'
-    return re.sub(pattern, lambda m: tango_colorize_hex_code_with_rule(m.group(0), included_file.colorize_rules[0]), svg_file_content)
+    return re.sub(pattern, lambda m: tango_colorize_hex_code_with_rule(m.group(0), included_file.colorize_rules), svg_file_content)
 
