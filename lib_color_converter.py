@@ -1,5 +1,5 @@
 import colorsys
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass
 from typing import List, Literal
 import re
 
@@ -43,6 +43,7 @@ INCLUDED_FILES: List[IncludedFile] = [
     # IncludedFile(name="system-upgrade", colorize_rules=["orange_to_red"]),
     IncludedFile(name="gnome-panel-workspace-switcher", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="preferences-desktop-theme", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="gdm-setup", colorize_rules=["red_to_blue"]),
     # =================
     # actions
     # =================

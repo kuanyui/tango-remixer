@@ -218,8 +218,18 @@ Type=Fixed
 ```
 
 ### Usage in C++
+- CMakeLists
+```cmakelists
+    qt_add_executable(qkiss
+        MANUAL_FINALIZATION
+        ${PROJECT_SOURCES}
+        resources/tango_icons_for_qt/dist/Tango/index.qrc
+    )
+```
+
+- mainwindow.cpp
 ```cpp
-    QIcon::setThemeSearchPaths({ ":/xdg_icon_theme" });
+    QIcon::setThemeSearchPaths({ ":/xdg_icon_themes" });
     QIcon::setThemeName("Tango");
     setWindowIcon(QIcon::fromTheme("paprefs"));
 ```

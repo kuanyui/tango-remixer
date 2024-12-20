@@ -424,6 +424,12 @@ def scan_used_icon_in_project(all_icon_names: Set[str]) -> Set[str]:
             continue
         try:
             file_content = file_path.read_text(encoding='utf-8')
+
+            if 'QFileIconProvider' in file_content:
+                for icon_name in all_icon_names:
+                    if ('-x-' in icon_name) or (icon_name.startswith('application-')) or ('folder' in icon_name) :
+                        used_icons.add(icon_name)
+
             for icon_name in all_icon_patterns:
                 if icon_name in used_icons:
                     continue
