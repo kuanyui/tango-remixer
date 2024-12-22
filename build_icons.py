@@ -22,6 +22,7 @@ from typing import List, Literal, TypeGuard, get_args, Dict, Final, Set
 # import pstats
 import argparse
 from lib_color_converter import *
+from lib_download_extract_tarballs import ensure_thirdparty_files
 
 IconThemeSrcFolderName = Literal["Humanity", "Humanity-Dark"]
 """Source folder name of the icon theme pack. """
@@ -149,8 +150,8 @@ According for XDG standard:
 
     def __post_init__(self):
         """Validate types"""
-        if not self.themes_scan_path.exists():
-            raise ValueError(f"Themes scan path does not exist: {self.themes_scan_path}")
+        # if not self.themes_scan_path.exists():
+        #     raise ValueError(f"Themes scan path does not exist: {self.themes_scan_path}")
 
         self.output_dist_path.mkdir(parents=True, exist_ok=True)
 
@@ -443,6 +444,7 @@ def scan_used_icon_in_project(all_icon_names: Set[str]) -> Set[str]:
     return used_icons
 
 def main():
+    ensure_thirdparty_files(OPTIONS.SCRIPT_DIR / "thirdparty")
     icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
     dist_root = OPTIONS.output_dist_path
     clear_dist()
