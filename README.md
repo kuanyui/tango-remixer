@@ -19,16 +19,19 @@ Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Hum
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
 - thirdparty/[humanity_0.4.6.tar.gz](https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz)
-  > Clone from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
+  - Clone from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
 - thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2)
-  > For reference only. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
+  - For reference only. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
 
 # Build .svg and .qrc
 ```sh
 make build   # download tarballs & extract, then build .svg and .qrc into dist/
 make clean   # delete dist/
 make clean-tarballs    # delete all thirdparty tarballs (so that you can download again if you encountered fail)
+python3 ./build_icons.py --help  # see other options
 ```
+
+For how to use in Qt C++ project, see the following descriptions.
 
 # What Are This Project Do?
 > ## References
