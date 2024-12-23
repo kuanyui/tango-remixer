@@ -48,7 +48,7 @@ def ensure_thirdparty_files(thirdparty_folder_path: Path) -> None:
     for url in [URL_HUMANITY, URL_TANGO]:
         tarball_name: str = url.split("/")[-1]
         tarball_path: Path = thirdparty_folder_path / tarball_name
-        extracted_folder_path = tarball_path.with_suffix("")
+        extracted_folder_path = tarball_path.with_suffix("").with_suffix("")
         if not extracted_folder_path.exists():
             if not tarball_path.exists():
                 print(f"Downloading {tarball_name}...")
