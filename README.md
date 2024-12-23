@@ -54,19 +54,19 @@ Let me start with a simplest example. The directory structure of `humanity_0.4.6
 ./
 └── humanity_0.4.6/
     ├── Humanity/
-    │   ├── actions/
-    │   ├── animations/
-    │   ├── apps/
-    │   ├── categories/
-    │   ├── devices/
-    │   ├── emblems/
-    │   ├── mimes/
-    │   ├── places/
-    │   ├── status/
-    │   ├── stock/
-    │   ├── AUTHORS
-    │   ├── COPYING
-    │   └── index.theme      # <- Must be included in .qrc, so that become accessible via C++ API.
+    │   ├── actions/
+    │   ├── animations/
+    │   ├── apps/
+    │   ├── categories/
+    │   ├── devices/
+    │   ├── emblems/
+    │   ├── mimes/
+    │   ├── places/
+    │   ├── status/
+    │   ├── stock/
+    │   ├── AUTHORS
+    │   ├── COPYING
+    │   └── index.theme      # <- Must be included in .qrc, so that become accessible via C++ API.
     └── Humanity-Dark/
         ├── actions/
         ├── apps/
