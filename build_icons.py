@@ -417,7 +417,7 @@ def scan_used_icon_in_project(all_icon_names: Set[str]) -> Set[str]:
         candidates.append(re.sub(r'-', '_', icon_name))
         candidates.append(re.sub(r'-', '', icon_name))
         patt_str: str = '|'.join(candidates)
-        # all_icon_patterns[icon_name] = re.compile(rf'\b{icon_name}\b', re.IGNORECASE)
+        patt_str = rf'\b({patt_str})\b'
         all_icon_patterns[icon_name] = re.compile(patt_str, re.IGNORECASE)
 
     for file_path in OPTIONS.optimizer_scan_path.rglob("*"):
