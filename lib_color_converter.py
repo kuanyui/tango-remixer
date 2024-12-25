@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from typing import List, Literal
 import re
 
-ColorizeRule = Literal["orange_to_blue", "orange_to_green", "orange_to_dim_green", "orange_to_red", "red_to_blue", ]
+ColorizeRule = Literal["orange_to_blue", "orange_to_dim_blue", "orange_to_green", "orange_to_dim_green", "orange_to_red", "red_to_blue", ]
 
 @dataclass
 class IncludedFile():
@@ -14,30 +14,40 @@ INCLUDED_FILES: List[IncludedFile] = [
     # =================
     # places
     # =================
-    IncludedFile(name="folder-documents", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-download", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-music", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-publicshare", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-remote", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-saved-search", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-system", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-video", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-visiting", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="folder-documents", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-download", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-music", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-publicshare", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-remote", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-saved-search", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-system", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-video", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-home", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-templates", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-visiting", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="gnome-fs-web", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_dim_blue"]),   # folder
     IncludedFile(name="network-server", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="stock_smart-playlist", colorize_rules=["orange_to_blue"]),
     # IncludedFile(name="user-desktop", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="user-home", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="user-home", colorize_rules=["orange_to_dim_blue"]),   # folder
     IncludedFile(name="user-trash-full", colorize_rules=["orange_to_dim_green"]),
     IncludedFile(name="user-trash", colorize_rules=["orange_to_dim_green"]),
+    IncludedFile(name="x-office-spreadsheet", colorize_rules=["orange_to_green"]),
+    IncludedFile(name="x-office-document", colorize_rules=["orange_to_green"]),
+    IncludedFile(name="ooo-template", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="ooo-impress", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="ooo-web", colorize_rules=["orange_to_blue"]),
     # =================
     # apps
     # =================
     IncludedFile(name="gconf-editor", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="gnome-control-centre", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="preferences-desktop-wallpaper", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="preferences-desktop-remote-desktop", colorize_rules=["red_to_blue"]),
+    IncludedFile(name="session-properties", colorize_rules=["red_to_blue"]),
     IncludedFile(name="video-x-generic", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="system-file-manager", colorize_rules=["orange_to_blue"]),
     # IncludedFile(name="system-upgrade", colorize_rules=["orange_to_red"]),
@@ -47,10 +57,10 @@ INCLUDED_FILES: List[IncludedFile] = [
     # =================
     # actions
     # =================
-    IncludedFile(name="document-open", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="folder-new", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="document-save-as", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="document-save", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="document-open", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-new", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="document-save-as", colorize_rules=["orange_to_green"]),
+    IncludedFile(name="document-save", colorize_rules=["orange_to_green"]),
     IncludedFile(name="system-log-out", colorize_rules=["orange_to_red"]),
     IncludedFile(name="rotate", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_blue"]),
@@ -115,6 +125,15 @@ def tango_colorize_hex_code_with_rule(hex_color: str, rules: List[ColorizeRule])
                         l += 10
                     else:
                         l -= 5
+            case "orange_to_dim_blue":
+                if 15 <= h <= 55:
+                    h += 180
+                    if s > 30:
+                        s -= 30
+                    if l > 50:
+                        l += 5
+                    else:
+                        l -= 5
             case "orange_to_green":
                 if 15 <= h <= 55:
                     h += 40
@@ -132,8 +151,8 @@ def tango_colorize_hex_code_with_rule(hex_color: str, rules: List[ColorizeRule])
             case "red_to_blue":
                 if 0 <= h <= 30:
                     h += 185
-                    s -= 20
-                    l += 30
+                    s -= 35
+                    l += 20
     h = h % 360
     s = max(0, s)
     s = min(100, s)
