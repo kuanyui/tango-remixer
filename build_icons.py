@@ -286,8 +286,6 @@ class IconThemeOptions:
     """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
     e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
-    SCRIPT_DIR: Path = Path(os.path.dirname(__file__))
-
 
     def __post_init__(self):
         """Validate types"""
@@ -326,8 +324,8 @@ SRC_THEME_NAME\tSRC_CONTEXT/SRC_ICON_NAME\tDST_CONTEXT/DST_ICON_NAME
         parser.add_argument(
             '--output-theme-name', '-o',
             type=Path,
-            required=False,
-            default=IconThemeOptions.SCRIPT_DIR / "dist",
+            required=True,
+            default="Output Theme",
             help='Output theme name, which will become the name of outputted folder. This folder will become a XDG icon theme folder (contains in root of this folder: context dirs, index.theme, index.qrc).'
         )
         parser.add_argument(
