@@ -61,6 +61,7 @@ def folder_context_to_ini_context (context: IconContextType) -> IniContextNameTy
 
 IconScaleType = Literal["1", "2", "3", "4"]
 
+IconFileFormat = Literal["svg", "png"]
 
 def is_icon_theme_src_folder_name(x: str) -> TypeGuard[IconThemeFolderName]:
     return x in get_args(IconThemeFolderName)
@@ -74,11 +75,14 @@ def is_icon_context_dir_type(x: str) -> TypeGuard[IconContextType]:
 def is_icon_scale_type(x: str) -> TypeGuard[IconScaleType]:
     return x in get_args(IconScaleType)
 
+def is_icon_file_format(x: str) -> TypeGuard[IconFileFormat]:
+    return x in get_args(IconFileFormat)
+
 @dataclass
 class IconSrcFileInfo():
     """Basic information of an SVG source file in the unmodified icon theme.
     You can use these information to generate a XDG-compatible icon path."""
-    theme_src_folder_name: IconThemeFolderName
+    theme_src_folder_name: str
     context: IconContextType
     size: IconSizeType
     file_name: str
@@ -125,9 +129,10 @@ class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelp
 class IconThemeOptions:
     themes_scan_path: Path
     included_icon_file: Path
-    output_dist_path: Path
+    output_theme_folder_path: Path
     sizes: List[IconSizeType]
     generate_scales: List[IconScaleType]
+    output_icon_file_format: IconFileFormat
     qrc_qresource_prefix: str
     """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
@@ -140,7 +145,7 @@ class IconThemeOptions:
         # if not self.themes_scan_path.exists():
         #     raise ValueError(f"Themes scan path does not exist: {self.themes_scan_path}")
 
-        self.output_dist_path.mkdir(parents=True, exist_ok=True)
+        self.output_theme_folder_path.mkdir(parents=True, exist_ok=True)
 
         for size in self.sizes:
             if not is_icon_size_type(size):
@@ -164,7 +169,7 @@ class IconThemeOptions:
             help='''
 This file should be a plain text file, and the format of each line should be:
 
-THEME_NAME\tSRC_CONTEXT/SRC_ICON_NAME\tDST_CONTEXT/DST_ICON_NAME
+SRC_THEME_NAME\tSRC_CONTEXT/SRC_ICON_NAME\tDST_CONTEXT/DST_ICON_NAME
 
 - CONTEXT is optional.
 - ICON_NAME should not contain the extension.
@@ -184,11 +189,19 @@ According for XDG standard:
         )
 
         parser.add_argument(
-            '--output-dist-path', '-o',
+            '--output-theme-folder-path', '-o',
             type=Path,
             required=False,
             default=IconThemeOptions.SCRIPT_DIR / "dist",
-            help='Output directory for generated files'
+            help='Output path for the generated icon theme pack. This folder will be cleared and become a XDG icon theme (contains in root of this folder: context dirs, index.theme, index.qrc).'
+        )
+
+        parser.add_argument(
+            '--output-icon-file-format', '-f',
+            type=str,
+            required=False,
+            default="svg",
+            help=f'Output icon format, default is "svg". "png" requires Inkscape installed. (Available: {  ", ".join(get_args(IconFileFormat)) })'
         )
         parser.add_argument(
             '--sizes', '-S',
@@ -221,7 +234,8 @@ e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will b
         return cls(
             included_icon_file=args.included_icon_file,
             themes_scan_path=args.themes_scan_path,
-            output_dist_path=args.output_dist_path,
+            output_theme_folder_path=args.output_theme_folder_path,
+            output_icon_file_format=args.output_icon_file_format,
             sizes=args.sizes,
             generate_scales=args.generate_scales,
             qrc_qresource_prefix=args.qrc_qresource_prefix
@@ -248,7 +262,7 @@ def recursive_get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFil
         _context = m.group(2)
         _size = m.group(3)
         final_arr.append(IconSrcFileInfo(
-            theme_src_folder_name = _theme_src_folder_name if is_icon_theme_src_folder_name(_theme_src_folder_name) else "Humanity",
+            theme_src_folder_name = _theme_src_folder_name,
             context = _context if is_icon_context_dir_type(_context) else "apps",
             size = _size if is_icon_size_type(_size) else "scalable",
             file_name = m.group(4),
@@ -258,9 +272,6 @@ def recursive_get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFil
         ))
     final_arr.sort(key=lambda x: (x.size))
     return final_arr
-
-def clear_dist():
-    shutil.rmtree(OPTIONS.output_dist_path, ignore_errors=True)
 
 
 
@@ -396,7 +407,7 @@ def scan_used_icon_in_file(all_available_icon_patterns: Dict[str, re.Pattern[str
 
 @dataclass
 class IncludedIcon():
-    theme: str
+    src_theme: str
     src_context: str
     """ This is unused currently."""
     src_filename: str
@@ -434,7 +445,7 @@ def read_included_icons_as_lines(file_path: Path) -> List[IncludedIcon]:
         if not src_m or not dst_m:
             raise RuntimeError(f"[ERROR] Invalid line: {line}")
         fin.append(IncludedIcon(
-            theme=theme,
+            src_theme=theme,
             src_context=src_m.group(1) or "",
             src_filename=src_m.group(2) or "",
             dst_context=dst_m.group(1) or "",
@@ -442,30 +453,47 @@ def read_included_icons_as_lines(file_path: Path) -> List[IncludedIcon]:
         ))
     return fin
 
-def main():
-    ensure_thirdparty_files(OPTIONS.SCRIPT_DIR / "thirdparty")
-    icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
-    dist_root = OPTIONS.output_dist_path
-    clear_dist()
-    for icon in read_included_icons_as_lines(OPTIONS.included_icon_file):
-        dist_icon_file_path: Path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
-        copy_svg_file(icon.src_file_path, dist_icon_file_path, "none")
-        qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
 
-    for src_icon_theme_folder in icon_theme_folders:
-        src_icon_theme_name = src_icon_theme_folder.name
-        if not is_icon_theme_src_folder_name(src_icon_theme_name):
-            print(f'Folder "{src_icon_theme_name}" is not explicitly supported. Skip.')
-            continue
-        tango_theme_foler_name = get_tango_theme_folder_name(src_icon_theme_name)
-        qrc = QrcRoot()
-        qrc.resources.append(
-            QrcQresource(
-                    prefix=f"{OPTIONS.qrc_qresource_prefix}{src_icon_theme_folder.name}",
-                    files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
-            )
+class IconSearcher():
+    def __init__(self):
+        self.all_icon_theme_folders: List[Path] = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
+        self.all_found_icons: List[IconSrcFileInfo] = []
+        for src_icon_theme_folder in self.all_icon_theme_folders:
+            self.all_found_icons.extend(recursive_get_icon_list_in_theme(src_icon_theme_folder))
+    def search_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:
+        for icon in self.all_found_icons:
+            if icon.theme_src_folder_name == theme_name and icon.src_file_path.stem == icon_name:
+                return icon
+        raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
+
+def main():
+    output_icon_theme_folder = OPTIONS.output_theme_folder_path
+    output_theme_name = OPTIONS.output_theme_folder_path.name
+    shutil.rmtree(OPTIONS.output_theme_folder_path, ignore_errors=True)
+    # model of `index.theme` and `index.qrc`
+    ini_sections: List[IniSection] = []
+    qrc = QrcRoot()
+    qrc.resources.append(
+        QrcQresource(
+                prefix=f"{OPTIONS.qrc_qresource_prefix}{output_theme_name}",
+                files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
         )
-        ini_sections: List[IniSection] = []
+    )
+    icon_searcher = IconSearcher()
+    for line in read_included_icons_as_lines(OPTIONS.included_icon_file):
+        src_icon = icon_searcher.search_src_icon_by_icon_name(line.src_theme, line.src_filename)
+        if src_icon.src_file_path_is_symlink:
+            print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
+
+        icon_dst_path: Path = output_icon_theme_folder / line.theme_src_folder_name / line.context / line.size / line.file_name
+        copy_svg_file(src_icon.src_file_path_resolved, , "none")
+
+    for src_icon_theme_folder in all_icon_theme_folders:
+        if not is_icon_theme_src_folder_name(src_icon_theme_folder.name):
+            print(f'Folder "{src_icon_theme_folder.name}" is not explicitly supported. Skip.')
+            continue
+        tango_theme_foler_name = get_tango_theme_folder_name(src_icon_theme_folder.name)
+
         # e.g. /xdg_icon_themes/Humanity
         scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcQresourceFile]] = {}
         for icon_scale in OPTIONS.generate_scales:
@@ -478,39 +506,39 @@ def main():
         icon_list = recursive_get_icon_list_in_theme(src_icon_theme_folder)
         # Optimizer
         ALL_ICON_NAMES: Set[str] = set()
-        for icon in icon_list:
-            ALL_ICON_NAMES.add(icon.src_file_path.stem)
+        for line in icon_list:
+            ALL_ICON_NAMES.add(line.src_file_path.stem)
         icons_used_in_project = scan_used_icon_in_project(ALL_ICON_NAMES)
         # iterate over all icon files in this theme folder
-        for icon in icon_list:
-            dist_icon_theme_folder = dist_root.joinpath(icon.theme_src_folder_name)
+        for line in icon_list:
+            dist_icon_theme_folder = output_icon_theme_folder.joinpath(line.theme_src_folder_name)
             qrc_resource_file_path: Path  # string in <file>...</file> tag.
-            if icon.src_file_path.is_symlink():
-                canonical_icon = search_symlinked_canonical_icon(icon, icon_list)
-                dist_icon_file_path = dist_root / canonical_icon.theme_src_folder_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
-                qrc_resource_file_path = dist_icon_file_path.resolve().relative_to(dist_icon_theme_folder)
+            if line.src_file_path.is_symlink():
+                canonical_icon = search_symlinked_canonical_icon(line, icon_list)
+                icon_dst_path = output_icon_theme_folder / canonical_icon.theme_src_folder_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
+                qrc_resource_file_path = icon_dst_path.resolve().relative_to(dist_icon_theme_folder)
             else:
-                dist_icon_file_path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
-                copy_svg_file(icon.src_file_path, dist_icon_file_path, "none")
-                qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
+                icon_dst_path = output_icon_theme_folder / line.theme_src_folder_name / line.context / line.size / line.file_name
+                copy_svg_file(line.src_file_path, icon_dst_path, "none")
+                qrc_resource_file_path = icon_dst_path.relative_to(dist_icon_theme_folder)
 
-                dist_icon_file_path = dist_root / tango_theme_foler_name / icon.context / icon.size / icon.file_name
-                copy_svg_file(icon.src_file_path, dist_icon_file_path, "tango_colorizer")
+                icon_dst_path = output_icon_theme_folder / tango_theme_foler_name / line.context / line.size / line.file_name
+                copy_svg_file(line.src_file_path, icon_dst_path, "tango_colorizer")
 
             for scale_int in OPTIONS.generate_scales:
                 scale_suffix = ""
                 if scale_int != "1":
                     scale_suffix = f"@{scale_int}x"
-                if icon.src_file_path.stem in icons_used_in_project:
+                if line.src_file_path.stem in icons_used_in_project:
                     scaled_qresource_file_list_dict[scale_int].append(QrcQresourceFile(
-                        alias=f"{icon.context}/{icon.size}{scale_suffix}/{icon.file_name}",
+                        alias=f"{line.context}/{line.size}{scale_suffix}/{line.file_name}",
                         file=str(qrc_resource_file_path)
                     ))
-            add_ini_section(ini_sections, icon.context, icon.size)
+            add_ini_section(ini_sections, line.context, line.size)
             # print(asdict(qrc.resources[0].files[-1]))
-        write_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
-        write_index_theme_file(src_icon_theme_name, "Humanity from Ubuntu", ini_sections,
-                               dist_root / src_icon_theme_folder.name / "index.theme")
+        write_qrc_file(qrc, output_icon_theme_folder / src_icon_theme_folder.name / "index.qrc")
+        write_index_theme_file(src_icon_theme_folder.name, "Humanity from Ubuntu", ini_sections,
+                               output_icon_theme_folder / src_icon_theme_folder.name / "index.theme")
 
 
 
