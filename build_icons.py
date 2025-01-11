@@ -27,7 +27,7 @@ import argparse
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_thirdparty_files
 
-IconThemeFolderName = Literal["Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "GNOME3"]
+IconThemeFolderName = Literal["Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "Gnome"]
 """Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
@@ -242,7 +242,7 @@ class RawIconTheme():
 ALL_RAW_ICON_THEMES_PATH: List[RawIconTheme] = [
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "thirdparty" / "humanity_0.4.6" / "Humanity", copied_dst_theme_name="Humanity"),
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "thirdparty" / "humanity_0.4.6" / "Humanity-Dark", copied_dst_theme_name="Humanity-Dark"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent.parent / "gnome-icon-theme-cropped" / "src", copied_dst_theme_name="GNOME3"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent.parent.parent.parent / "gnome-icon-theme-cropped" / "src", copied_dst_theme_name="Gnome"),
 ]
 '''Paths of XDG icon theme packs.
 
@@ -312,20 +312,25 @@ class IconThemeOptions:
             type=Path,
             required=True,
             help='''
-This file should be a plain text file, and the format of each line should be:
+This file should be a plain text file, and the format of each line can be any of the following:
 
-SRC_THEME_NAME\tSRC_CONTEXT/SRC_ICON_NAME\tDST_CONTEXT/DST_ICON_NAME
+```
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t[DST_CONTEXT/]DST_ICON_NAME
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
+```
 
-- CONTEXT is optional.
-- ICON_NAME should not contain the extension.
+- Separate fields by tab, or >=2 spaces.
+- SRC_CONTEXT is unused currently. Can be omitted.
+- DST_CONTEXT is optional. Default is same with the context of the source icon.
+- ICON_NAME should not contain the extension. All extensions will be ignored.
 '''
         )
 
         parser.add_argument(
             '--output-theme-name', '-o',
             type=Path,
-            required=True,
-            default="Output Theme",
+            required=False,
+            default="Untitled",
             help='Output theme name, which will become the name of outputted folder. This folder will become a XDG icon theme folder (contains in root of this folder: context dirs, index.theme, index.qrc).'
         )
         parser.add_argument(
@@ -458,33 +463,33 @@ def read_included_icons_as_lines(file_path: Path) -> List[IncludedIcon]:
     # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
     patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
     patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
-    patt_separator: re.Pattern[str] = re.compile(r'(\s+|  +)')
+    patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
     for line in file_path.read_text(encoding='utf-8').splitlines():
-        src_theme: str = ""
-        src_icon: str = ""
-        dst_icon: str = ""
+        seg_src_theme: str = ""
+        seg_src_icon: str = ""
+        seg_dst_icon: str = ""
         if line.startswith('#'): continue
-        segs: List[str] = re.split(patt_separator, line)
+        segs: List[str] = re.split(patt_separator, line.strip())
         if len(segs) == 0: continue
         if len(segs) == 1:
             raise RuntimeError(f"Invalid line: {line}")
             exit(1)
         if len(segs) == 2:
-            src_theme = segs[0].strip()
-            src_icon = segs[1].strip()
-            dst_icon = segs[1].strip()
+            seg_src_theme = segs[0].strip()
+            seg_src_icon = segs[1].strip()
+            seg_dst_icon = segs[1].strip()
         if len(segs) == 3:
-            src_theme = segs[0].strip()
-            src_icon = segs[1].strip()
-            dst_icon = segs[2].strip()
-        if is_icon_theme_src_folder_name(src_theme):
-            raise RuntimeError(f"[ERROR] Invalid theme: {src_theme}")
-        src_m = patt_src_icon.match(src_icon)
-        dst_m = patt_dst_icon.match(dst_icon)
+            seg_src_theme = segs[0].strip()
+            seg_src_icon = segs[1].strip()
+            seg_dst_icon = segs[2].strip()
+        if not is_icon_theme_src_folder_name(seg_src_theme):
+            raise RuntimeError(f"[ERROR] Invalid theme: {seg_src_theme}. (Available: {get_args(IconThemeFolderName)})")
+        src_m = patt_src_icon.match(seg_src_icon)
+        dst_m = patt_dst_icon.match(seg_dst_icon)
         if not src_m or not dst_m:
             raise RuntimeError(f"[ERROR] Invalid line: {line}")
         fin.append(IncludedIcon(
-            src_theme=src_theme,
+            src_theme=seg_src_theme,
             src_context=src_m.group(1) or "",
             src_filename=src_m.group(2) or "",
             dst_context=dst_m.group(1) or "",
