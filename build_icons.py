@@ -24,7 +24,7 @@ import argparse
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_thirdparty_files
 
-IconThemeSrcFolderName = Literal["Humanity", "Humanity-Dark"]
+IconThemeFolderName = Literal["Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "GNOME3"]
 """Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
@@ -62,8 +62,8 @@ def folder_context_to_ini_context (context: IconContextType) -> IniContextNameTy
 IconScaleType = Literal["1", "2", "3", "4"]
 
 
-def is_icon_theme_src_folder_name(x: str) -> TypeGuard[IconThemeSrcFolderName]:
-    return x in get_args(IconThemeSrcFolderName)
+def is_icon_theme_src_folder_name(x: str) -> TypeGuard[IconThemeFolderName]:
+    return x in get_args(IconThemeFolderName)
 
 def is_icon_size_type(x: str) -> TypeGuard[IconSizeType]:
     return x in get_args(IconSizeType)
@@ -74,17 +74,11 @@ def is_icon_context_dir_type(x: str) -> TypeGuard[IconContextType]:
 def is_icon_scale_type(x: str) -> TypeGuard[IconScaleType]:
     return x in get_args(IconScaleType)
 
-ColorizationType = Literal["humanity", "tango"]
-"""Colorization type of the icon theme pack. `humanity` is vanilla Humanity icon theme, `tango` will try to colorize the orange to blue."""
-
-def is_colorization_type(x: str) -> TypeGuard[ColorizationType]:
-    return x in get_args(ColorizationType)
-
 @dataclass
 class IconSrcFileInfo():
     """Basic information of an SVG source file in the unmodified icon theme.
     You can use these information to generate a XDG-compatible icon path."""
-    theme_src_folder_name: IconThemeSrcFolderName
+    theme_src_folder_name: IconThemeFolderName
     context: IconContextType
     size: IconSizeType
     file_name: str
@@ -130,17 +124,10 @@ class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelp
 @dataclass
 class IconThemeOptions:
     themes_scan_path: Path
-    """
-According for XDG standard:
-- This search root should directly (instead of recursively) contain the XDG icon theme pack folders (e.g. `Humanity`, `Humanity-Dark`).
-- Each icon theme pack folder should contain `index.theme`
-    """
-    optimizer_scan_path: Path | None
+    included_icon_file: Path
     output_dist_path: Path
     sizes: List[IconSizeType]
-    contexts: List[IconContextType]
     generate_scales: List[IconScaleType]
-    colorizations: List[ColorizationType]
     qrc_qresource_prefix: str
     """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
@@ -159,17 +146,10 @@ According for XDG standard:
             if not is_icon_size_type(size):
                 raise ValueError(f"Invalid size: {size}")
 
-        for context in self.contexts:
-            if not is_icon_context_dir_type(context):
-                raise ValueError(f"Invalid context: {context}")
-
         for scale in self.generate_scales:
             if not is_icon_scale_type(scale):
                 raise ValueError(f"Invalid scale factor: {scale}. Must be one of {get_args(IconScaleType)}")
 
-        for colorization in self.colorizations:
-            if not is_colorization_type(colorization):
-                raise ValueError(f"Invalid colorization: {colorization}. Must be one of {get_args(ColorizationType)}")
 
     @classmethod
     def from_args(cls) -> 'IconThemeOptions':
@@ -178,17 +158,20 @@ According for XDG standard:
             formatter_class=MyHelpFormatter
         )
         parser.add_argument(
-            '--optimizer-scan-path', '-O',
+            '--included-icon-file', '-i',
             type=Path,
             required=False,
-            help='''The root path of your Qt project (which contains C++ / QML files).
+            help='''
+This file should be a plain text file, and the format of each line should be:
 
-1. If specified a directory, this will try to scan all .cpp, .h, .hpp, .c, .qml files and generate minimalized .qrc files. (Not recommended)
-2. If specified a file, this will try to scan file and generate a minimalized .qrc file. (Recommended)
+THEME_NAME\tSRC_CONTEXT/SRC_ICON_NAME\tDST_CONTEXT/DST_ICON_NAME
+
+- CONTEXT is optional.
+- ICON_NAME should not contain the extension.
 '''
         )
         parser.add_argument(
-            '--themes-scan-path', '-i',
+            '--themes-scan-path', '-t',
             type=Path,
             required=False,
             default=IconThemeOptions.SCRIPT_DIR / "thirdparty" / "humanity_0.4.6",
@@ -208,27 +191,11 @@ According for XDG standard:
             help='Output directory for generated files'
         )
         parser.add_argument(
-            '--colorize', '-c',
-            type=lambda x: [s.strip() for s in x.split(',')],
-            required=False,
-            default=['humanity', 'tango'],
-            help='Comma-separated list of colorization types (Available: "humanity", "tango")'
-        )
-
-        parser.add_argument(
             '--sizes', '-S',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=list(get_args(IconSizeType)),
-            help=f'Comma-separated list of icon sizes (Available: "{", ".join(get_args(IconSizeType))}")'
-        )
-
-        parser.add_argument(
-            '--contexts', '-C',
-            type=lambda x: [c.strip() for c in x.split(',')],
-            required=False,
-            default=list(get_args(IconContextType)),
-            help=f'Comma-separated list of icon contexts. (Available: "{", ".join(get_args(IconContextType))}").'
+            help=f'Comma-separated list of icon sizes (Available: { ", ".join(get_args(IconSizeType)) })'
         )
 
         parser.add_argument(
@@ -236,7 +203,7 @@ According for XDG standard:
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=['1', '2'],
-            help=f'Comma-separated list of scaling factors. (Available: "{", ".join(get_args(IconScaleType))}).'
+            help=f'Comma-separated list of scaling factors. (Available: { ", ".join(get_args(IconScaleType)) }).'
         )
 
         parser.add_argument(
@@ -252,13 +219,11 @@ e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will b
         args = parser.parse_args()
 
         return cls(
-            optimizer_scan_path=args.optimizer_scan_path,
+            included_icon_file=args.included_icon_file,
             themes_scan_path=args.themes_scan_path,
             output_dist_path=args.output_dist_path,
             sizes=args.sizes,
-            contexts=args.contexts,
             generate_scales=args.generate_scales,
-            colorizations=args.colorize,
             qrc_qresource_prefix=args.qrc_qresource_prefix
         )
 
@@ -383,12 +348,14 @@ Directories={fmtted_directories}
     except Exception as e:
         print(f"Error when creating {output_index_theme_file_path}: {e}")
 
-def get_tango_theme_folder_name(src_theme_folder_name: IconThemeSrcFolderName) -> str:
+def get_tango_theme_folder_name(src_theme_folder_name: IconThemeFolderName) -> str:
     match src_theme_folder_name:
         case "Humanity":
             return "Tango"
         case "Humanity-Dark":
             return "Tango-Dark"
+        case _:
+            return "Tango"
 
 def add_ini_section(ini_sections: List[IniSection], context: IconContextType, size: IconSizeType) -> None:
     for exist_section in ini_sections:
@@ -406,29 +373,6 @@ def add_ini_section(ini_sections: List[IniSection], context: IconContextType, si
             ori_size=size
         ))
 
-def scan_used_icon_in_project(all_available_icon_names: Set[str]) -> Set[str]:
-    """Scan Qt project, and returns a minimal set of referenced icon names. For generate an optimized and minimal qrc file."""
-    used_icons: Set[str] = set()
-    all_available_icon_patterns: Dict[str, re.Pattern[str]] = {}
-    if OPTIONS.optimizer_scan_path is None:
-        return all_available_icon_names
-    for icon_name in all_available_icon_names:
-        candidates: List[str] = []
-        candidates.append(icon_name)
-        candidates.append(re.sub(r'-', '_', icon_name))
-        candidates.append(re.sub(r'-', '', icon_name))
-        patt_str: str = '|'.join(candidates)
-        patt_str = rf'(?:^|"|\s)({patt_str})(?:^|"|\s)'
-        all_available_icon_patterns[icon_name] = re.compile(patt_str, re.IGNORECASE)
-
-    if OPTIONS.optimizer_scan_path.is_file():
-        used_icons |= scan_used_icon_in_file(all_available_icon_patterns, OPTIONS.optimizer_scan_path)
-    else:
-        for file_path in OPTIONS.optimizer_scan_path.rglob("*"):
-            if not file_path.is_file():
-                continue
-            used_icons |= scan_used_icon_in_file(all_available_icon_patterns, file_path)
-    return used_icons
 
 def scan_used_icon_in_file(all_available_icon_patterns: Dict[str, re.Pattern[str]], file_path: Path) -> Set[str]:
     used_icons: Set[str] = set()
@@ -450,12 +394,64 @@ def scan_used_icon_in_file(all_available_icon_patterns: Dict[str, re.Pattern[str
         pass
     return used_icons
 
+@dataclass
+class IncludedIcon():
+    theme: str
+    src_context: str
+    """ This is unused currently."""
+    src_filename: str
+    dst_context: str
+    dst_filename: str
+
+def read_included_icons_as_lines(file_path: Path) -> List[IncludedIcon]:
+    fin: List[IncludedIcon] = []
+    # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
+    patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
+    patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
+    patt_separator: re.Pattern[str] = re.compile(r'(\s+|  +)')
+    for line in file_path.read_text(encoding='utf-8').splitlines():
+        theme: str = ""
+        src_icon: str = ""
+        dst_icon: str = ""
+        if line.startswith('#'): continue
+        segs: List[str] = re.split(patt_separator, line)
+        if len(segs) == 0: continue
+        if len(segs) == 1:
+            raise RuntimeError(f"Invalid line: {line}")
+            exit(1)
+        if len(segs) == 2:
+            theme = segs[0].strip()
+            src_icon = segs[1].strip()
+            dst_icon = segs[1].strip()
+        if len(segs) == 3:
+            theme = segs[0].strip()
+            src_icon = segs[1].strip()
+            dst_icon = segs[2].strip()
+        if is_icon_theme_src_folder_name(theme):
+            raise RuntimeError(f"[ERROR] Invalid theme: {theme}")
+        src_m = patt_src_icon.match(src_icon)
+        dst_m = patt_dst_icon.match(dst_icon)
+        if not src_m or not dst_m:
+            raise RuntimeError(f"[ERROR] Invalid line: {line}")
+        fin.append(IncludedIcon(
+            theme=theme,
+            src_context=src_m.group(1) or "",
+            src_filename=src_m.group(2) or "",
+            dst_context=dst_m.group(1) or "",
+            dst_filename=dst_m.group(2) or "",
+        ))
+    return fin
 
 def main():
     ensure_thirdparty_files(OPTIONS.SCRIPT_DIR / "thirdparty")
     icon_theme_folders = get_icon_theme_folder_list(OPTIONS.themes_scan_path)
     dist_root = OPTIONS.output_dist_path
     clear_dist()
+    for icon in read_included_icons_as_lines(OPTIONS.included_icon_file):
+        dist_icon_file_path: Path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
+        copy_svg_file(icon.src_file_path, dist_icon_file_path, "none")
+        qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
+
     for src_icon_theme_folder in icon_theme_folders:
         src_icon_theme_name = src_icon_theme_folder.name
         if not is_icon_theme_src_folder_name(src_icon_theme_name):
@@ -497,9 +493,9 @@ def main():
                 dist_icon_file_path = dist_root / icon.theme_src_folder_name / icon.context / icon.size / icon.file_name
                 copy_svg_file(icon.src_file_path, dist_icon_file_path, "none")
                 qrc_resource_file_path = dist_icon_file_path.relative_to(dist_icon_theme_folder)
-                if "tango" in OPTIONS.colorizations:
-                    dist_icon_file_path = dist_root / tango_theme_foler_name / icon.context / icon.size / icon.file_name
-                    copy_svg_file(icon.src_file_path, dist_icon_file_path, "tango_colorizer")
+
+                dist_icon_file_path = dist_root / tango_theme_foler_name / icon.context / icon.size / icon.file_name
+                copy_svg_file(icon.src_file_path, dist_icon_file_path, "tango_colorizer")
 
             for scale_int in OPTIONS.generate_scales:
                 scale_suffix = ""
@@ -515,12 +511,6 @@ def main():
         write_qrc_file(qrc, dist_root / src_icon_theme_folder.name / "index.qrc")
         write_index_theme_file(src_icon_theme_name, "Humanity from Ubuntu", ini_sections,
                                dist_root / src_icon_theme_folder.name / "index.theme")
-        if "tango" in OPTIONS.colorizations:
-            for resource in qrc.resources:
-                resource.prefix = f"{OPTIONS.qrc_qresource_prefix}{tango_theme_foler_name}"
-            write_qrc_file(qrc, dist_root / tango_theme_foler_name / "index.qrc")
-            write_index_theme_file(tango_theme_foler_name, "Tango flavour icon (forked from Ubuntu Humanity)", ini_sections,
-                                dist_root / tango_theme_foler_name / "index.theme")
 
 
 
