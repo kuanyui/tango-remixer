@@ -524,23 +524,62 @@ def run_02_colorize_themes():
 
 def run_03_copy_included_icons():
     BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME.mkdir(parents=True, exist_ok=True)
-    index_theme_sections: List[IniSection] = []
+    # Initialize icon searcher for colorized themes folder.
+    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
+
+    # index.qrc (virtual file system in Qt application)
     qrc = QrcRoot()
     qrc.resources.append(
         QrcQresource(
-                prefix=f"{OPTIONS.qrc_qresource_prefix}{OPTIONS.output_theme_name}",
-                files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
+            prefix=f"{OPTIONS.qrc_qresource_prefix}{OPTIONS.output_theme_name}",
+            files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
         )
     )
-    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
+
+    # index.theme (XDG icon theme configuration file to describe available scales, sizes and contexts with their directories)
+    index_theme_sections: List[IniSection] = []
+
+    #
     for line in read_included_icons_as_lines(OPTIONS.included_icon_file):
         src_icon = icon_searcher.search_src_icon_by_icon_name(line.src_theme, line.src_filename)
         if src_icon.src_file_path_is_symlink:
             print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
+        # copy included icon.
         icon_dst_file_path: Path = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / src_icon.context / src_icon.size / src_icon.file_name
         shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
+
+        # index.qrc
+        for scale in get_scale_folder_names():
+            if line.src_file_path.stem in icons_used_in_project:
+                scaled_qresource_file_list_dict[scale_int].append(QrcQresourceFile(
+                    alias=f"{line.context}/{line.size}{scale_suffix}/{line.file_name}",
+                    file=str(qrc_resource_file_path)
+                ))
+        # index.theme
         add_index_theme_ini_section(index_theme_sections, src_icon.context, src_icon.size)
+
+    write_qrc_file(qrc, output_icon_theme_folder / src_icon_theme_folder.name / "index.qrc")
+    write_index_theme_file(src_icon_theme_folder.name, "Humanity from Ubuntu", ini_sections,
+                            output_icon_theme_folder / src_icon_theme_folder.name / "index.theme")
+
+
+def get_scale_folder_names() -> Dict[IconScaleType, str]:
+    dic: Dict[IconScaleType, str] = {}
+    for scale_int in OPTIONS.generate_scales:
+        if scale_int == "1":
+            dic["1"] = ""
+        else:
+            scale_suffix = f"@{scale_int}x"
+    return dic
+
+def generate_qrc_file(theme_folder: Path):
+
+    # Each scale has its own <qresource> tag, for readibility of the outputted .qrc file.
+    scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcQresourceFile]] = {}
+
+    add_index_theme_ini_section(index_theme_sections, src_icon.context, src_icon.size)
+
 
 def main():
     shutil.rmtree(OPTIONS.output_theme_name, ignore_errors=True)
