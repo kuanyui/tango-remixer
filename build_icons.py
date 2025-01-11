@@ -183,7 +183,9 @@ According for XDG standard:
             required=False,
             help='''The root path of your Qt project (which contains C++ / QML files).
 
-            If specified, this will try to scan all .cpp, .h, .hpp, .c, .qml files and generate minimalized .qrc files. '''
+1. If specified a directory, this will try to scan all .cpp, .h, .hpp, .c, .qml files and generate minimalized .qrc files. (Not recommended)
+2. If specified a file, this will try to scan file and generate a minimalized .qrc file. (Recommended)
+'''
         )
         parser.add_argument(
             '--themes-scan-path', '-i',
@@ -244,7 +246,7 @@ According for XDG standard:
             default="/xdg_icon_themes/",
             help= """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
-    e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
+e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
         )
 
         args = parser.parse_args()
@@ -258,7 +260,6 @@ According for XDG standard:
             generate_scales=args.generate_scales,
             colorizations=args.colorize,
             qrc_qresource_prefix=args.qrc_qresource_prefix
-
         )
 
 OPTIONS = IconThemeOptions.from_args()
@@ -405,43 +406,50 @@ def add_ini_section(ini_sections: List[IniSection], context: IconContextType, si
             ori_size=size
         ))
 
-def scan_used_icon_in_project(all_icon_names: Set[str]) -> Set[str]:
+def scan_used_icon_in_project(all_available_icon_names: Set[str]) -> Set[str]:
     """Scan Qt project, and returns a minimal set of referenced icon names. For generate an optimized and minimal qrc file."""
     used_icons: Set[str] = set()
-    all_icon_patterns: Dict[str, re.Pattern[str]] = {}
+    all_available_icon_patterns: Dict[str, re.Pattern[str]] = {}
     if OPTIONS.optimizer_scan_path is None:
-        return all_icon_names
-    for icon_name in all_icon_names:
+        return all_available_icon_names
+    for icon_name in all_available_icon_names:
         candidates: List[str] = []
         candidates.append(icon_name)
         candidates.append(re.sub(r'-', '_', icon_name))
         candidates.append(re.sub(r'-', '', icon_name))
         patt_str: str = '|'.join(candidates)
-        patt_str = rf'\b({patt_str})\b'
-        all_icon_patterns[icon_name] = re.compile(patt_str, re.IGNORECASE)
+        patt_str = rf'(?:^|"|\s)({patt_str})(?:^|"|\s)'
+        all_available_icon_patterns[icon_name] = re.compile(patt_str, re.IGNORECASE)
 
-    for file_path in OPTIONS.optimizer_scan_path.rglob("*"):
-        if not file_path.is_file():
-            continue
-        try:
-            file_content = file_path.read_text(encoding='utf-8')
-
-            if 'QFileIconProvider' in file_content:
-                for icon_name in all_icon_names:
-                    if ('-x-' in icon_name) or (icon_name.startswith('application-')) or ('folder' in icon_name) :
-                        used_icons.add(icon_name)
-
-            for icon_name in all_icon_patterns:
-                if icon_name in used_icons:
-                    continue
-                if all_icon_patterns[icon_name].search(file_content):
-                    used_icons.add(icon_name)
-        except (UnicodeDecodeError, PermissionError):
-            continue
-        except Exception as e:
-            print(f"Error reading {file_path}: {e}")
-
+    if OPTIONS.optimizer_scan_path.is_file():
+        used_icons |= scan_used_icon_in_file(all_available_icon_patterns, OPTIONS.optimizer_scan_path)
+    else:
+        for file_path in OPTIONS.optimizer_scan_path.rglob("*"):
+            if not file_path.is_file():
+                continue
+            used_icons |= scan_used_icon_in_file(all_available_icon_patterns, file_path)
     return used_icons
+
+def scan_used_icon_in_file(all_available_icon_patterns: Dict[str, re.Pattern[str]], file_path: Path) -> Set[str]:
+    used_icons: Set[str] = set()
+    try:
+        file_content = file_path.read_text(encoding='utf-8')
+
+        # if 'QFileIconProvider' in file_content:
+        #     for icon_name in all_icon_names:
+        #         if ('-x-' in icon_name) or (icon_name.startswith('application-')) or ('folder' in icon_name) :
+        #             used_icons.add(icon_name)
+
+        for icon_name in all_available_icon_patterns:
+            if all_available_icon_patterns[icon_name].search(file_content):
+                used_icons.add(icon_name)
+    except (UnicodeDecodeError, PermissionError):
+        pass
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        pass
+    return used_icons
+
 
 def main():
     ensure_thirdparty_files(OPTIONS.SCRIPT_DIR / "thirdparty")
