@@ -19,7 +19,7 @@ from xml.etree import ElementTree as ET
 from pprint import pprint
 from types import SimpleNamespace
 from enum import StrEnum
-from typing import List, Literal, TypeGuard, get_args, Dict, Final, Set, Final
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Set
 # import cProfile
 # import pstats
 import argparse
@@ -121,6 +121,55 @@ Example:
     '''
     resources: List[QrcQresource] = field(default_factory=list)
 
+class QrcCreator():
+    '''To generate an `index.qrc` (virtual file system in Qt application) for a theme.'''
+    def __init__(self, theme_name: str):
+        self.root: QrcRoot = QrcRoot()
+        self.scaled_qresource_dict: Dict[IconScaleType, QrcQresource] = {}
+        """A dictionary to store the list of QrcQresourceFile for each scale factor.
+        This cause the outputted .qrc XML file to be more readable. (Each scale factor has its own <qresource> tag.)"""
+        # Add the first <qresource> tag for the only index.theme file.
+        resource_for_index_theme = QrcQresource(
+            prefix=f"{OPTIONS.qrc_qresource_prefix}{theme_name}",
+            files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
+        )
+        self.root.resources.append(resource_for_index_theme)
+        # Add <qresource> tags for each scale factor.
+        for scale in OPTIONS.generate_scales:
+            resource = QrcQresource( prefix=f"{OPTIONS.qrc_qresource_prefix}{theme_name}", files=[])
+            self.root.resources.append(resource)
+            self.scaled_qresource_dict[scale] = resource
+
+
+    def add_file(self, context: IconContextType, size: IconSizeType, scale: IconScaleType, icon_filename: str) -> None:
+        rel_file_path = f'{context}/{size}{get_scaled_size_folder_suffix(scale)}/{icon_filename}'
+        file = QrcQresourceFile(file=rel_file_path, alias="")
+        self.scaled_qresource_dict[scale].files.append(file)
+
+
+    def write_qrc_file(self, output_file_path: Path):
+        xml_root = ET.Element("RCC")
+        xml_root.set("version", "1.0")
+        for resource in self.root.resources:
+            qresource = ET.SubElement(xml_root, "qresource", { 'prefix': resource.prefix })
+            for file in resource.files:
+                if file.alias == file.file:
+                    ET.SubElement(qresource, "file").text = file.file
+                else:
+                    ET.SubElement(qresource, "file", { 'alias': file.alias }).text = file.file
+
+        tree = ET.ElementTree(xml_root)
+        ET.indent(tree, space="  ", level=0)
+        xml_string = ET.tostring(xml_root, encoding="UTF-8").decode("utf-8")
+        xml_string_with_header = f'<!DOCTYPE RCC>\n{xml_string}'
+        output_file_path.parent.mkdir(parents=True, exist_ok=True)
+        try:
+            with open(output_file_path, "w", encoding="utf-8") as f:
+                f.write(xml_string_with_header)
+            print(f"File created: {output_file_path}")
+        except Exception as e:
+            print(f"Error when creating {output_file_path}: {e}")
+
 @dataclass
 class IniSection():
     directory: str
@@ -130,6 +179,56 @@ class IniSection():
     ori_size: IconSizeType
     """Original size. If original size is 16, scale is 2, then `Size=` in index.theme should be `16 * 2 = 32` """
     scale: IconScaleType
+
+class IndexThemeCreator():
+    '''To generate an `index.theme` file (XDG icon theme configuration file to describe available scales, sizes and contexts with their directories' paths)'''
+    def __init__(self, theme_name: str, comment: str):
+        self.theme_name = theme_name
+        self.comment = comment
+        self.ini_sections: List[IniSection] = []
+
+    def add_index_theme_ini_section(self, context: IconContextType, size: IconSizeType) -> None:
+        for exist_section in self.ini_sections:
+            if exist_section.context == context and exist_section.ori_size == size:
+                return
+        for scale in OPTIONS.generate_scales:
+            directory: str = f'{context}/{size}{get_scaled_size_folder_suffix(scale)}'
+            self.ini_sections.append(IniSection(
+                directory=directory,
+                context=context,
+                scale=scale,
+                ori_size=size
+            ))
+    def write_index_theme_file(self, output_index_theme_file_path: Path):
+        fmtted_directories: str = ",".join([x.directory for x in self.ini_sections])
+        file_content = f"""\
+[Icon Theme]
+Name={self.theme_name}
+Comment={self.comment}
+Inherits=gnome,hicolor
+
+Example=directory-x-normal
+
+# Directory list
+Directories={fmtted_directories}
+
+    """
+        for entry in self.ini_sections:
+            lines: List[str] = [f'[{entry.directory}]']
+            if entry.scale != '1':
+                lines.append(f'Scale={entry.scale}')
+            lines.append(f'Size={int(entry.ori_size) * int(entry.scale)}')
+            lines.append(f'Context={folder_context_to_ini_context(entry.context)}')
+            lines.append(f'Type=Fixed')
+            file_content += "\n".join(lines)
+            file_content += "\n\n"
+        try:
+            with open(output_index_theme_file_path, "w", encoding="utf-8") as f:
+                f.write(file_content)
+            print(f"File created: {output_index_theme_file_path}")
+        except Exception as e:
+            print(f"Error when creating {output_index_theme_file_path}: {e}")
+
 
 ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
 
@@ -316,12 +415,6 @@ def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none"
             f.write(tango_colorize_svg_content(raw_content, dst_path.stem))
         return
 
-
-# def copy_icon_to_dist(icon: IconSrcFileInfo):
-#     dist_root = Path(DIST_ROOT).joinpath()
-#     dist_file_path = dist_root.joinpath(icon.theme_name, icon.context, icon.size, icon.file_name)
-#     copy_svg_file(icon.src_file_path, dist_file_path)
-
 def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: List[IconSrcFileInfo]) -> IconSrcFileInfo:
     for canonical_icon in all_icons:
         if canonical_icon.src_file_path_is_symlink:
@@ -330,75 +423,6 @@ def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: Li
             return canonical_icon
     raise FileNotFoundError(f"Cannot find symlink target for {symlink_icon.src_file_path}")
 
-
-def write_qrc_file(qrc_root: QrcRoot, output_file_path: Path):
-    root = ET.Element("RCC")
-    root.set("version", "1.0")
-    for resource in qrc_root.resources:
-        qresource = ET.SubElement(root, "qresource", { 'prefix': resource.prefix })
-        for file in resource.files:
-            if file.alias == file.file:
-                ET.SubElement(qresource, "file").text = file.file
-            else:
-                ET.SubElement(qresource, "file", { 'alias': file.alias }).text = file.file
-
-    tree = ET.ElementTree(root)
-    ET.indent(tree, space="  ", level=0)
-    xml_string = ET.tostring(root, encoding="UTF-8").decode("utf-8")
-    xml_string_with_header = f'<!DOCTYPE RCC>\n{xml_string}'
-    output_file_path.parent.mkdir(parents=True, exist_ok=True)
-    try:
-        with open(output_file_path, "w", encoding="utf-8") as f:
-            f.write(xml_string_with_header)
-        print(f"File created: {output_file_path}")
-    except Exception as e:
-        print(f"Error when creating {output_file_path}: {e}")
-
-def write_index_theme_file(name: str, comment: str, entries: List[IniSection], output_index_theme_file_path: Path):
-    fmtted_directories: str = ",".join([x.directory for x in entries])
-    file_content = f"""\
-[Icon Theme]
-Name={name}
-Comment={comment}
-Inherits=gnome,hicolor
-
-Example=directory-x-normal
-
-# Directory list
-Directories={fmtted_directories}
-
-"""
-    for entry in entries:
-        lines: List[str] = [f'[{entry.directory}]']
-        if entry.scale != '1':
-            lines.append(f'Scale={entry.scale}')
-        lines.append(f'Size={int(entry.ori_size) * int(entry.scale)}')
-        lines.append(f'Context={folder_context_to_ini_context(entry.context)}')
-        lines.append(f'Type=Fixed')
-        file_content += "\n".join(lines)
-        file_content += "\n\n"
-    try:
-        with open(output_index_theme_file_path, "w", encoding="utf-8") as f:
-            f.write(file_content)
-        print(f"File created: {output_index_theme_file_path}")
-    except Exception as e:
-        print(f"Error when creating {output_index_theme_file_path}: {e}")
-
-def add_index_theme_ini_section(ini_sections: List[IniSection], context: IconContextType, size: IconSizeType) -> None:
-    for exist_section in ini_sections:
-        if exist_section.context == context and exist_section.ori_size == size:
-            return
-    for scale in OPTIONS.generate_scales:
-        scale_int: int = int(scale)
-        directory: str = f'{context}/{size}'
-        if scale != '1':
-            directory = f'{context}/{size}@{scale_int}x'
-        ini_sections.append(IniSection(
-            directory=directory,
-            context=context,
-            scale=scale,
-            ori_size=size
-        ))
 
 
 def scan_used_icon_in_file(all_available_icon_patterns: Dict[str, re.Pattern[str]], file_path: Path) -> Set[str]:
@@ -523,136 +547,46 @@ def run_02_colorize_themes():
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "tango_colorizer")
 
 def run_03_copy_included_icons():
-    BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME.mkdir(parents=True, exist_ok=True)
+    this_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
+    this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for colorized themes folder.
     icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
 
-    # index.qrc (virtual file system in Qt application)
-    qrc = QrcRoot()
-    qrc.resources.append(
-        QrcQresource(
-            prefix=f"{OPTIONS.qrc_qresource_prefix}{OPTIONS.output_theme_name}",
-            files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
-        )
-    )
+    qrc = QrcCreator(OPTIONS.output_theme_name)
+    index_theme = IndexThemeCreator(OPTIONS.output_theme_name, "Generated by build_icons.py")
 
-    # index.theme (XDG icon theme configuration file to describe available scales, sizes and contexts with their directories)
-    index_theme_sections: List[IniSection] = []
-
-    #
     for line in read_included_icons_as_lines(OPTIONS.included_icon_file):
         src_icon = icon_searcher.search_src_icon_by_icon_name(line.src_theme, line.src_filename)
         if src_icon.src_file_path_is_symlink:
             print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
         # copy included icon.
-        icon_dst_file_path: Path = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / src_icon.context / src_icon.size / src_icon.file_name
+        icon_dst_file_path: Path = this_theme_folder / src_icon.context / src_icon.size / src_icon.file_name
         shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
 
-        # index.qrc
-        for scale in get_scale_folder_names():
-            if line.src_file_path.stem in icons_used_in_project:
-                scaled_qresource_file_list_dict[scale_int].append(QrcQresourceFile(
-                    alias=f"{line.context}/{line.size}{scale_suffix}/{line.file_name}",
-                    file=str(qrc_resource_file_path)
-                ))
+        # add to qrc
+        for scale in OPTIONS.generate_scales:
+            qrc.add_file(src_icon.context, src_icon.size, scale, src_icon.file_name)
         # index.theme
-        add_index_theme_ini_section(index_theme_sections, src_icon.context, src_icon.size)
+        index_theme.add_index_theme_ini_section(src_icon.context, src_icon.size)
 
-    write_qrc_file(qrc, output_icon_theme_folder / src_icon_theme_folder.name / "index.qrc")
-    write_index_theme_file(src_icon_theme_folder.name, "Humanity from Ubuntu", ini_sections,
-                            output_icon_theme_folder / src_icon_theme_folder.name / "index.theme")
+    qrc.write_qrc_file(this_theme_folder / "index.qrc")
+    index_theme.write_index_theme_file(this_theme_folder / "index.theme")
 
 
-def get_scale_folder_names() -> Dict[IconScaleType, str]:
-    dic: Dict[IconScaleType, str] = {}
-    for scale_int in OPTIONS.generate_scales:
-        if scale_int == "1":
-            dic["1"] = ""
-        else:
-            scale_suffix = f"@{scale_int}x"
-    return dic
-
-def generate_qrc_file(theme_folder: Path):
-
-    # Each scale has its own <qresource> tag, for readibility of the outputted .qrc file.
-    scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcQresourceFile]] = {}
-
-    add_index_theme_ini_section(index_theme_sections, src_icon.context, src_icon.size)
+def get_scaled_size_folder_suffix(scale: IconScaleType) -> str:
+    if scale == "1":
+        return ""
+    else:
+        return f"@{scale}x"
 
 
 def main():
-    shutil.rmtree(OPTIONS.output_theme_name, ignore_errors=True)
-    # model of `index.theme` and `index.qrc`
-    ini_sections: List[IniSection] = []
-    qrc = QrcRoot()
-    qrc.resources.append(
-        QrcQresource(
-            prefix=f"{OPTIONS.qrc_qresource_prefix}{OPTIONS.output_theme_name}",
-            files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
-        )
-    )
-    icon_searcher = IconSearcher()
-    for line in read_included_icons_as_lines(OPTIONS.included_icon_file):
-        src_icon = icon_searcher.search_src_icon_by_icon_name(line.src_theme, line.src_filename)
-        if src_icon.src_file_path_is_symlink:
-            print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
-
-        icon_dst_file_path: Path = output_icon_theme_folder / src_icon.context / src_icon.size / src_icon.file_name
-        copy_svg_file(src_icon.src_file_path_resolved, icon_dst_file_path , "none")
-
-    for src_icon_theme_folder in all_icon_theme_folders:
-        if not is_icon_theme_src_folder_name(src_icon_theme_folder.name):
-            print(f'Folder "{src_icon_theme_folder.name}" is not explicitly supported. Skip.')
-            continue
-        tango_theme_foler_name = get_tango_theme_folder_name(src_icon_theme_folder.name)
-
-        # e.g. /xdg_icon_themes/Humanity
-        scaled_qresource_file_list_dict: Dict[IconScaleType, List[QrcQresourceFile]] = {}
-        for icon_scale in OPTIONS.generate_scales:
-            scaled_qresource = QrcQresource(
-                prefix=f"{OPTIONS.qrc_qresource_prefix}{src_icon_theme_folder.name}",
-                files=[]
-            )
-            scaled_qresource_file_list_dict[icon_scale] = scaled_qresource.files
-            qrc.resources.append(scaled_qresource)
-        icon_list = recursive_get_icon_list_in_theme(src_icon_theme_folder)
-        # Optimizer
-        ALL_ICON_NAMES: Set[str] = set()
-        for line in icon_list:
-            ALL_ICON_NAMES.add(line.src_file_path.stem)
-        icons_used_in_project = scan_used_icon_in_project(ALL_ICON_NAMES)
-        # iterate over all icon files in this theme folder
-        for line in icon_list:
-            dist_icon_theme_folder = output_icon_theme_folder.joinpath(line.theme_src_folder_name)
-            qrc_resource_file_path: Path  # string in <file>...</file> tag.
-            if line.src_file_path.is_symlink():
-                canonical_icon = search_symlinked_canonical_icon(line, icon_list)
-                icon_dst_file_path = output_icon_theme_folder / canonical_icon.theme_src_folder_name / canonical_icon.context / canonical_icon.size / canonical_icon.file_name
-                qrc_resource_file_path = icon_dst_file_path.resolve().relative_to(dist_icon_theme_folder)
-            else:
-                icon_dst_file_path = output_icon_theme_folder / line.theme_src_folder_name / line.context / line.size / line.file_name
-                copy_svg_file(line.src_file_path, icon_dst_file_path, "none")
-                qrc_resource_file_path = icon_dst_file_path.relative_to(dist_icon_theme_folder)
-
-                icon_dst_file_path = output_icon_theme_folder / tango_theme_foler_name / line.context / line.size / line.file_name
-                copy_svg_file(line.src_file_path, icon_dst_file_path, "tango_colorizer")
-
-            for scale_int in OPTIONS.generate_scales:
-                scale_suffix = ""
-                if scale_int != "1":
-                    scale_suffix = f"@{scale_int}x"
-                if line.src_file_path.stem in icons_used_in_project:
-                    scaled_qresource_file_list_dict[scale_int].append(QrcQresourceFile(
-                        alias=f"{line.context}/{line.size}{scale_suffix}/{line.file_name}",
-                        file=str(qrc_resource_file_path)
-                    ))
-            add_index_theme_ini_section(ini_sections, line.context, line.size)
-            # print(asdict(qrc.resources[0].files[-1]))
-        write_qrc_file(qrc, output_icon_theme_folder / src_icon_theme_folder.name / "index.qrc")
-        write_index_theme_file(src_icon_theme_folder.name, "Humanity from Ubuntu", ini_sections,
-                               output_icon_theme_folder / src_icon_theme_folder.name / "index.theme")
-
+    ensure_thirdparty_files(Path(__file__).parent / "thirdparty")
+    run_00_copy_icon_themes()
+    run_01_no_symlink_themes()
+    run_02_colorize_themes()
+    run_03_copy_included_icons()
 
 
 if __name__ == "__main__":

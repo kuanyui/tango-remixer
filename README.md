@@ -114,6 +114,7 @@ Then write a simplest workable example like this:
         <file>thirdparty/humanity_0.4.6/Humanity/apps/24/totem.svg</file>
         <file>thirdparty/humanity_0.4.6/Humanity/apps/48/totem.svg</file>
     </qresource>
+</RCC>
 ```
 
 - Specify icon theme folder search paths; Qt will try to search all icon theme folder(s) contining `index.theme` in this path `:/thirdparty/humanity_0.4.6/`:
@@ -242,9 +243,14 @@ Type=Fixed
 ```
 
 ### index.qrc
+> You can see a QRC file description of a virtual file system inside a Qt application.
+
 ```xml
 <!DOCTYPE RCC>
 <RCC version="1.0">
+    <qresource prefix="/xdg_icon_themes/Tango">
+        <file>index.theme</file>
+    </qresource>
     <qresource prefix="/xdg_icon_themes/Tango">
         <file alias="apps/24@2/totem.svg">apps/24/totem.svg</file>
         <file alias="apps/24@2/video-player.svg">apps/24/totem.svg</file>
