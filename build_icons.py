@@ -83,6 +83,8 @@ class IconSrcFileInfo():
     theme_src_folder_name: str
     context: IconContextType
     size: IconSizeType
+    icon_name: str
+    """Without file extension"""
     file_name: str
     """ex: `totem.svg`. (this file may be a symlink, and symlink will not be resolved here """
     src_file_path: Path
@@ -154,7 +156,7 @@ class QrcCreator():
         for resource in self.root.resources:
             qresource = ET.SubElement(xml_root, "qresource", { 'prefix': resource.prefix })
             for file in resource.files:
-                if file.alias == file.file:
+                if file.alias == file.file or file.alias == "":
                     ET.SubElement(qresource, "file").text = file.file
                 else:
                     ET.SubElement(qresource, "file", { 'alias': file.alias }).text = file.file
@@ -213,7 +215,7 @@ Example=directory-x-normal
 # Directory list
 Directories={fmtted_directories}
 
-    """
+"""
         for entry in self.ini_sections:
             lines: List[str] = [f'[{entry.directory}]']
             if entry.scale != '1':
@@ -373,34 +375,20 @@ OPTIONS = IconThemeOptions.from_args()
 pprint(asdict(OPTIONS), indent=2)
 
 
-def get_icon_theme_folder_list(icon_theme_search_root: Path) -> List[Path]:
-    final_arr: List[Path] = []
-    for folder in Path(icon_theme_search_root).iterdir():
-        if not folder.is_dir(): continue
-        if (folder.joinpath('index.theme')).exists():
-            final_arr.append(folder)
-    return final_arr
 
-def recursive_get_icon_list_in_theme(icon_theme_folder: Path) -> List[IconSrcFileInfo]:
-    final_arr: List[IconSrcFileInfo] = []
-    for src_svg_file_path in icon_theme_folder.rglob("*.svg"):
-        m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(str(src_svg_file_path))
-        if not m: continue
-        _theme_src_folder_name = m.group(1)
-        _context = m.group(2)
-        _size = m.group(3)
-        final_arr.append(IconSrcFileInfo(
-            theme_src_folder_name = _theme_src_folder_name,
-            context = _context if is_icon_context_dir_type(_context) else "apps",
-            size = _size if is_icon_size_type(_size) else "scalable",
-            file_name = m.group(4),
-            src_file_path = src_svg_file_path,
-            src_file_path_is_symlink = src_svg_file_path.is_symlink(),
-            src_file_path_resolved = src_svg_file_path.resolve()
-        ))
-    final_arr.sort(key=lambda x: (x.size))
-    return final_arr
-
+def format_icon_name(icon_name_or_file_name: str | Path, to_type: Literal['noext', 'svg', 'png']) -> str:
+    fn_without_ext: str = ""
+    if (isinstance(icon_name_or_file_name, Path)):
+        fn_without_ext = icon_name_or_file_name.stem
+    else:
+        fn_without_ext = Path(icon_name_or_file_name).stem
+    match to_type:
+        case 'noext':
+            return fn_without_ext
+        case 'svg':
+            return f"{fn_without_ext}.svg"
+        case 'png':
+            return f"{fn_without_ext}.png"
 
 
 def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none", "tango_colorizer"]) -> None:
@@ -419,35 +407,6 @@ def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none"
             f.write(tango_colorize_svg_content(raw_content, dst_path.stem))
         return
 
-def search_symlinked_canonical_icon(symlink_icon: IconSrcFileInfo, all_icons: List[IconSrcFileInfo]) -> IconSrcFileInfo:
-    for canonical_icon in all_icons:
-        if canonical_icon.src_file_path_is_symlink:
-            continue
-        if canonical_icon.src_file_path == symlink_icon.src_file_path_resolved:
-            return canonical_icon
-    raise FileNotFoundError(f"Cannot find symlink target for {symlink_icon.src_file_path}")
-
-
-
-def scan_used_icon_in_file(all_available_icon_patterns: Dict[str, re.Pattern[str]], file_path: Path) -> Set[str]:
-    used_icons: Set[str] = set()
-    try:
-        file_content = file_path.read_text(encoding='utf-8')
-
-        # if 'QFileIconProvider' in file_content:
-        #     for icon_name in all_icon_names:
-        #         if ('-x-' in icon_name) or (icon_name.startswith('application-')) or ('folder' in icon_name) :
-        #             used_icons.add(icon_name)
-
-        for icon_name in all_available_icon_patterns:
-            if all_available_icon_patterns[icon_name].search(file_content):
-                used_icons.add(icon_name)
-    except (UnicodeDecodeError, PermissionError):
-        pass
-    except Exception as e:
-        print(f"Error reading {file_path}: {e}")
-        pass
-    return used_icons
 
 @dataclass
 class IncludedIcon():
@@ -500,13 +459,45 @@ def read_included_icons_as_lines(file_path: Path) -> List[IncludedIcon]:
 
 class IconSearcher():
     def __init__(self, themes_folder: Path):
-        self.all_icon_theme_folders: List[Path] = get_icon_theme_folder_list(themes_folder)
+        self.all_icon_theme_folders: List[Path] = self.get_icon_theme_folder_list(themes_folder)
         self.all_found_icons: List[IconSrcFileInfo] = []
         for src_icon_theme_folder in self.all_icon_theme_folders:
-            self.all_found_icons.extend(recursive_get_icon_list_in_theme(src_icon_theme_folder))
+            self.all_found_icons.extend(self.recursive_get_icon_list_in_theme(src_icon_theme_folder))
+
+    def get_icon_theme_folder_list(self, icon_theme_search_root: Path) -> List[Path]:
+        final_arr: List[Path] = []
+        for folder in Path(icon_theme_search_root).iterdir():
+            if not folder.is_dir(): continue
+            # NOTE: gnome-icon-theme has no index.theme file.
+            # if (folder.joinpath('index.theme')).exists():
+            final_arr.append(folder)
+        return final_arr
+
+    def recursive_get_icon_list_in_theme(self, icon_theme_folder: Path) -> List[IconSrcFileInfo]:
+        final_arr: List[IconSrcFileInfo] = []
+        for src_svg_file_path in icon_theme_folder.rglob("*.svg"):
+            m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(str(src_svg_file_path))
+            if not m: continue
+            _theme_src_folder_name = m.group(1)
+            _context = m.group(2)
+            _size = m.group(3)
+            final_arr.append(IconSrcFileInfo(
+                theme_src_folder_name = _theme_src_folder_name,
+                context = _context if is_icon_context_dir_type(_context) else "apps",
+                size = _size if is_icon_size_type(_size) else "scalable",
+                icon_name = format_icon_name(m.group(4), 'noext'),
+                file_name = m.group(4),
+                src_file_path = src_svg_file_path,
+                src_file_path_is_symlink = src_svg_file_path.is_symlink(),
+                src_file_path_resolved = src_svg_file_path.resolve()
+            ))
+        final_arr.sort(key=lambda x: (x.size))
+        return final_arr
+
     def search_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:
+        icon_name = format_icon_name(icon_name, 'noext')
         for icon in self.all_found_icons:
-            if icon.theme_src_folder_name == theme_name and icon.src_file_path.stem == icon_name:
+            if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
                 return icon
         raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
 
@@ -570,6 +561,7 @@ def run_03_copy_included_icons():
 
         # copy included icon.
         icon_dst_file_path: Path = this_theme_folder / src_icon.context / src_icon.size / src_icon.file_name
+        icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
 
         # add to qrc
