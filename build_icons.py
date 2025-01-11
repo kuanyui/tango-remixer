@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
 References:
@@ -507,6 +508,7 @@ class IconSearcher():
         raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
 
 def run_00_copy_icon_themes():
+    print("00_ORIGINAL_THEMES")
     shutil.rmtree(BUILD_FOLDERS.FOLDER_ROOT, ignore_errors=True)
     BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
     for raw_theme in ALL_RAW_ICON_THEMES_PATH:
@@ -514,6 +516,7 @@ def run_00_copy_icon_themes():
         shutil.copytree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True)
 
 def run_01_no_symlink_themes():
+    print("01_NO_SYMLINK_THEMES")
     BUILD_FOLDERS.FOLDER_01_NO_SYMLINK_THEMES_ROOT.mkdir(parents=True, exist_ok=True)
     for src_theme_folder in BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT.iterdir():
         dst_theme_folder = BUILD_FOLDERS.FOLDER_01_NO_SYMLINK_THEMES_ROOT / src_theme_folder.name
@@ -526,6 +529,7 @@ def run_01_no_symlink_themes():
             shutil.copy2(src_svg_file_path, dst_svg_file_path)
 
 def run_02_colorize_themes():
+    print("02_COLORIZED_THEMES")
     BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT.mkdir(parents=True, exist_ok=True)
     for src_theme_folder in BUILD_FOLDERS.FOLDER_01_NO_SYMLINK_THEMES_ROOT.iterdir():
         dst_theme_folder = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / src_theme_folder.name
@@ -547,6 +551,7 @@ def run_02_colorize_themes():
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "tango_colorizer")
 
 def run_03_copy_included_icons():
+    print("03_FINAL_SVG_THEME")
     this_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for colorized themes folder.
