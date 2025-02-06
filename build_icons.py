@@ -25,9 +25,12 @@ from typing import List, Literal, TypeGuard, get_args, Dict, Final, Set
 # import pstats
 import argparse
 from lib_color_converter import *
-from lib_download_extract_tarballs import ensure_thirdparty_files
+from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
-IconThemeFolderName = Literal["Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "Gnome"]
+BUILT_IN_ICON_THEMES: Final[List[str]] = ["Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "Gnome"]
+
+IconThemeFolderName = str
+
 """Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
@@ -241,10 +244,10 @@ class RawIconTheme():
     copied_dst_theme_name: str
     """This will be the name of the copied theme folder in BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES"""
 
-ALL_RAW_ICON_THEMES_PATH: List[RawIconTheme] = [
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "thirdparty" / "humanity_0.4.6" / "Humanity", copied_dst_theme_name="Humanity"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "thirdparty" / "humanity_0.4.6" / "Humanity-Dark", copied_dst_theme_name="Humanity-Dark"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent.parent.parent.parent / "gnome-icon-theme-cropped" / "src", copied_dst_theme_name="Gnome"),
+BUILT_IN_RAW_ICON_THEMES_PATH: List[RawIconTheme] = [
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity", copied_dst_theme_name="Humanity"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity-Dark", copied_dst_theme_name="Humanity-Dark"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "gnome-icon-theme-fork" / "src", copied_dst_theme_name="Gnome"),
 ]
 '''Paths of XDG icon theme packs.
 
@@ -273,6 +276,12 @@ class BUILD_FOLDERS:
     FOLDER_04_FINAL_PNG_THEME = FOLDER_ROOT / "04_FINAL_PNG_THEME"
     '''04. Convert SVG files to this folder, generate index.theme and index.qrc'''
 
+@dataclass
+class ExtraIconTheme():
+    id: str
+    """Unique ID of the icon theme. (NOTE: the following are occupied: `Tango`, `Tango-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)"""
+    icon_theme_root_folder_path: Path
+    """The root folder of the icon theme. (Contains context folders (required) and `index.theme` (optional, unused currently))"""
 
 class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
     """Copied from https://qiita.com/yuji38kwmt/items/c7c4d487e3188afd781e """
@@ -288,6 +297,7 @@ class IconThemeOptions:
     """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
     e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
+    extra_icon_themes: List[ExtraIconTheme]
 
     def __post_init__(self):
         """Validate types"""
@@ -302,6 +312,18 @@ class IconThemeOptions:
             if not is_icon_scale_type(scale):
                 raise ValueError(f"Invalid scale factor: {scale}. Must be one of {get_args(IconScaleType)}")
 
+    @staticmethod
+    def parse_extra_icon_theme(value: str) -> ExtraIconTheme:
+        parts = value.split(":")
+        if len(parts) != 2:
+            raise ValueError("Invalid format. Must be `id:icon_theme_root_folder_path`")
+        id = parts[0]
+        if id in BUILT_IN_ICON_THEMES:
+            raise ValueError(f"Invalid ID: {id}. This ID is reserved for built-in icon themes ({', '.join(BUILT_IN_ICON_THEMES)}) .")
+        return ExtraIconTheme(
+            id=id,
+            icon_theme_root_folder_path=Path(parts[1]).resolve()   # resolve() will convert relative path to absolute, according to current PWD instead of __file__.
+        )
 
     @classmethod
     def from_args(cls) -> 'IconThemeOptions':
@@ -360,7 +382,16 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
 
 e.g. if set to `/xdg_icon_themes/` (default value), the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
         )
+        parser.add_argument(
+            '--extra-icon-theme', '-e',
+            action='append',
+            type=cls.parse_extra_icon_theme,
+            required=False,
+            default=[],
+            help="""Extra icon theme. Format: `id:icon_theme_root_folder_path`. (e.g. `Tango:/usr/share/icons/Tango`)
 
+Multiple values can be specified via repeating using this option."""
+        )
         args = parser.parse_args()
 
         return cls(
@@ -368,7 +399,8 @@ e.g. if set to `/xdg_icon_themes/` (default value), the icon `Humanity/apps/48/t
             output_theme_name=args.output_theme_name,
             sizes=args.sizes,
             generate_scales=args.generate_scales,
-            qrc_qresource_prefix=args.qrc_qresource_prefix
+            qrc_qresource_prefix=args.qrc_qresource_prefix,
+            extra_icon_themes=args.extra_icon_theme
         )
 
 OPTIONS = IconThemeOptions.from_args()
@@ -526,7 +558,7 @@ def run_00_copy_icon_themes():
     print("00_ORIGINAL_THEMES")
     shutil.rmtree(BUILD_FOLDERS.FOLDER_ROOT, ignore_errors=True)
     BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
-    for raw_theme in ALL_RAW_ICON_THEMES_PATH:
+    for raw_theme in BUILT_IN_RAW_ICON_THEMES_PATH:
         # Keep relative symlinks, but I don't sure what happens under Windows.
         shutil.copytree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True)
 
@@ -606,7 +638,7 @@ def get_scaled_size_folder_suffix(scale: IconScaleType) -> str:
 
 
 def main():
-    ensure_thirdparty_files(Path(__file__).parent / "thirdparty")
+    ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
     run_00_copy_icon_themes()
     run_01_no_symlink_themes()
     run_02_colorize_themes()

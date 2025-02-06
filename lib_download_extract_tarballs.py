@@ -43,16 +43,16 @@ def extract_tarball(tarball_path: Path, dst_dir_path: Path) -> bool:
 URL_HUMANITY: str = "https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz"
 URL_TANGO: str = "http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2"
 
-def ensure_thirdparty_files(thirdparty_folder_path: Path) -> None:
-    thirdparty_folder_path.mkdir(parents=True, exist_ok=True)
+def ensure_tarballs_downloaded_and_extracted(tarballs_folder_path: Path) -> None:
+    tarballs_folder_path.mkdir(parents=True, exist_ok=True)
     for url in [URL_HUMANITY, URL_TANGO]:
         tarball_name: str = url.split("/")[-1]
-        tarball_path: Path = thirdparty_folder_path / tarball_name
+        tarball_path: Path = tarballs_folder_path / tarball_name
         extracted_folder_path = tarball_path.with_suffix("").with_suffix("")
         if not extracted_folder_path.exists():
             if not tarball_path.exists():
                 print(f"Downloading {tarball_name}...")
                 download_file(url, tarball_path)
             print(f"Extracting {tarball_name}...")
-            extract_tarball(tarball_path, thirdparty_folder_path)
+            extract_tarball(tarball_path, tarballs_folder_path)
 
