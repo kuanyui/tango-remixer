@@ -192,9 +192,7 @@ class IniSection():
 
 class IndexThemeCreator():
     '''To generate an `index.theme` file (XDG icon theme configuration file to describe available scales, sizes and contexts with their directories' paths)'''
-    def __init__(self, theme_name: str, comment: str):
-        self.theme_name = theme_name
-        self.comment = comment
+    def __init__(self):
         self.ini_sections: List[IniSection] = []
 
     def add_index_theme_ini_section(self, context: IconContextType, size: IconSizeType) -> None:
@@ -213,8 +211,8 @@ class IndexThemeCreator():
         fmtted_directories: str = ",".join([x.directory for x in self.ini_sections])
         file_content = f"""\
 [Icon Theme]
-Name={self.theme_name}
-Comment={self.comment}
+Name={OPTIONS.output_theme_name}
+Comment={OPTIONS.output_theme_description}
 Inherits=gnome,hicolor
 
 Example=directory-x-normal
@@ -296,6 +294,7 @@ class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelp
 class IconThemeOptions:
     included_icon_file: Path
     output_theme_name: str
+    output_theme_description: str
     sizes: List[IconSizeType]
     generate_scales: List[IconScaleType]
     qrc_qresource_prefix: str
@@ -359,9 +358,18 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
             '--output-theme-name', '-o',
             type=Path,
             required=False,
-            default="Untitled",
+            default="OutputTheme",
             help='Output theme name, which will become the name of outputted folder. This folder will become a XDG icon theme folder (contains in root of this folder: context dirs, index.theme, index.qrc).'
         )
+
+        parser.add_argument(
+            '--output-theme-description', '-d',
+            type=str,
+            required=False,
+            default="This index.theme is generated via tango-icons-collection",
+            help='Output theme description, which will be written in the `Comment=` field of the index.theme file.'
+        )
+
         parser.add_argument(
             '--sizes', '-S',
             type=lambda x: [s.strip() for s in x.split(',')],
@@ -402,6 +410,7 @@ Multiple values can be specified via repeating using this option."""
         return cls(
             included_icon_file=args.included_icon_file,
             output_theme_name=args.output_theme_name,
+            output_theme_description=args.output_theme_description,
             sizes=args.sizes,
             generate_scales=args.generate_scales,
             qrc_qresource_prefix=args.qrc_qresource_prefix,
@@ -612,7 +621,7 @@ def run_03_copy_included_icons():
     icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
-    index_theme = IndexThemeCreator(OPTIONS.output_theme_name, "This index.theme is generated via tango-icons-collection")
+    index_theme = IndexThemeCreator()
 
     for line in read_included_icons_as_lines(icon_searcher, OPTIONS.included_icon_file):
         src_icons = icon_searcher.filter_src_icon_by_icon_name(line.src_theme, line.src_icon_name)
