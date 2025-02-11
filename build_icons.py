@@ -25,6 +25,7 @@ from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine
 # import pstats
 import argparse
 import logging
+import platform
 
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
@@ -525,11 +526,15 @@ class IconSearcher():
 
 class SvgToPngConverter:
     """Call Inkscape to convert SVG to PNG using asyncio. Runs up to CPU count - 1 parallel processes."""
+
+    @staticmethod
+    def check_inkscape_exists() -> bool:
+        return shutil.which("inkscape") is not None
+
     def __init__(self) -> None:
         self.process_count = max(1, (os.cpu_count() or 1) - 1)
         self.semaphore = asyncio.Semaphore(self.process_count)
         self.logger = logging.getLogger(__name__)
-
     def convert(self, src_svg: Path, dst_png: Path, size: int) -> Coroutine[None, None, bool]:
         return self._convert(src_svg, dst_png, size)
 
@@ -540,13 +545,20 @@ class SvgToPngConverter:
                     return False
 
                 dst_png.parent.mkdir(parents=True, exist_ok=True)
-                process = await asyncio.create_subprocess_exec(
+                args: List[str] = [
                     "inkscape",
                     str(src_svg.absolute()),
                     "--export-type=png",
                     f"--export-width={size}",
                     f"--export-height={size}",
                     "--export-filename", str(dst_png.absolute()),
+                ]
+                if platform.system() == "Linux":
+                    # Prevent crash. Linux only. https://gitlab.com/inkscape/inkscape/-/issues/4716
+                    args = ["unshare", "--user", *args]
+
+                process = await asyncio.create_subprocess_exec(
+                    *args,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
@@ -690,8 +702,11 @@ def run_03_copy_included_icons():
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
 
-def run_04_convert_svg_to_png():
+async def run_04_convert_svg_to_png():
     print("04_FINAL_PNG_THEME")
+    if (SvgToPngConverter.check_inkscape_exists() == False):
+        print("Inkscape is not found. Please install Inkscape.")
+        return
     src_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
     dst_theme_folder = BUILD_FOLDERS.FOLDER_04_FINAL_PNG_THEME / OPTIONS.output_theme_name
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
@@ -705,10 +720,10 @@ def run_04_convert_svg_to_png():
         for scale in OPTIONS.generate_scales:
             dst_png_file_path = dst_theme_folder / context / f"{size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
             dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
-            asyncio.run(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
-            # deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
-            print(f"Convert {src_svg_file_path} -> {dst_png_file_path}")
-    # await asyncio.gather(*deferred)
+            # asyncio.run(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
+            deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
+            print(f"Convert {dst_png_file_path}")
+    await asyncio.gather(*deferred)
 
 
 def get_scaled_size_folder_suffix(scale: IconScaleType) -> str:
@@ -724,7 +739,7 @@ def main():
     run_01_no_symlink_themes()
     run_02_colorize_themes()
     run_03_copy_included_icons()
-    run_04_convert_svg_to_png()
+    asyncio.run(run_04_convert_svg_to_png())
 
 if __name__ == "__main__":
     # profiler = cProfile.Profile()
