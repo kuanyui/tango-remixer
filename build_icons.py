@@ -359,7 +359,7 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
 
         parser.add_argument(
             '--output-theme-name', '-o',
-            type=Path,
+            type=str,
             required=False,
             default="OutputTheme",
             help='Output theme name, which will become the name of outputted folder. This folder will become a XDG icon theme folder (contains in root of this folder: context dirs, index.theme, index.qrc).'
@@ -589,8 +589,11 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
         segs: List[str] = re.split(patt_separator, line.strip())
         if len(segs) == 0: continue
         if len(segs) == 1:
-            raise RuntimeError(f"Invalid line: {line}")
-            exit(1)
+            if segs[0].strip() == "":
+                continue
+            else:
+                raise RuntimeError(f"Invalid line: {line}")
+                exit(1)
         if len(segs) == 2:
             seg_src_theme = segs[0].strip()
             seg_src_icon = segs[1].strip()
@@ -710,19 +713,28 @@ async def run_04_convert_svg_to_png():
     src_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
     dst_theme_folder = BUILD_FOLDERS.FOLDER_04_FINAL_PNG_THEME / OPTIONS.output_theme_name
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
+    shutil.copy2(src_theme_folder / "index.theme", dst_theme_folder / "index.theme")
+    # shutil.copy2(src_theme_folder / "index.qrc", dst_theme_folder / "index.qrc")
+    qrc = QrcCreator(OPTIONS.output_theme_name)
     svg2png = SvgToPngConverter()
     deferred: List[Coroutine[None, None, bool]] = []
     for src_svg_file_path in src_theme_folder.rglob("*.svg"):
         relative_path = src_svg_file_path.relative_to(src_theme_folder)
         context = relative_path.parts[0]
-        size = int(relative_path.parts[1])
+        size = relative_path.parts[1]
         icon_name = format_icon_name(relative_path, 'noext')
+        if not is_icon_context_dir_type(context):
+            continue
+        if not is_icon_size_type(size):
+            continue
         for scale in OPTIONS.generate_scales:
+            qrc.add_file(context, size, scale, f"{icon_name}.png")
             dst_png_file_path = dst_theme_folder / context / f"{size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
             dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
             # asyncio.run(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
-            deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
+            deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size) * int(scale)))
             print(f"Convert {dst_png_file_path}")
+    qrc.write_qrc_file(dst_theme_folder / "index.qrc")
     await asyncio.gather(*deferred)
 
 
