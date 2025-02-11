@@ -8,9 +8,9 @@ https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.
 
 https://gist.github.com/peteristhegreat/c0ca6e1a57e5d4b9cd0bb1d7b3be1d6a
 """
-
 import os
 import re
+import asyncio
 import shutil
 from pathlib import Path
 from dataclasses import dataclass, asdict, field
@@ -20,10 +20,12 @@ from xml.etree import ElementTree as ET
 from pprint import pprint
 from types import SimpleNamespace
 from enum import StrEnum
-from typing import List, Literal, TypeGuard, get_args, Dict, Final, Set
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine
 # import cProfile
 # import pstats
 import argparse
+import logging
+
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
@@ -518,6 +520,49 @@ class IconSearcher():
             raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
         return final
 
+
+
+
+class SvgToPngConverter:
+    """Call Inkscape to convert SVG to PNG using asyncio. Runs up to CPU count - 1 parallel processes."""
+    def __init__(self) -> None:
+        self.process_count = max(1, (os.cpu_count() or 1) - 1)
+        self.semaphore = asyncio.Semaphore(self.process_count)
+        self.logger = logging.getLogger(__name__)
+
+    def convert(self, src_svg: Path, dst_png: Path, size: int) -> Coroutine[None, None, bool]:
+        return self._convert(src_svg, dst_png, size)
+
+    async def _convert(self, src_svg: Path, dst_png: Path, size: int) -> bool:
+        async with self.semaphore:
+            try:
+                if not src_svg.exists():
+                    return False
+
+                dst_png.parent.mkdir(parents=True, exist_ok=True)
+                process = await asyncio.create_subprocess_exec(
+                    "inkscape",
+                    str(src_svg.absolute()),
+                    "--export-type=png",
+                    f"--export-width={size}",
+                    f"--export-height={size}",
+                    "--export-filename", str(dst_png.absolute()),
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+
+                stdout, stderr = await process.communicate()
+
+                if process.returncode != 0:
+                    error_msg = stderr.decode() if stderr else "Unknown error"
+                    self.logger.error(f"Conversion failed: {error_msg}")
+                    return False
+                return True
+
+            except Exception as e:
+                self.logger.exception("Error during conversion")
+                return False
+
 def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -> List[IncludedIcon]:
     fin: List[IncludedIcon] = []
     # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
@@ -645,6 +690,26 @@ def run_03_copy_included_icons():
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
 
+def run_04_convert_svg_to_png():
+    print("04_FINAL_PNG_THEME")
+    src_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
+    dst_theme_folder = BUILD_FOLDERS.FOLDER_04_FINAL_PNG_THEME / OPTIONS.output_theme_name
+    dst_theme_folder.mkdir(parents=True, exist_ok=True)
+    svg2png = SvgToPngConverter()
+    deferred: List[Coroutine[None, None, bool]] = []
+    for src_svg_file_path in src_theme_folder.rglob("*.svg"):
+        relative_path = src_svg_file_path.relative_to(src_theme_folder)
+        context = relative_path.parts[0]
+        size = int(relative_path.parts[1])
+        icon_name = format_icon_name(relative_path, 'noext')
+        for scale in OPTIONS.generate_scales:
+            dst_png_file_path = dst_theme_folder / context / f"{size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
+            dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
+            asyncio.run(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
+            # deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
+            print(f"Convert {src_svg_file_path} -> {dst_png_file_path}")
+    # await asyncio.gather(*deferred)
+
 
 def get_scaled_size_folder_suffix(scale: IconScaleType) -> str:
     if scale == "1":
@@ -659,7 +724,7 @@ def main():
     run_01_no_symlink_themes()
     run_02_colorize_themes()
     run_03_copy_included_icons()
-
+    run_04_convert_svg_to_png()
 
 if __name__ == "__main__":
     # profiler = cProfile.Profile()
