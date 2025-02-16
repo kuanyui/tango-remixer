@@ -69,7 +69,7 @@ For how to use in Qt C++ project, see the following descriptions.
 > - https://openapplibrary.org/dev-tutorials/qt-icon-themes
 >
 > ## Terminology
-> - `REPO` is this icon repo, that it, `tango_icons_for_qt/`
+> - `REPO` is this icon repo, that it, `tango-icon-collection/`
 > - `RAW_HUMANITY` is the original Humanity icon repo, that is, `tango_icons_for_qt/thirdparty/humanity_0.4.6/`
 
 ## About Qt 6 C++ API & Freedesktop Supports
