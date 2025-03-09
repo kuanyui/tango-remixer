@@ -1,8 +1,6 @@
-# Tango (Humanity) Icons for Qt Application
+# Tango Icon Theme Remixer
 
-The subfolder `thirdparty/humanity_0.4.6/` is an icon theme from Ubuntu's Humanity project (GPLv2):
-
-https://launchpad.net/humanity/+download
+Remix multiple Tango-flavoured icon themes (e.g. GNOME Icon Theme, Ubuntu Humanity) into an independent XDG-compatible icon theme pack, especially for Qt Application (e.g. directly retrieve icon via `QIcon::fromTheme(QString iconName)`)
 
 This project is to convert it to `.qrc` which can be easily to be used in your Qt project. (only tested on Qt 6, mainly the HiDPI support.)
 
@@ -18,14 +16,11 @@ Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Hum
 # Thirdparties Tarballs
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
-## Ubuntu Humanity (Main)
-
-- thirdparty/[humanity_0.4.6.tar.gz](https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz)
-  - **The only tarball which is being processed by our script.**
-  - Clone from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
-
-## GNOME Icon Theme
-
+## GNOME Icon Theme Forked (Main)
+- submodules/[gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork)
+  - A fork of GNOME 2/3 default XDG icon theme, provided as SVG files. Includes some fixes and new extra icons.
+  - License: GPLv3
+<!--
 - thirdparty/[gnome-icon-theme-2.20.0.tar.bz2](https://download.gnome.org/sources/gnome-icon-theme/2.20/gnome-icon-theme-2.20.0.tar.bz2)
   - Downloaded from [download.gnome.org](https://download.gnome.org/sources/gnome-icon-theme/2.20/)
   - (Found in [Wikimedia](https://commons.wikimedia.org/wiki/GNOME_Desktop_icons), **but all icons are in PNG only, except 48x48 are in SVG.**)
@@ -44,11 +39,19 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 - thirdparty/[gnome-icon-theme-extras](https://gitlab.gnome.org/Archive/gnome-icon-theme-extras)
   - Totally unused. For reference only.
   - Dwonloaded from [gitlat.gnome.org](https://gitlab.gnome.org/Archive/gnome-icon-theme-extras)
+-->
+
+## Ubuntu Humanity (Main)
+- thirdparty/[humanity_0.4.6.tar.gz](https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz)
+  - **The only tarball which is being processed by our script.**
+  - Clone from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
+  - License: GPLv2
 
 ## Freedesktop Tango
 - thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2)
   - The original reference implementations following Tango icon specifications
   - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
+  - License: Public Domain
 
 # Build .svg and .qrc
 ```sh
@@ -69,7 +72,7 @@ For how to use in Qt C++ project, see the following descriptions.
 > - https://openapplibrary.org/dev-tutorials/qt-icon-themes
 >
 > ## Terminology
-> - `REPO` is this icon repo, that it, `tango-icon-collection/`
+> - `REPO` is this icon repo, that is, `tango-icon-remixer/`
 > - `RAW_HUMANITY` is the original Humanity icon repo, that is, `tango_icons_for_qt/thirdparty/humanity_0.4.6/`
 
 ## About Qt 6 C++ API & Freedesktop Supports
