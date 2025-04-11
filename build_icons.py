@@ -30,7 +30,7 @@ import platform
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
-BUILT_IN_ICON_THEMES: Final[List[str]] = ["Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "Gnome"]
+BUILT_IN_ICON_THEMES: Final[List[str]] = ["Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome"]
 
 IconThemeFolderName = str
 
@@ -265,15 +265,15 @@ class BUILD_FOLDERS:
     FOLDER_ROOT: Final[Path] = Path(__file__).parent / "dist"
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
     '''00. Copy all icon themes folders here.
-    Contains "Humanity", "Humanity-Dark", "GNOME3" '''
+    Contains "Humanity", "Humanity-Dark", "Gnome" '''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
-    Contains "Humanity", "Humanity-Dark", "GNOME3" '''
+    Contains "Humanity", "Humanity-Dark", "Gnome" '''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
-    '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to Tango theme (blue).
-    Contains "Humanity", "Humanity-Dark", "Tango", "Tango-Dark", "GNOME3" '''
+    '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
+    Contains "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome" '''
 
     FOLDER_03_FINAL_SVG_THEME = FOLDER_ROOT / "03_FINAL_SVG_THEME"
     '''03. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.'''
@@ -285,7 +285,7 @@ class BUILD_FOLDERS:
 class ExtraIconTheme():
     id: str
     """Unique ID of the icon theme, this is same with the icon theme folder name.
-    (NOTE: the following are occupied by built-in themes: `Tango`, `Tango-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)"""
+    (NOTE: the following are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)"""
     icon_theme_root_folder_path: Path
     """The root folder of the icon theme. (Contains context folders (required) and `index.theme` (optional, unused currently))"""
 
@@ -665,11 +665,11 @@ def run_02_colorize_themes():
             dst_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
             copy_svg_file(src_svg_file_path, dst_svg_file_path, "none")
             if src_theme_folder.name == "Humanity":
-                dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "Tango" / svg_relative_file_path
+                dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueHumanity" / svg_relative_file_path
                 dst_tango_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "tango_colorizer")
             elif src_theme_folder.name == "Humanity-Dark":
-                dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "Tango-Dark" / svg_relative_file_path
+                dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueHumanity-Dark" / svg_relative_file_path
                 dst_tango_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "tango_colorizer")
 
