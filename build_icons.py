@@ -18,8 +18,6 @@ from dataclasses import dataclass, asdict, field
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from types import SimpleNamespace
-from enum import StrEnum
 from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine
 # import cProfile
 # import pstats
@@ -30,7 +28,7 @@ import platform
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
-BUILT_IN_ICON_THEMES: Final[List[str]] = ["Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome"]
+BUILT_IN_ICON_THEMES: Final[List[str]] = ["Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome"]
 
 IconThemeFolderName = str
 
@@ -440,7 +438,7 @@ def format_icon_name(icon_name_or_file_name: str | Path, to_type: Literal['noext
             return f"{fn_without_ext}.png"
 
 
-def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none", "tango_colorizer"]) -> None:
+def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none", "humanity_colorizer", "gnome_colorizer"]) -> None:
     src_path: Path = Path(src)
     if src_path.is_symlink():
         return None
@@ -449,12 +447,14 @@ def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none"
     if preprocessor == 'none':
         shutil.copy2(src, dst)
         return
-    if preprocessor == 'tango_colorizer':
-        with open(src, 'r', encoding='utf-8') as f:
-            raw_content = f.read()
-        with open(dst, 'w', encoding='utf-8') as f:
-            f.write(tango_colorize_svg_content(raw_content, dst_path.stem))
-        return
+    with open(src, 'r', encoding='utf-8') as f:
+        raw_content = f.read()
+    with open(dst, 'w', encoding='utf-8') as f:
+        if preprocessor == 'humanity_colorizer':
+            f.write(humanity_colorize_svg_content(raw_content, dst_path.stem))
+        elif preprocessor == 'gnome_colorizer':
+            f.write(gnome_colorize_svg_content(raw_content, dst_path.stem))
+    return
 
 
 @dataclass
@@ -563,7 +563,7 @@ class SvgToPngConverter:
                     stderr=asyncio.subprocess.PIPE
                 )
 
-                stdout, stderr = await process.communicate()
+                _stdout, stderr = await process.communicate()
 
                 if process.returncode != 0:
                     error_msg = stderr.decode() if stderr else "Unknown error"
@@ -572,7 +572,7 @@ class SvgToPngConverter:
                 return True
 
             except Exception as e:
-                self.logger.exception("Error during conversion")
+                self.logger.exception(f"Error during conversion {e}")
                 return False
 
 def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -> List[IncludedIcon]:
@@ -664,14 +664,19 @@ def run_02_colorize_themes():
             dst_svg_file_path = dst_theme_folder / svg_relative_file_path
             dst_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
             copy_svg_file(src_svg_file_path, dst_svg_file_path, "none")
-            if src_theme_folder.name == "Humanity":
+            if src_theme_folder.name == "Gnome":
+                # Copy gnome icons to blue gnome
+                dst_gnome_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueGnome" / svg_relative_file_path
+                dst_gnome_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
+                copy_svg_file(src_svg_file_path, dst_gnome_svg_file_path, "gnome_colorizer")
+            elif src_theme_folder.name == "Humanity":
                 dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueHumanity" / svg_relative_file_path
                 dst_tango_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
-                copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "tango_colorizer")
+                copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "humanity_colorizer")
             elif src_theme_folder.name == "Humanity-Dark":
                 dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueHumanity-Dark" / svg_relative_file_path
                 dst_tango_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
-                copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "tango_colorizer")
+                copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "humanity_colorizer")
 
 def run_03_copy_included_icons():
     print("03_FINAL_SVG_THEME")
