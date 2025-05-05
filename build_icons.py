@@ -28,7 +28,20 @@ import platform
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
-BUILT_IN_ICON_THEMES: Final[List[str]] = ["Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome"]
+BUILT_IN_ICON_THEMES: Final[List[str]] = [
+    # Vanilla XDG Icon Themes
+    "Humanity",
+    "Humanity-Dark",
+    "Gnome",
+    # Hue-Adjusted XDG Icon Themes
+    "BlueHumanity",
+    "BlueHumanity-Dark",
+    "BlueGnome",
+    # Icon Packs in Thirdparty Apps
+    "GimpDefault",
+    "GimpLegacy",
+    "InkscapeTango",
+]
 
 IconThemeFolderName = str
 
@@ -251,6 +264,9 @@ BUILT_IN_RAW_ICON_THEMES_PATH: List[RawIconTheme] = [
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity", copied_dst_theme_name="Humanity"),
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity-Dark", copied_dst_theme_name="Humanity-Dark"),
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "gnome-icon-theme-fork" / "src", copied_dst_theme_name="Gnome"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "extra-icon-themes-from-apps" / "GimpDefault", copied_dst_theme_name="GimpDefault"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "extra-icon-themes-from-apps" / "GimpLegacy", copied_dst_theme_name="GimpLegacy"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "extra-icon-themes-from-apps" / "InkscapeTango", copied_dst_theme_name="InkscapeTango"),
 ]
 '''Paths of XDG icon theme packs.
 
@@ -263,15 +279,18 @@ class BUILD_FOLDERS:
     FOLDER_ROOT: Final[Path] = Path(__file__).parent / "dist"
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
     '''00. Copy all icon themes folders here.
-    Contains "Humanity", "Humanity-Dark", "Gnome" '''
+    Contains "Humanity", "Humanity-Dark", "Gnome"
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")'''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
-    Contains "Humanity", "Humanity-Dark", "Gnome" '''
+    Contains "Humanity", "Humanity-Dark", "Gnome"
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")'''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
     '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
-    Contains "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome" '''
+    Contains "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome"
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")'''
 
     FOLDER_03_FINAL_SVG_THEME = FOLDER_ROOT / "03_FINAL_SVG_THEME"
     '''03. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.'''
