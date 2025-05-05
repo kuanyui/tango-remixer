@@ -1,3 +1,6 @@
 [submodule "gnome-icon-theme-fork"]
 	path = submodules/gnome-icon-theme-fork
 	url = git@github.com:kuanyui/gnome-icon-theme-fork.git
+[submodule "floss-icon-themes"]
+	path = submodules/floss-icon-themes
+	url = git@github.com:kuanyui/floss-icon-themes.git
