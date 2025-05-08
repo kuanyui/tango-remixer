@@ -47,7 +47,7 @@ IconThemeFolderName = str
 
 """Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
-"""The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` (unused currently)"""
+"""The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable`"""
 IconContextType = Literal["actions", "animations", "apps", "categories",
                              "devices", "emblems", "emotes", "intl",
                              "mimetypes", "places", "status"]
@@ -213,6 +213,7 @@ class IndexThemeCreator():
         for exist_section in self.ini_sections:
             if exist_section.context == context and exist_section.ori_size == size:
                 return
+        # Scales (@1, @2, @3, @4)
         for scale in OPTIONS.generate_scales:
             directory: str = f'{context}/{size}{get_scaled_size_folder_suffix(scale)}'
             self.ini_sections.append(IniSection(
@@ -239,7 +240,9 @@ Directories={fmtted_directories}
             lines: List[str] = [f'[{entry.directory}]']
             if entry.scale != '1':
                 lines.append(f'Scale={entry.scale}')
-            lines.append(f'Size={int(entry.ori_size) * int(entry.scale)}')
+            ori_size: int = 48 if entry.ori_size == 'scalable' else int(entry.ori_size)
+            scale: int = int(entry.scale)
+            lines.append(f'Size={ori_size * scale}')
             lines.append(f'Context={folder_context_to_ini_context(entry.context)}')
             lines.append(f'Type=Fixed')
             file_content += "\n".join(lines)
@@ -252,7 +255,7 @@ Directories={fmtted_directories}
             print(f"Error when creating {output_index_theme_file_path}: {e}")
 
 
-ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+)/(.+\.svg)$")
+ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+|scalable)/(.+\.svg)$")
 
 @dataclass
 class RawIconTheme():
@@ -264,9 +267,9 @@ BUILT_IN_RAW_ICON_THEMES_PATH: List[RawIconTheme] = [
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity", copied_dst_theme_name="Humanity"),
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity-Dark", copied_dst_theme_name="Humanity-Dark"),
     RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "gnome-icon-theme-fork" / "src", copied_dst_theme_name="Gnome"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "extra-icon-themes-from-apps" / "GimpDefault", copied_dst_theme_name="GimpDefault"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "extra-icon-themes-from-apps" / "GimpLegacy", copied_dst_theme_name="GimpLegacy"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "extra-icon-themes-from-apps" / "InkscapeTango", copied_dst_theme_name="InkscapeTango"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "floss-icon-themes" / "GimpDefault", copied_dst_theme_name="GimpDefault"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "floss-icon-themes" / "GimpLegacy", copied_dst_theme_name="GimpLegacy"),
+    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "floss-icon-themes" / "InkscapeTango", copied_dst_theme_name="InkscapeTango"),
 ]
 '''Paths of XDG icon theme packs.
 
@@ -723,6 +726,7 @@ def run_03_copy_included_icons():
             # add to qrc
             for scale in OPTIONS.generate_scales:
                 qrc.add_file(src_icon.context, src_icon.size, scale, file_name)
+
             # index.theme
             index_theme.add_index_theme_ini_section(src_icon.context, src_icon.size)
 
@@ -739,7 +743,10 @@ async def run_04_convert_svg_to_png():
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
     shutil.copy2(src_theme_folder / "index.theme", dst_theme_folder / "index.theme")
     # shutil.copy2(src_theme_folder / "index.qrc", dst_theme_folder / "index.qrc")
+
     qrc = QrcCreator(OPTIONS.output_theme_name)
+    index_theme = IndexThemeCreator()
+
     svg2png = SvgToPngConverter()
     deferred: List[Coroutine[None, None, bool]] = []
     for src_svg_file_path in src_theme_folder.rglob("*.svg"):
@@ -752,13 +759,27 @@ async def run_04_convert_svg_to_png():
         if not is_icon_size_type(size):
             continue
         for scale in OPTIONS.generate_scales:
-            qrc.add_file(context, size, scale, f"{icon_name}.png")
-            dst_png_file_path = dst_theme_folder / context / f"{size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
-            dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
-            # asyncio.run(svg2png.convert(src_svg_file_path, dst_png_file_path, size * int(scale)))
-            deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size) * int(scale)))
-            print(f"Convert {dst_png_file_path}")
+            # qrc & index.theme
+            if size != 'scalable':
+                qrc.add_file(context, size, scale, f"{icon_name}.png")
+                index_theme.add_index_theme_ini_section(context, size)
+                dst_png_file_path = dst_theme_folder / context / f"{size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
+                dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
+                deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size) * int(scale)))
+                print(f"Convert {dst_png_file_path}")
+            else:
+                for fixed_px_size in OPTIONS.sizes:
+                    if fixed_px_size == 'scalable': continue
+                    qrc.add_file(context, fixed_px_size, scale, f"{icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
+                    index_theme.add_index_theme_ini_section(context, fixed_px_size)
+                    dst_png_file_path = dst_theme_folder / context / f"{fixed_px_size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
+                    dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
+                    deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(fixed_px_size) * int(scale)))
+                    print(f"Convert {dst_png_file_path}")
+
     qrc.write_qrc_file(dst_theme_folder / "index.qrc")
+    index_theme.write_index_theme_file(dst_theme_folder / "index.theme")
+
     await asyncio.gather(*deferred)
 
 
