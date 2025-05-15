@@ -40,8 +40,10 @@ def extract_tarball(tarball_path: Path, dst_dir_path: Path) -> bool:
         print(f"Extraction failed: {str(e)}")
         return False
 
-URL_HUMANITY: str = "https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz"
-URL_TANGO: str = "http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2"
+# URL_HUMANITY: str = "https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz"
+# URL_TANGO: str    = "http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2"
+URL_HUMANITY: str   = "https://github.com/kuanyui/tango_icons_tarballs/raw/refs/heads/master/humanity_0.4.6.tar.gz"
+URL_TANGO: str      = "https://github.com/kuanyui/tango_icons_tarballs/raw/refs/heads/master/tango-icon-theme-0.8.90.tar.bz2"
 
 def ensure_tarballs_downloaded_and_extracted(tarballs_folder_path: Path) -> None:
     tarballs_folder_path.mkdir(parents=True, exist_ok=True)
@@ -55,4 +57,3 @@ def ensure_tarballs_downloaded_and_extracted(tarballs_folder_path: Path) -> None
                 download_file(url, tarball_path)
             print(f"Extracting {tarball_name}...")
             extract_tarball(tarball_path, tarballs_folder_path)
-
