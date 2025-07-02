@@ -47,11 +47,25 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
   - Clone from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
   - License: GPLv2
 
-## Freedesktop Tango
+## FLOSS Icon Themes
+- submodules/[floss-icon-themes](https://github.com/kuanyui/floss-icon-themes)
+  - Icons collected from the source code of some FLOSS projects:
+    - GIMP: `GimpLegacy` (GPL v3+, licensed the same as GIMP application core)
+    - GIMP: `GimpDefault` (CC by-sa 3.0)
+    - Inkscape: `InkscapeTango` (GPL v2)
+
+## Freedesktop Tango (**Unused**; for reference only.)
 - thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2)
   - The original reference implementations following Tango icon specifications
   - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
   - License: Public Domain
+
+> # More References & Todos
+> - https://github.com/gnome-colors/gnome-colors (found from https://en.m.wikipedia.org/wiki/File:Dialog-apply.svg )
+> - https://commons.wikimedia.org/wiki/Comparison_of_icon_sets
+>   - https://commons.wikimedia.org/wiki/GNOME_Desktop_icons
+>   - https://commons.wikimedia.org/wiki/Tango_icons
+
 
 # Build .svg and .qrc
 ```sh
@@ -301,4 +315,7 @@ As a reference, the final file-system structure looks like:
 
 
 # License
-All source code, include this README, are released under GPLv3.
+
+Source code, include this README, are released under GPLv3.
+
+For icons, please read the `LICENSE` of each repo in `thirdparty/` and `submodules/`.
