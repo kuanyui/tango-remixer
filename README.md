@@ -13,7 +13,7 @@ However, Tango Desktop Project has already discontinued and seems not to be prom
 
 Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Humanity](https://launchpad.net/humanity/) Project for their Ubuntu GNOME desktop, maybe in around 2006, which provides a larger amount of icons for daily usage. So I hereby express my highest respect for their work.
 
-# Thirdparties Tarballs
+# Used Submodules / Thirdparties Tarballs
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
 ## GNOME Icon Theme Forked (Main)
@@ -65,6 +65,94 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 > - https://commons.wikimedia.org/wiki/Comparison_of_icon_sets
 >   - https://commons.wikimedia.org/wiki/GNOME_Desktop_icons
 >   - https://commons.wikimedia.org/wiki/Tango_icons
+
+
+# Built-in Icon Themes
+
+| Theme ID        | Forked Source | License      | Description                                                                   |
+|-----------------|---------------|--------------|-------------------------------------------------------------------------------|
+| `Gnome`         | GNOME         | GPL v3       | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
+| `BlueGnome`     | GNOME         | GPL v3       | Same with `Gnome`, but with adjusted hue by Python script in this project     |
+| `Humanity`      | Ubuntu        | GPL v2       |                                                                               |
+| `BlueHumanity`  | Ubuntu        | GPL v2       | Same with `Humanity`, but with adjusted hue by Python script in this project  |
+| `GimpLegacy`    | GIMP          | GPL v3+      |                                                                               |
+| `GimpDefault`   | GIMP          | CC by-sa 3.0 |                                                                               |
+| `InkscapeTango` | Inkscape      | GPL v2       |                                                                               |
+
+# How to Use in Qt Project?
+
+> [!IMPORTANT]
+> Run `./build_icons.py --help` for more latest information and full usages.
+
+## 1. Clone this project into `MY_QT_PROJ/resources/`
+```
+git clone --recursive git@github.com:kuanyui/tango-icon-remixer.git
+```
+
+## 2. Specify wanted icons via `included_icons.txt`
+
+`cd` into `MY_QT_PROJ/resources` and create `included_icons.txt`, then specify the required icons in following format:
+
+> ```
+> SRC_THEME_NAME		[SRC_CONTEXT/]SRC_ICON_NAME		[DST_CONTEXT/]DST_ICON_NAME
+> SRC_THEME_NAME		[SRC_CONTEXT/]SRC_ICON_NAME
+> ```
+>
+> - Separate fields by tab, or >=2 spaces.
+> - SRC_CONTEXT is unused currently. Can be omitted.
+> - DST_CONTEXT is optional. Default is same with the context of the source icon.
+> - ICON_NAME should not contain the extension. All extensions will be ignored.
+
+For example:
+```conf
+# Line started with `#` will be seen as comment and be ignored.
+
+# Include the icon named `application-exit` in icon theme `Gnome`.
+Gnome     application-exit
+
+# Include the icon named `preferences-desktop-theme` in icon theme `Gnome`, and rename it in our outputted new icon theme.
+Gnome     preferences-desktop-theme      apps/palettes
+
+# The following two lines have same meaning. (`devices` is context, can be omitted.)
+Gnome     devices/computer
+Gnome     computer
+
+```
+
+> [!TIP]
+> Then you can test your `included_icons.txt` like this:
+> ```sh
+> ./tango-icon-remixer/build_icons.py --included-icon-file ./included_icons.txt --output-theme-name "CustomizedTango"
+> ```
+> The built SVG and PNG files can be found in `./tango-icon-remixer/dist/`. PNG is recommended because Qt's SVG renderer is not very well... Some icons may unable to be rendered correctly.
+
+## 3. Edit `CMakeLists.txt`, watch the changes of `included_icons.txt` and build the included icons
+
+```cmake
+# ===============================================
+# Build Icons
+# ===============================================
+find_package(Python3 REQUIRED Interpreter)
+set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
+set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-icon-remixer")
+set(ICON_BUILD_SCRIPT "${ICON_REPO_DIR}/build_icons.py")
+execute_process(
+    COMMAND ${Python3_EXECUTABLE} ${ICON_BUILD_SCRIPT} --included-icon-file "${RESOURCES_DIR}/included_icons.txt" --output-theme-name "CustomizedTango"
+)
+set_property(
+    DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${RESOURCES_DIR}/included_icons.txt"
+)
+
+# ==============================================
+# Main
+# ==============================================
+qt_add_executable(myprojectname
+     MANUAL_FINALIZATION
+     ${PROJECT_SOURCES}
+     resources/tango-icon-remixer/dist/04_FINAL_PNG_THEME/CustomizedTango/index.qrc
+)
+
+```
 
 
 # Build .svg and .qrc
