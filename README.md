@@ -94,14 +94,16 @@ git clone --recursive git@github.com:kuanyui/tango-icon-remixer.git
 `cd` into `MY_QT_PROJ/resources` and create `included_icons.txt`, then specify the required icons in following format:
 
 > ```
-> SRC_THEME_NAME		[SRC_CONTEXT/]SRC_ICON_NAME		[DST_CONTEXT/]DST_ICON_NAME
-> SRC_THEME_NAME		[SRC_CONTEXT/]SRC_ICON_NAME
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME
 > ```
 >
 > - Separate fields by tab, or >=2 spaces.
-> - SRC_CONTEXT is unused currently. Can be omitted.
-> - DST_CONTEXT is optional. Default is same with the context of the source icon.
-> - ICON_NAME should not contain the extension. All extensions will be ignored.
+> - `SRC_CONTEXT` is unused currently. Can be omitted.
+> - `SRC_ICON_NAME` is required. Should not contain the extension. All extensions will be ignored.
+> - `DST_CONTEXT` is optional. Default is same with the context of the source icon.
+> - `DST_ICON_NAME` is optional, which can be used to rename the outputted icon name.
+> - All `*_ICON_NAME` should not contain the extension. All extensions will be ignored.
 
 For example:
 ```conf
