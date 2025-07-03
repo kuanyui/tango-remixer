@@ -78,7 +78,7 @@ python3 ./build_icons.py --help  # see other options
 For how to use in Qt C++ project, see the following descriptions.
 
 # What Are This Project Do?
-> ## References
+> ## Specifications of XDG Icon Theme
 > - https://specifications.freedesktop.org/icon-theme-spec/latest/
 > - https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
 >
@@ -87,7 +87,6 @@ For how to use in Qt C++ project, see the following descriptions.
 >
 > ## Terminology
 > - `REPO` is this icon repo, that is, `tango-icon-remixer/`
-> - `RAW_HUMANITY` is the original Humanity icon repo, that is, `tango_icons_for_qt/thirdparty/humanity_0.4.6/`
 
 ## About Qt 6 C++ API & Freedesktop Supports
 Qt 6 follows freedesktop.org XDG's specifications and implement a cross-platform XDG icon theme support for Qt application. So you can use any icon theme pack which follows freedesktop.org standard in your Qt application and run on Linux / Mac / Windows.
@@ -297,14 +296,14 @@ Type=Fixed
 ```
 
 > Note of qrc:
->   - `qresource[prefix]` is not related to the real folder structure. It is only used in Qt for the resource path.
+>   - `RCC > qresource[prefix]` is not related to the real folder structure. It is only used in Qt for the resource path.
 >      - **Totally unrelated** to the real file path. (`<file>`)
 >      - I mean, this is unable to shorten the content of `<file>`. This is merely an "prepended extra namespace".
 >      - It effects the path when refer resource file in C++. To refer a resource file in C++, the path would be:
 >        - `:/{prefix}/{file}`
 >        - `:/{prefix}/{file_alias}`
->   - `file[alias]` is used in Qt for the resource path only.
->   - `file` is **ALWAYS** and **ONLY CAN BE** the real file path relative to this `qrc` file.
+>   - `RCC > qresource > file[alias]` is used in Qt for the resource path only.
+>   - `RCC > qresource > file`'s content is **ALWAYS** and **ONLY CAN BE** the file path **relative to** this `qrc` file.
 >
 > Now import `dist/tango_icons.qrc` in your Qt project,
 > you can access the icon in Qt by `:/tango_icons/light/48/video-player.svg`,
