@@ -119,12 +119,18 @@ Gnome     computer
 
 ```
 
-> [!TIP]
+> [!NOTE]
 > Then you can test your `included_icons.txt` like this:
 > ```sh
 > ./tango-icon-remixer/build_icons.py --included-icon-file ./included_icons.txt --output-theme-name "CustomizedTango"
 > ```
 > The built SVG and PNG files can be found in `./tango-icon-remixer/dist/`. PNG is recommended because Qt's SVG renderer is not very well... Some icons may unable to be rendered correctly.
+
+> [!TIP]
+> You can also add your personal XDG-compatible SVG icon theme(s) and include them in `included_icons.txt` via `--extra-icon-theme`.
+> ```
+> --extra-icon-theme "MyIcon:path/to/my_icon_theme" --extra-icon-theme "AnotherIcon:path/to/another_icon_theme"
+> ```
 
 ## 3. Edit `CMakeLists.txt`, watch the changes of `included_icons.txt` and build the included icons
 
@@ -153,8 +159,15 @@ qt_add_executable(myprojectname
 )
 
 ```
+## 4. Use in Qt/C++
 
+Now you can get `QIcon` via `QIcon::fromTheme()`. Setup `mainwindow.cpp` like this:
 
+```cpp
+    QIcon::setThemeSearchPaths({ ":/xdg_icon_themes" });   // this `:/xdg_icon_themes` is a `<qresource prefix>` defined in `qrc`
+    QIcon::setThemeName("CustomizedTango");    // `--output-theme-name`
+    setWindowIcon(QIcon::fromTheme("palettes"));    // The included icon name.
+```
 # Build .svg and .qrc
 ```sh
 make build   # download tarballs & extract, then build .svg and .qrc into dist/
