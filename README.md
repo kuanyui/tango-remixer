@@ -67,17 +67,17 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 >   - https://commons.wikimedia.org/wiki/Tango_icons
 
 
-# Built-in Icon Themes
+# Built-in Icon Themes and Licenses
 
-| Theme ID        | Forked Source | License      | Description                                                                   |
-|-----------------|---------------|--------------|-------------------------------------------------------------------------------|
-| `Gnome`         | GNOME         | GPL v3       | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
-| `BlueGnome`     | GNOME         | GPL v3       | Same with `Gnome`, but with adjusted hue by Python script in this project     |
-| `Humanity`      | Ubuntu        | GPL v2       |                                                                               |
-| `BlueHumanity`  | Ubuntu        | GPL v2       | Same with `Humanity`, but with adjusted hue by Python script in this project  |
-| `GimpLegacy`    | GIMP          | GPL v3+      |                                                                               |
-| `GimpDefault`   | GIMP          | CC by-sa 3.0 |                                                                               |
-| `InkscapeTango` | Inkscape      | GPL v2       |                                                                               |
+| Theme ID        | Forked Source | License                     | Description                                                                   |
+|-----------------|---------------|-----------------------------|-------------------------------------------------------------------------------|
+| `Gnome`         | GNOME         | `LGPL v3` or `CC by-sa 3.0` | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
+| `BlueGnome`     | GNOME         | `LGPL v3` or `CC by-sa 3.0` | Same with `Gnome`, but with adjusted hue by Python script in this project     |
+| `Humanity`      | Ubuntu        | `GPL v2`                    |                                                                               |
+| `BlueHumanity`  | Ubuntu        | `GPL v2`                    | Same with `Humanity`, but with adjusted hue by Python script in this project  |
+| `GimpLegacy`    | GIMP          | `GPL v3+`                   |                                                                               |
+| `GimpDefault`   | GIMP          | `CC by-sa 3.0`              |                                                                               |
+| `InkscapeTango` | Inkscape      | `GPL v2`                    |                                                                               |
 
 # How to Use in Qt Project?
 
@@ -420,4 +420,4 @@ As a reference, the final file-system structure looks like:
 
 Source code, include this README, are released under GPLv3.
 
-For icons, please read the `LICENSE` of each repo in `thirdparty/` and `submodules/`.
+**For icons**, please read the `LICENSE` of each repo in `thirdparty/` and `submodules/`.
