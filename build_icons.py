@@ -315,6 +315,7 @@ class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelp
         return super()._format_action(action) + "\n"
 @dataclass
 class IconThemeOptions:
+    clean_before_build: bool
     included_icon_file: Path
     output_theme_name: str
     output_theme_description: str
@@ -357,6 +358,13 @@ class IconThemeOptions:
         parser = argparse.ArgumentParser(
             description='Icon theme configuration and processing tool',
             formatter_class=MyHelpFormatter
+        )
+        parser.add_argument(
+            '--clean-before-build', '-c',
+            type=bool,
+            required=False,
+            default=False,
+            help='Clean build folder before building.'
         )
         parser.add_argument(
             '--included-icon-file', '-i',
@@ -431,6 +439,7 @@ Multiple values can be specified via repeating using this option."""
         args = parser.parse_args()
 
         return cls(
+            clean_before_build=args.clean_before_build,
             included_icon_file=args.included_icon_file,
             output_theme_name=args.output_theme_name,
             output_theme_description=args.output_theme_description,
@@ -566,6 +575,13 @@ class SvgToPngConverter:
                 if not src_svg.exists():
                     return False
 
+                if dst_png.exists():
+                    src_svg_mtime = src_svg.stat().st_mtime
+                    dst_png_mtime = dst_png.stat().st_mtime
+                    if src_svg_mtime <= dst_png_mtime:
+                        print(f"dst_png {dst_png} is newer than src_svg {src_svg}, don't need to build, skip.")
+                        return True
+
                 dst_png.parent.mkdir(parents=True, exist_ok=True)
                 args: List[str] = [
                     "inkscape",
@@ -649,16 +665,82 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
     return fin
 
 
+def sync_tree(src: Path, dst: Path, symlinks: bool = True) -> None:
+    """
+    Synchronize source tree to destination, copying only newer files.
+
+    Only files newer in `src` are copied. Files existing only in `dst` will be removed.
+    Essentially makes `dst` an exact mirror of `src`, like `rsync --delete`.
+
+    Args:
+        src: Source directory path.
+        dst: Destination directory path.
+        symlinks: Whether to preserve symbolic links.
+
+    Returns:
+        None
+
+    Raises:
+        OSError: If file operations fail.
+    """
+    src = Path(src)
+    dst = Path(dst)
+
+    if not src.exists():
+        return
+
+    dst.mkdir(parents=True, exist_ok=True)
+
+    for src_path in src.rglob("*"):   # recursive glob
+        relative_path = src_path.relative_to(src)
+        dst_path = dst / relative_path
+
+        if src_path.is_symlink() and symlinks:
+            if dst_path.exists() or dst_path.is_symlink():
+                dst_path.unlink()
+            dst_path.symlink_to(src_path.readlink())
+        elif src_path.is_dir():
+            dst_path.mkdir(parents=True, exist_ok=True)
+            shutil.copystat(src_path, dst_path)
+        elif src_path.is_file():
+            should_copy = True
+            if dst_path.exists():
+                src_mtime = src_path.stat().st_mtime
+                dst_mtime = dst_path.stat().st_mtime
+                should_copy = src_mtime > dst_mtime
+
+            if should_copy:
+                dst_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src_path, dst_path)
+
+    for dst_path in dst.rglob("*"):   # recursive glob
+        relative_path = dst_path.relative_to(dst)
+        src_path = src / relative_path
+        if not src_path.exists():
+            if dst_path.is_dir() and not dst_path.is_symlink():
+                shutil.rmtree(dst_path)
+            else:
+                dst_path.unlink()
+
 
 def run_00_copy_icon_themes():
     print("00_ORIGINAL_THEMES")
-    shutil.rmtree(BUILD_FOLDERS.FOLDER_ROOT, ignore_errors=True)
-    BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
-    for raw_theme in BUILT_IN_RAW_ICON_THEMES_PATH:
-        # Keep relative symlinks, but I don't sure what happens under Windows.
-        shutil.copytree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True)
-    for extra_theme in OPTIONS.extra_icon_themes:
-        shutil.copytree(extra_theme.icon_theme_root_folder_path, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / extra_theme.id, symlinks=True)
+    if OPTIONS.clean_before_build:
+        shutil.rmtree(BUILD_FOLDERS.FOLDER_ROOT, ignore_errors=True)
+        BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
+        for raw_theme in BUILT_IN_RAW_ICON_THEMES_PATH:
+            # Keep relative symlinks, but I don't sure what will happen under Windows.
+            shutil.copytree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True)
+        for extra_theme in OPTIONS.extra_icon_themes:
+            shutil.copytree(extra_theme.icon_theme_root_folder_path, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / extra_theme.id, symlinks=True)
+    else:
+        BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
+        for raw_theme in BUILT_IN_RAW_ICON_THEMES_PATH:
+            # Keep relative symlinks, but I don't sure what will happen under Windows.
+            sync_tree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True)
+        for extra_theme in OPTIONS.extra_icon_themes:
+            sync_tree(extra_theme.icon_theme_root_folder_path, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / extra_theme.id, symlinks=True)
+
 
 def run_01_no_symlink_themes():
     print("01_NO_SYMLINK_THEMES")
