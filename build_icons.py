@@ -166,7 +166,7 @@ class QrcCreator():
 
 
     def add_file(self, context: IconContextType, size: IconSizeType, scale: IconScaleType, icon_filename: str) -> None:
-        rel_file_path = f'{context}/{size}{get_scaled_size_folder_suffix(scale)}/{icon_filename}'
+        rel_file_path = f'{size}{get_scaled_size_folder_suffix(scale)}/{context}/{icon_filename}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
         file = QrcQresourceFile(file=rel_file_path, alias="")
         self.scaled_qresource_dict[scale].files.append(file)
 
@@ -215,7 +215,7 @@ class IndexThemeCreator():
                 return
         # Scales (@1, @2, @3, @4)
         for scale in OPTIONS.generate_scales:
-            directory: str = f'{context}/{size}{get_scaled_size_folder_suffix(scale)}'
+            directory: str = f'{size}{get_scaled_size_folder_suffix(scale)}/{context}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
             self.ini_sections.append(IniSection(
                 directory=directory,
                 context=context,
@@ -283,23 +283,33 @@ class BUILD_FOLDERS:
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
     '''00. Copy all icon themes folders here.
     Contains "Humanity", "Humanity-Dark", "Gnome"
-    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")'''
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
+
+    Folder structures are all `<context>/<size>` (convension since CVS/SVN era)'''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
     Contains "Humanity", "Humanity-Dark", "Gnome"
-    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")'''
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
+
+    Folder structures are all `<context>/<size>` (convension since CVS/SVN era)'''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
     '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
     Contains "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome"
-    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")'''
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
+
+    Folder structures are all `<context>/<size>` (convension since CVS/SVN era)'''
 
     FOLDER_03_FINAL_SVG_THEME = FOLDER_ROOT / "03_FINAL_SVG_THEME"
-    '''03. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.'''
+    '''03. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.
+
+    Folder structure is `<size>/<context>` (XDG standard)'''
 
     FOLDER_04_FINAL_PNG_THEME = FOLDER_ROOT / "04_FINAL_PNG_THEME"
-    '''04. Convert SVG files to this folder, generate index.theme and index.qrc'''
+    '''04. Convert SVG files to this folder, generate index.theme and index.qrc
+
+    Folder structure is `<size>/<context>` (XDG standard)'''
 
 @dataclass
 class ExtraIconTheme():
@@ -801,7 +811,7 @@ def run_03_copy_included_icons():
             # copy included icon.
             context = line.dst_context or src_icon.context
             file_name = format_icon_name(line.dst_icon_name or src_icon.file_name, 'svg')
-            icon_dst_file_path: Path = this_theme_folder / context / src_icon.size / file_name
+            icon_dst_file_path: Path = this_theme_folder / src_icon.size / context / file_name    # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
             icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
 
@@ -833,8 +843,8 @@ async def run_04_convert_svg_to_png():
     deferred: List[Coroutine[None, None, bool]] = []
     for src_svg_file_path in src_theme_folder.rglob("*.svg"):
         relative_path = src_svg_file_path.relative_to(src_theme_folder)
-        context = relative_path.parts[0]
-        size = relative_path.parts[1]
+        size = relative_path.parts[0]       # NOTE: Be careful! This magic number relys on the directory structure of the previous step
+        context = relative_path.parts[1]    # NOTE: Be careful! This magic number relys on the directory structure of the previous step
         icon_name = format_icon_name(relative_path, 'noext')
         if not is_icon_context_dir_type(context):
             continue
@@ -845,7 +855,7 @@ async def run_04_convert_svg_to_png():
             if size != 'scalable':
                 qrc.add_file(context, size, scale, f"{icon_name}.png")
                 index_theme.add_index_theme_ini_section(context, size)
-                dst_png_file_path = dst_theme_folder / context / f"{size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
+                dst_png_file_path = dst_theme_folder / f"{size}{get_scaled_size_folder_suffix(scale)}" / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                 dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                 deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size) * int(scale)))
                 print(f"Convert {dst_png_file_path}")
@@ -854,7 +864,7 @@ async def run_04_convert_svg_to_png():
                     if fixed_px_size == 'scalable': continue
                     qrc.add_file(context, fixed_px_size, scale, f"{icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
                     index_theme.add_index_theme_ini_section(context, fixed_px_size)
-                    dst_png_file_path = dst_theme_folder / context / f"{fixed_px_size}{get_scaled_size_folder_suffix(scale)}" / f"{icon_name}.png"
+                    dst_png_file_path = dst_theme_folder / f"{fixed_px_size}{get_scaled_size_folder_suffix(scale)}" / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                     dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                     deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(fixed_px_size) * int(scale)))
                     print(f"Convert {dst_png_file_path}")
