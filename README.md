@@ -275,23 +275,22 @@ So this script will copy the non-symlink files:
 {REPO}/thirdparty/humanity_0.4.6/Humanity/apps/24/totem.svg
 {REPO}/thirdparty/humanity_0.4.6/Humanity/apps/48/totem.svg
 ```
+
 To folder (category like `apps`, `actions` are omitted):
 ```
-{REPO}/dist/Tango/apps/24/totem.svg
-{REPO}/dist/Tango/apps/48/totem.svg
+{REPO}/dist/OurTango/apps/24/totem.svg
+{REPO}/dist/OurTango/apps/48/totem.svg
 ```
 
-**And generate:**
-- `{REPO}/dist/Tango/index.qrc`
-- `{REPO}/dist/Tango/index.theme`
+But attention we need to follow the XDG standard, to fit the folder structure of `/usr/share/icons/hicolor`:
 
-So the full dist files list is:
-```
-{REPO}/dist/Tango/index.qrc
-{REPO}/dist/Tango/index.theme
-{REPO}/dist/Tango/apps/24/totem.svg
-{REPO}/dist/Tango/apps/48/totem.svg
-```
+| Place | Folder Structure | Usage |
+| --- | --- | --- |
+| Source | `apps/16/` | Convenient for designer and maintainer (convension since SVN / CVS era) |
+| `/usr/share/icons/hicolor` | `16x16/apps/` | The XDG standard directory structure in `/usr/share/icons/hicolor` (fallback icon theme of all icons) |
+| `/usr/share/icons/hicolor` | `16x16@2/apps/` | The XDG standard directory structure in `/usr/share/icons/hicolor` (fallback icon theme of all icons) |
+| `/usr/share/icons/breeze` | `apps/16` | Ehh... Not all icon theme pack follows the XDG's `hicolor` folder structure. This is a real example... (This project currently cannot output such directory structure.) |
+
 ### index.theme
 
 `@2` and `Scale=2` `Size=32` is extra (but significant) definition. Qt / QIcon will handle these definitions to generate pixmap of corresponding sizes.

@@ -166,7 +166,7 @@ class QrcCreator():
 
 
     def add_file(self, context: IconContextType, size: IconSizeType, scale: IconScaleType, icon_filename: str) -> None:
-        rel_file_path = f'{size}{get_scaled_size_folder_suffix(scale)}/{context}/{icon_filename}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+        rel_file_path = f'{get_xdg_size_folder_name(size, scale)}/{context}/{icon_filename}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
         file = QrcQresourceFile(file=rel_file_path, alias="")
         self.scaled_qresource_dict[scale].files.append(file)
 
@@ -215,7 +215,7 @@ class IndexThemeCreator():
                 return
         # Scales (@1, @2, @3, @4)
         for scale in OPTIONS.generate_scales:
-            directory: str = f'{size}{get_scaled_size_folder_suffix(scale)}/{context}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+            directory: str = f'{get_xdg_size_folder_name(size, scale)}/{context}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
             self.ini_sections.append(IniSection(
                 directory=directory,
                 context=context,
@@ -576,6 +576,7 @@ class SvgToPngConverter:
         self.process_count = max(1, (os.cpu_count() or 1) - 1)
         self.semaphore = asyncio.Semaphore(self.process_count)
         self.logger = logging.getLogger(__name__)
+
     def convert(self, src_svg: Path, dst_png: Path, size: int) -> Coroutine[None, None, bool]:
         return self._convert(src_svg, dst_png, size)
 
@@ -855,7 +856,7 @@ async def run_04_convert_svg_to_png():
             if size != 'scalable':
                 qrc.add_file(context, size, scale, f"{icon_name}.png")
                 index_theme.add_index_theme_ini_section(context, size)
-                dst_png_file_path = dst_theme_folder / f"{size}{get_scaled_size_folder_suffix(scale)}" / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+                dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(size, scale) / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                 dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                 deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size) * int(scale)))
                 print(f"Convert {dst_png_file_path}")
@@ -864,7 +865,7 @@ async def run_04_convert_svg_to_png():
                     if fixed_px_size == 'scalable': continue
                     qrc.add_file(context, fixed_px_size, scale, f"{icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
                     index_theme.add_index_theme_ini_section(context, fixed_px_size)
-                    dst_png_file_path = dst_theme_folder / f"{fixed_px_size}{get_scaled_size_folder_suffix(scale)}" / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+                    dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(fixed_px_size, scale) / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                     dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                     deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(fixed_px_size) * int(scale)))
                     print(f"Convert {dst_png_file_path}")
@@ -874,13 +875,15 @@ async def run_04_convert_svg_to_png():
 
     await asyncio.gather(*deferred)
 
-
-def get_scaled_size_folder_suffix(scale: IconScaleType) -> str:
-    if scale == "1":
-        return ""
+def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
+    '''Follow the directory structure of `hicolor` (Fallback icon theme pack in XDG standard) `<size>x<size>@<scale>/<context>`
+    So that the generated directory structure can be directly copied into `/usr/share/icons/hicolor/` and compatible with the existed icons in it.'''
+    if size == 'scalable':
+        return 'scalable'
+    elif scale == "1":
+        return f'{size}x{size}'
     else:
-        return f"@{scale}x"
-
+        return f"{size}x{size}@{scale}x"
 
 def main():
     ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
