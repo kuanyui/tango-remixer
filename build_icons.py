@@ -122,7 +122,7 @@ class QrcQresourceFile():
 @dataclass
 class QrcQresource():
     prefix: str
-    files: List[QrcQresourceFile] = field(default_factory=list)
+    files: List[QrcQresourceFile] = field(default_factory=list)  # type: ignore
 
 @dataclass
 class QrcRoot():
@@ -143,7 +143,7 @@ Example:
 </RCC>
 ```
     '''
-    resources: List[QrcQresource] = field(default_factory=list)
+    resources: List[QrcQresource] = field(default_factory=list)    # type: ignore
 
 class QrcCreator():
     '''To generate an `index.qrc` (virtual file system in Qt application) for a theme.'''
@@ -327,6 +327,8 @@ class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelp
 class IconThemeOptions:
     clean_before_build: bool
     included_icon_file: Path
+    output_png_theme_to_dir: Path | None
+    output_svg_theme_to_dir: Path | None
     output_theme_name: str
     output_theme_description: str
     sizes: List[IconSizeType]
@@ -396,6 +398,20 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
         )
 
         parser.add_argument(
+            '--output-svg-theme-to-dir', '-S',
+            type=Path,
+            required=False,
+            help="After build finished, additionally copy the built XDG-compatible SVG icon theme pack folder (`dist/03_FINAL_SVG_THEME/{THEME_NAME}/`) as another speficied folder.\nBe careful, don't use the same folder as `--output-png-theme-to-dir` or its result may be against your expectation."
+        )
+
+        parser.add_argument(
+            '--output-png-theme-to-dir', '-P',
+            type=Path,
+            required=False,
+            help="After build finished, additionally copy the built XDG-compatible PNG icon theme pack folder (`dist/04_FINAL_PNG_THEME/{THEME_NAME}/`) as another speficied folder.\nBe careful, don't use the same folder as `--output-svg-theme-to-dir` or its result may be against your expectation."
+        )
+
+        parser.add_argument(
             '--output-theme-name', '-o',
             type=str,
             required=False,
@@ -412,7 +428,7 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
         )
 
         parser.add_argument(
-            '--sizes', '-S',
+            '--sizes', '-z',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=list(get_args(IconSizeType)),
@@ -451,6 +467,8 @@ Multiple values can be specified via repeating using this option."""
         return cls(
             clean_before_build=args.clean_before_build,
             included_icon_file=args.included_icon_file,
+            output_png_theme_to_dir=args.output_png_theme_to_dir,
+            output_svg_theme_to_dir=args.output_svg_theme_to_dir,
             output_theme_name=args.output_theme_name,
             output_theme_description=args.output_theme_description,
             sizes=args.sizes,
@@ -885,6 +903,15 @@ def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
     else:
         return f"{size}x{size}@{scale}x"
 
+def run_extra_copy():
+    svg_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
+    png_theme_folder = BUILD_FOLDERS.FOLDER_04_FINAL_PNG_THEME / OPTIONS.output_theme_name
+    if OPTIONS.output_svg_theme_to_dir:
+        shutil.copytree(svg_theme_folder, OPTIONS.output_svg_theme_to_dir, dirs_exist_ok=True)
+    if OPTIONS.output_png_theme_to_dir:
+        shutil.copytree(png_theme_folder, OPTIONS.output_png_theme_to_dir, dirs_exist_ok=True)
+
+
 def main():
     ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
     run_00_copy_icon_themes()
@@ -892,6 +919,7 @@ def main():
     run_02_colorize_themes()
     run_03_copy_included_icons()
     asyncio.run(run_04_convert_svg_to_png())
+    run_extra_copy()
 
 if __name__ == "__main__":
     # profiler = cProfile.Profile()

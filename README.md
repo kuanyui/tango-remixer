@@ -135,7 +135,62 @@ Gnome     computer
 > ```
 
 ## 3. Edit `CMakeLists.txt`, watch the changes of `included_icons.txt` and build the included icons
+### Way 1: Use an extra "Stamp File" to track fresh / stale state
+```cmake
+# ===============================================
+# Build Icons
+# ===============================================
+find_package(Python3 REQUIRED Interpreter)
 
+set(PROJECT_GENERATED_DIR "${CMAKE_SOURCE_DIR}/generated" CACHE PATH
+    "Directory for generated, platform independent files (e.g. XDG icon theme, changelogs...etc)")
+
+set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
+set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-icon-remixer")
+set(ICON_BUILD_SCRIPT "${ICON_REPO_DIR}/build_icons.py")
+set(ICON_THEME_NAME "CustomizedTango")
+set(ICON_PNG_XDG_THEME_DIR "${PROJECT_GENERATED_DIR}/icon_theme__png/${ICON_THEME_NAME}")
+set(ICON_SVG_XDG_THEME_DIR "${PROJECT_GENERATED_DIR}/icon_theme__svg/${ICON_THEME_NAME}")
+
+# When included_icons.txt changed, auto execute cmake again.
+set(ICON_INCLUDE_FILE "${RESOURCES_DIR}/included_icons.txt")
+set(ICON_GENERATED_STAMP_FILE "${RESOURCES_DIR}/icons_built.stamp")
+message(STATUS "STAMP ============================+> ${ICON_GENERATED_STAMP_FILE}")
+
+# If qrc does not exist, create empty placeholder
+set(ICON_PNG_GENERATED_QRC "${ICON_PNG_XDG_THEME_DIR}/index.qrc")
+if(NOT EXISTS ${ICON_PNG_GENERATED_QRC})
+    file(WRITE ${ICON_PNG_GENERATED_QRC} "<RCC>\n</RCC>\n")
+endif()
+
+add_custom_command(
+    OUTPUT ${ICON_GENERATED_STAMP_FILE}
+    COMMAND ${Python3_EXECUTABLE} ${ICON_BUILD_SCRIPT}
+            --included-icon-file "${RESOURCES_DIR}/included_icons.txt"
+            --extra-icon-theme "AppIcon:${RESOURCES_DIR}/appicon"
+            --output-theme-name "${ICON_THEME_NAME}"
+            --output-png-theme-to-dir "${ICON_PNG_XDG_THEME_DIR}"
+            --output-svg-theme-to-dir "${ICON_SVG_XDG_THEME_DIR}"
+    COMMAND ${CMAKE_COMMAND} -E touch ${ICON_GENERATED_STAMP_FILE}
+    DEPENDS ${ICON_INCLUDE_FILE}
+    COMMENT "Generating icon pack..."
+    USES_TERMINAL    # immediately output
+)
+add_custom_target(icontheme DEPENDS ${ICON_GENERATED_STAMP_FILE})
+
+
+# ==============================================
+# Main
+# ==============================================
+qt_add_executable(myprojectname
+     MANUAL_FINALIZATION
+     ${PROJECT_SOURCES}
+     ${ICON_PNG_GENERATED_QRC}
+
+add_dependencies(myprojectname icontheme)
+```
+
+### Way 2: Brute Method (Always execute the build script after `cmake`)
 ```cmake
 # ===============================================
 # Build Icons
