@@ -14,6 +14,7 @@ import asyncio
 import shutil
 from pathlib import Path
 from dataclasses import dataclass, asdict, field
+import textwrap
 # from lxml import etree
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
@@ -24,7 +25,7 @@ from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine
 import argparse
 import logging
 import platform
-
+import enum
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
@@ -104,6 +105,8 @@ class IconSrcFileInfo():
     theme_src_folder_name: str
     context: IconContextType
     size: IconSizeType
+    scale: IconScaleType
+    """"Unused currently... This should be hardly be used on SVG source."""
     icon_name: str
     """Without file extension"""
     file_name: str
@@ -144,6 +147,18 @@ Example:
 ```
     '''
     resources: List[QrcQresource] = field(default_factory=list)    # type: ignore
+
+class ThemeDirStructure(enum.Enum):
+    CVS = "CVS"
+    """
+    CVS / SVN convension. Most of source file is like this.
+
+    ex: `places/48`, `places/48@2x` (rarely used) """
+    XDG = "XDG"
+    """
+    XDG standard, `hicolor` compatible structure.
+
+    ex: `48x48@2x/places` """
 
 class QrcCreator():
     '''To generate an `index.qrc` (virtual file system in Qt application) for a theme.'''
@@ -285,31 +300,38 @@ class BUILD_FOLDERS:
     Contains "Humanity", "Humanity-Dark", "Gnome"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures are all `<context>/<size>` (convension since CVS/SVN era)'''
+    Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
     Contains "Humanity", "Humanity-Dark", "Gnome"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures are all `<context>/<size>` (convension since CVS/SVN era)'''
+    Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
     '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
     Contains "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures are all `<context>/<size>` (convension since CVS/SVN era)'''
+    Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
 
-    FOLDER_03_FINAL_SVG_THEME = FOLDER_ROOT / "03_FINAL_SVG_THEME"
-    '''03. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.
+    FOLDER_03_INCLUDED_SVG_ICONS = FOLDER_ROOT / "03_INCLUDED_SVG_ICONS"
+    '''03. Copy included icons (See option `--included-icon-file`) to this folder.
 
-    Folder structure is `<size>/<context>` (XDG standard)'''
+    Folder structure **will be formalized** to `<context>/<size>` (convension since CVS/SVN era)'''
 
-    FOLDER_04_FINAL_PNG_THEME = FOLDER_ROOT / "04_FINAL_PNG_THEME"
-    '''04. Convert SVG files to this folder, generate index.theme and index.qrc
 
-    Folder structure is `<size>/<context>` (XDG standard)'''
+    FOLDER_04_XDG_SVG_THEME = FOLDER_ROOT / "04_XDG_SVG_THEME"
+    '''04. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.
+
+    Folder structure is in XDG standard's `hicolor` format `<size>x<size>/<context>`, but <scale> is ignore (because this is SVG)'''
+
+    FOLDER_05_XDG_PNG_THEME = FOLDER_ROOT / "05_XDG_PNG_THEME"
+    '''05. Convert SVG files to this folder, generate index.theme and index.qrc
+
+    Folder structure is in XDG standard's `hicolor` format `<size>x<size>/<context>` (scale == 1) or `<size>x<size>@<scale>/<context>` (scale >= 2)'''
+
 
 @dataclass
 class ExtraIconTheme():
@@ -319,10 +341,25 @@ class ExtraIconTheme():
     icon_theme_root_folder_path: Path
     """The root folder of the icon theme. (Contains context folders (required) and `index.theme` (optional, unused currently))"""
 
-class MyHelpFormatter(argparse.RawTextHelpFormatter, argparse.RawDescriptionHelpFormatter, argparse.ArgumentDefaultsHelpFormatter):
-    """Copied from https://qiita.com/yuji38kwmt/items/c7c4d487e3188afd781e """
+class MyHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
+    """Forked from https://qiita.com/yuji38kwmt/items/c7c4d487e3188afd781e
+    - Auto wrap (`argparse.ArgumentDefaultsHelpFormatter`)
+    - Keep arbitrarily added newlines
+    """
+
+    def _split_lines(self, text: str, width: int) -> List[str]:
+        lines: List[str] = []
+        for line in text.splitlines():
+            if not line.strip():
+                # Preserve manual blank lines
+                lines.append("")
+            else:
+                lines.extend(textwrap.wrap(line, width))
+        return lines
+
     def _format_action(self, action: argparse.Action) -> str:
         return super()._format_action(action) + "\n"
+
 @dataclass
 class IconThemeOptions:
     clean_before_build: bool
@@ -401,14 +438,18 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
             '--output-svg-theme-to-dir', '-S',
             type=Path,
             required=False,
-            help="After build finished, additionally copy the built XDG-compatible SVG icon theme pack folder (`dist/03_FINAL_SVG_THEME/{THEME_NAME}/`) as another speficied folder.\nBe careful, don't use the same folder as `--output-png-theme-to-dir` or its result may be against your expectation."
+            help="""After build finished, additionally copy the built XDG-compatible SVG icon theme pack folder (`dist/03_FINAL_SVG_THEME/{THEME_NAME}/`) as another speficied folder path.
+
+Be careful, don't use the same folder as `--output-png-theme-to-dir` or its result may be against your expectation."""
         )
 
         parser.add_argument(
             '--output-png-theme-to-dir', '-P',
             type=Path,
             required=False,
-            help="After build finished, additionally copy the built XDG-compatible PNG icon theme pack folder (`dist/04_FINAL_PNG_THEME/{THEME_NAME}/`) as another speficied folder.\nBe careful, don't use the same folder as `--output-svg-theme-to-dir` or its result may be against your expectation."
+            help="""After build finished, additionally copy the built XDG-compatible PNG icon theme pack folder (`dist/04_FINAL_PNG_THEME/{THEME_NAME}/`) as another speficied folder path.
+
+Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its result may be against your expectation."""
         )
 
         parser.add_argument(
@@ -550,10 +591,17 @@ class IconSearcher():
             _theme_src_folder_name = m.group(1)
             _context = m.group(2)
             _size = m.group(3)
+            parsed_size = parse_size_folder_name(_size)
+            if not parsed_size:
+                _context, _size = _size, _context
+                parsed_size = parse_size_folder_name(_size)
+            if not parsed_size:
+                continue
             final_arr.append(IconSrcFileInfo(
                 theme_src_folder_name = _theme_src_folder_name,
                 context = _context if is_icon_context_dir_type(_context) else "apps",
-                size = _size if is_icon_size_type(_size) else "scalable",
+                size = parsed_size.size,
+                scale = parsed_size.scale,
                 icon_name = format_icon_name(m.group(4), 'noext'),
                 file_name = m.group(4),
                 src_file_path = src_svg_file_path,
@@ -812,14 +860,11 @@ def run_02_colorize_themes():
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "humanity_colorizer")
 
 def run_03_copy_included_icons():
-    print("03_FINAL_SVG_THEME")
-    this_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
+    print("03_INCLUDED_SVG_ICONS")
+    this_theme_folder = BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS / OPTIONS.output_theme_name
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for colorized themes folder.
     icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
-
-    qrc = QrcCreator(OPTIONS.output_theme_name)
-    index_theme = IndexThemeCreator()
 
     for line in read_included_icons_as_lines(icon_searcher, OPTIONS.included_icon_file):
         src_icons = icon_searcher.filter_src_icon_by_icon_name(line.src_theme, line.src_icon_name)
@@ -830,30 +875,47 @@ def run_03_copy_included_icons():
             # copy included icon.
             context = line.dst_context or src_icon.context
             file_name = format_icon_name(line.dst_icon_name or src_icon.file_name, 'svg')
-            icon_dst_file_path: Path = this_theme_folder / src_icon.size / context / file_name    # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+            icon_dst_file_path: Path = this_theme_folder / context / src_icon.size / file_name   # SVN / CVS convension
             icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
 
-            # add to qrc
-            for scale in OPTIONS.generate_scales:
-                qrc.add_file(src_icon.context, src_icon.size, scale, file_name)
+def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
+    print("04_XDG_SVG_THEME")
+    this_theme_folder = BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME / OPTIONS.output_theme_name
+    this_theme_folder.mkdir(parents=True, exist_ok=True)
+    # Initialize icon searcher for previous folder.
+    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
 
-            # index.theme
-            index_theme.add_index_theme_ini_section(src_icon.context, src_icon.size)
+    qrc = QrcCreator(OPTIONS.output_theme_name)
+    index_theme = IndexThemeCreator()
+
+    for icon in icon_searcher.all_found_icons:
+        # copy files
+        if icon.src_file_path_is_symlink:
+            print("Impossible bug.")
+            continue
+        icon_dst_file_path: Path = this_theme_folder / get_xdg_size_folder_name(icon.size, icon.scale) / icon.context / icon.file_name   # SVN / CVS convension
+        icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(icon.src_file_path_resolved, icon_dst_file_path)
+
+        # add to qrc
+        for scale in OPTIONS.generate_scales:
+            qrc.add_file(icon.context, icon.size, scale, icon.file_name)
+
+        # index.theme
+        index_theme.add_index_theme_ini_section(icon.context, icon.size)
 
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
 
-async def run_04_convert_svg_to_png():
-    print("04_FINAL_PNG_THEME")
+async def run_05_convert_svg_to_png():
+    print("05_XDG_PNG_THEME")
     if (SvgToPngConverter.check_inkscape_exists() == False):
         print("Inkscape is not found. Please install Inkscape.")
         return
-    src_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
-    dst_theme_folder = BUILD_FOLDERS.FOLDER_04_FINAL_PNG_THEME / OPTIONS.output_theme_name
+    src_theme_folder = BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS / OPTIONS.output_theme_name
+    dst_theme_folder = BUILD_FOLDERS.FOLDER_05_XDG_PNG_THEME / OPTIONS.output_theme_name
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
-    shutil.copy2(src_theme_folder / "index.theme", dst_theme_folder / "index.theme")
-    # shutil.copy2(src_theme_folder / "index.qrc", dst_theme_folder / "index.qrc")
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
@@ -862,21 +924,21 @@ async def run_04_convert_svg_to_png():
     deferred: List[Coroutine[None, None, bool]] = []
     for src_svg_file_path in src_theme_folder.rglob("*.svg"):
         relative_path = src_svg_file_path.relative_to(src_theme_folder)
-        size = relative_path.parts[0]       # NOTE: Be careful! This magic number relys on the directory structure of the previous step
-        context = relative_path.parts[1]    # NOTE: Be careful! This magic number relys on the directory structure of the previous step
+        size_folder = relative_path.parts[0]       # NOTE: Be careful! This magic number relys on the directory structure of the previous step. Rely on IconSearcher instead?
+        context = relative_path.parts[1]    # NOTE: Be careful! This magic number relys on the directory structure of the previous step. Rely on IconSearcher instead?
         icon_name = format_icon_name(relative_path, 'noext')
         if not is_icon_context_dir_type(context):
             continue
-        if not is_icon_size_type(size):
+        if not is_icon_size_type(size_folder):
             continue
         for scale in OPTIONS.generate_scales:
             # qrc & index.theme
-            if size != 'scalable':
-                qrc.add_file(context, size, scale, f"{icon_name}.png")
-                index_theme.add_index_theme_ini_section(context, size)
-                dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(size, scale) / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+            if size_folder != 'scalable':
+                qrc.add_file(context, size_folder, scale, f"{icon_name}.png")
+                index_theme.add_index_theme_ini_section(context, size_folder)
+                dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(size_folder, scale) / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                 dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
-                deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size) * int(scale)))
+                deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size_folder) * int(scale)))
                 print(f"Convert {dst_png_file_path}")
             else:
                 for fixed_px_size in OPTIONS.sizes:
@@ -901,11 +963,29 @@ def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
     elif scale == "1":
         return f'{size}x{size}'
     else:
-        return f"{size}x{size}@{scale}x"
+        return f"{size}x{size}@{scale}"
+
+@dataclass
+class ParsedIconSizeFolder():
+    size: IconSizeType
+    scale: IconScaleType
+
+def parse_size_folder_name(folder_name: str) -> ParsedIconSizeFolder | None:
+    if folder_name == 'scalable':
+        return ParsedIconSizeFolder(size = 'scalable', scale = '1')
+    m = re.match(r"^(\d+)(?:x\d+)?(?:@(\d+))?x?$", folder_name)
+    if not m:
+        return None
+    _size = m.group(1)
+    _scale = m.group(2)
+    return ParsedIconSizeFolder(
+        size = _size if is_icon_size_type(_size) else 'scalable',
+        scale = _scale if is_icon_scale_type(_scale) else '1'
+    )
 
 def run_extra_copy():
-    svg_theme_folder = BUILD_FOLDERS.FOLDER_03_FINAL_SVG_THEME / OPTIONS.output_theme_name
-    png_theme_folder = BUILD_FOLDERS.FOLDER_04_FINAL_PNG_THEME / OPTIONS.output_theme_name
+    svg_theme_folder = BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME / OPTIONS.output_theme_name
+    png_theme_folder = BUILD_FOLDERS.FOLDER_05_XDG_PNG_THEME / OPTIONS.output_theme_name
     if OPTIONS.output_svg_theme_to_dir:
         shutil.copytree(svg_theme_folder, OPTIONS.output_svg_theme_to_dir, dirs_exist_ok=True)
     if OPTIONS.output_png_theme_to_dir:
@@ -918,7 +998,8 @@ def main():
     run_01_no_symlink_themes()
     run_02_colorize_themes()
     run_03_copy_included_icons()
-    asyncio.run(run_04_convert_svg_to_png())
+    run_04_convert_svg_to_xdg_hicolor_theme_dir_structure()
+    asyncio.run(run_05_convert_svg_to_png())
     run_extra_copy()
 
 if __name__ == "__main__":
