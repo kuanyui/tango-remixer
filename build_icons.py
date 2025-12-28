@@ -106,7 +106,7 @@ class IconSrcFileInfo():
     context: IconContextType
     size: IconSizeType
     scale: IconScaleType
-    """"Unused currently... This should be hardly be used on SVG source."""
+    """"Unused currently... This should be hardly be used on SVG source."""   # FIXME: source file of scale != 1 is not supported currently
     icon_name: str
     """Without file extension"""
     file_name: str
@@ -593,9 +593,11 @@ class IconSearcher():
             _size = m.group(3)
             parsed_size = parse_size_folder_name(_size)
             if not parsed_size:
-                _context, _size = _size, _context
+                _context, _size = _size, _context   # swap
                 parsed_size = parse_size_folder_name(_size)
             if not parsed_size:
+                continue
+            if parsed_size.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
                 continue
             final_arr.append(IconSrcFileInfo(
                 theme_src_folder_name = _theme_src_folder_name,
@@ -611,14 +613,14 @@ class IconSearcher():
         final_arr.sort(key=lambda x: (x.size))
         return final_arr
 
-    def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:
+    def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
         icon_name = format_icon_name(icon_name, 'noext')
         for icon in self.all_found_icons:
             if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
                 return icon
         raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
 
-    def filter_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> List[IconSrcFileInfo]:
+    def filter_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> List[IconSrcFileInfo]:   # FIXME: source file of scale != 1 is not supported currently
         icon_name = format_icon_name(icon_name, 'noext')
         final: List[IconSrcFileInfo] = []
         for icon in self.all_found_icons:
@@ -871,6 +873,8 @@ def run_03_copy_included_icons():
         for src_icon in src_icons:
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
+            # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
+            #     continue
 
             # copy included icon.
             context = line.dst_context or src_icon.context
@@ -899,8 +903,7 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
         shutil.copy2(icon.src_file_path_resolved, icon_dst_file_path)
 
         # add to qrc
-        for scale in OPTIONS.generate_scales:
-            qrc.add_file(icon.context, icon.size, scale, icon.file_name)
+        qrc.add_file(icon.context, icon.size, icon.scale, icon.file_name)
 
         # index.theme
         index_theme.add_index_theme_ini_section(icon.context, icon.size)
@@ -913,41 +916,35 @@ async def run_05_convert_svg_to_png():
     if (SvgToPngConverter.check_inkscape_exists() == False):
         print("Inkscape is not found. Please install Inkscape.")
         return
-    src_theme_folder = BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS / OPTIONS.output_theme_name
     dst_theme_folder = BUILD_FOLDERS.FOLDER_05_XDG_PNG_THEME / OPTIONS.output_theme_name
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
+
+    # Initialize icon searcher for previous folder.
+    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
 
     svg2png = SvgToPngConverter()
     deferred: List[Coroutine[None, None, bool]] = []
-    for src_svg_file_path in src_theme_folder.rglob("*.svg"):
-        relative_path = src_svg_file_path.relative_to(src_theme_folder)
-        size_folder = relative_path.parts[0]       # NOTE: Be careful! This magic number relys on the directory structure of the previous step. Rely on IconSearcher instead?
-        context = relative_path.parts[1]    # NOTE: Be careful! This magic number relys on the directory structure of the previous step. Rely on IconSearcher instead?
-        icon_name = format_icon_name(relative_path, 'noext')
-        if not is_icon_context_dir_type(context):
-            continue
-        if not is_icon_size_type(size_folder):
-            continue
+    for icon in icon_searcher.all_found_icons:
         for scale in OPTIONS.generate_scales:
             # qrc & index.theme
-            if size_folder != 'scalable':
-                qrc.add_file(context, size_folder, scale, f"{icon_name}.png")
-                index_theme.add_index_theme_ini_section(context, size_folder)
-                dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(size_folder, scale) / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+            if icon.size != 'scalable':    # FIXME: source file of scale != 1 is not supported currently
+                qrc.add_file(icon.context, icon.size, scale, f"{icon.icon_name}.png")
+                index_theme.add_index_theme_ini_section(icon.context, icon.size)
+                dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(icon.size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                 dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
-                deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(size_folder) * int(scale)))
+                deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(icon.size) * int(scale)))
                 print(f"Convert {dst_png_file_path}")
             else:
                 for fixed_px_size in OPTIONS.sizes:
                     if fixed_px_size == 'scalable': continue
-                    qrc.add_file(context, fixed_px_size, scale, f"{icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
-                    index_theme.add_index_theme_ini_section(context, fixed_px_size)
-                    dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(fixed_px_size, scale) / context / f"{icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+                    qrc.add_file(icon.context, fixed_px_size, scale, f"{icon.icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
+                    index_theme.add_index_theme_ini_section(icon.context, fixed_px_size)
+                    dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(fixed_px_size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                     dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
-                    deferred.append(svg2png.convert(src_svg_file_path, dst_png_file_path, int(fixed_px_size) * int(scale)))
+                    deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(fixed_px_size) * int(scale)))
                     print(f"Convert {dst_png_file_path}")
 
     qrc.write_qrc_file(dst_theme_folder / "index.qrc")
@@ -971,6 +968,14 @@ class ParsedIconSizeFolder():
     scale: IconScaleType
 
 def parse_size_folder_name(folder_name: str) -> ParsedIconSizeFolder | None:
+    """Acceptable inputs:
+    - `24`
+    - `24@2`
+    - `24x24`
+    - `24x24@2`
+    - `24x24@2x`
+    - 'scalable' (`scale` will be `1`)
+    """
     if folder_name == 'scalable':
         return ParsedIconSizeFolder(size = 'scalable', scale = '1')
     m = re.match(r"^(\d+)(?:x\d+)?(?:@(\d+))?x?$", folder_name)
