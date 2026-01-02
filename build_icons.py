@@ -364,6 +364,7 @@ class MyHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 class IconThemeOptions:
     clean_before_build: bool
     included_icon_file: Path
+    stamp_file: Path
     output_png_theme_to_dir: Path | None
     output_svg_theme_to_dir: Path | None
     output_theme_name: str
@@ -431,8 +432,24 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
 - SRC_CONTEXT is unused currently. Can be omitted.
 - DST_CONTEXT is optional. Default is same with the context of the source icon.
 - ICON_NAME should not contain the extension. All extensions will be ignored.
+
+---
+
+When this file is older than `--stamp-file`, the build will not be triggered.
 '''
         )
+        parser.add_argument(
+            '--stamp-file', '-t',
+            type=Path,
+            required=False,
+            default=BUILD_FOLDERS.FOLDER_ROOT / 'built.stamp',
+            help='''
+This is an output stamp-file.
+Build will run when:
+
+- stamp file doesn't exist.
+- mtime of `--included-icon-file` is newer than stamp file.
+'''        )
 
         parser.add_argument(
             '--output-svg-theme-to-dir', '-S',
@@ -508,6 +525,7 @@ Multiple values can be specified via repeating using this option."""
         return cls(
             clean_before_build=args.clean_before_build,
             included_icon_file=args.included_icon_file,
+            stamp_file=args.stamp_file,
             output_png_theme_to_dir=args.output_png_theme_to_dir,
             output_svg_theme_to_dir=args.output_svg_theme_to_dir,
             output_theme_name=args.output_theme_name,
@@ -962,6 +980,15 @@ def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
     else:
         return f"{size}x{size}@{scale}"
 
+def all_icons_need_regenerate() -> bool:
+    '''Return True if icons need to be regenerated (compare the mtime of `included_icon_file` and `stamp_file`).'''
+    if not OPTIONS.stamp_file.exists():
+        return True
+    if OPTIONS.included_icon_file.stat().st_mtime > OPTIONS.stamp_file.stat().st_mtime:
+        return True
+    return False
+
+
 @dataclass
 class ParsedIconSizeFolder():
     size: IconSizeType
@@ -999,6 +1026,9 @@ def run_extra_copy():
 
 def main():
     ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
+    if not all_icons_need_regenerate():
+        print('''Icons don't need regenerating. Skip.''')
+        exit(0)
     run_00_copy_icon_themes()
     run_01_no_symlink_themes()
     run_02_colorize_themes()
@@ -1006,6 +1036,7 @@ def main():
     run_04_convert_svg_to_xdg_hicolor_theme_dir_structure()
     asyncio.run(run_05_convert_svg_to_png())
     run_extra_copy()
+    OPTIONS.stamp_file.touch()
 
 if __name__ == "__main__":
     # profiler = cProfile.Profile()
