@@ -142,15 +142,15 @@ Gnome     computer
 # ===============================================
 find_package(Python3 REQUIRED Interpreter)
 
-set(PROJECT_GENERATED_DIR "${CMAKE_SOURCE_DIR}/generated" CACHE PATH
+set(PROJ_GENERATED_DIR "${CMAKE_SOURCE_DIR}/generated" CACHE PATH
     "Directory for generated, platform independent files (e.g. XDG icon theme, changelogs...etc)")
 
 set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
 set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-icon-remixer")
 set(ICON_BUILD_SCRIPT "${ICON_REPO_DIR}/build_icons.py")
 set(ICON_THEME_NAME "CustomizedTango")
-set(ICON_PNG_XDG_THEME_DIR "${PROJECT_GENERATED_DIR}/icon_theme__png/${ICON_THEME_NAME}")
-set(ICON_SVG_XDG_THEME_DIR "${PROJECT_GENERATED_DIR}/icon_theme__svg/${ICON_THEME_NAME}")
+set(ICON_PNG_XDG_THEME_DIR "${PROJ_GENERATED_DIR}/icon_theme__png/${ICON_THEME_NAME}")
+set(ICON_SVG_XDG_THEME_DIR "${PROJ_GENERATED_DIR}/icon_theme__svg/${ICON_THEME_NAME}")
 
 # When included_icons.txt changed, auto execute cmake again.
 set(ICON_INCLUDE_FILE "${RESOURCES_DIR}/included_icons.txt")
