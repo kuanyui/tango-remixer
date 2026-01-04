@@ -636,7 +636,7 @@ class IconSearcher():
     def recursive_get_icon_list_in_theme(self, icon_theme_folder: Path) -> List[IconSrcFileInfo]:
         final_arr: List[IconSrcFileInfo] = []
         for src_svg_file_path in icon_theme_folder.rglob("*.svg"):
-            m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(str(src_svg_file_path))
+            m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(src_svg_file_path.as_posix())  # use as_posix() to avoid potential backslashes under windows.
             if not m: continue
             _theme_src_folder_name = m.group(1)
             _context = m.group(2)
