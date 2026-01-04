@@ -14,6 +14,7 @@ import asyncio
 import shutil
 from pathlib import Path
 from dataclasses import dataclass, asdict, field
+import hashlib
 import textwrap
 # from lxml import etree
 # from lxml.etree import _Element, _ElementTree
@@ -28,7 +29,6 @@ import platform
 import enum
 from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
-
 BUILT_IN_ICON_THEMES: Final[List[str]] = [
     # Vanilla XDG Icon Themes
     "Humanity",
@@ -455,11 +455,15 @@ When this file is older than `--stamp-file`, the build will not be triggered.
             required=False,
             default=BUILD_FOLDERS.FOLDER_ROOT / 'built.stamp',
             help='''
-This is an output stamp-file.
-Build will run when:
+This is an output stamp-file. When build finished successfully:
+- The stamp-file will be created and touched.
+- The SHA256 hash of the content of `included_icons.txt` will be saved into stamp file.
 
-- stamp file doesn't exist.
-- mtime of `--included-icon-file` is newer than stamp file.
+The rebuild logic:
+
+- If SHA256 recorded in stamp file is same with SHA256 of the included_icons.txt, always skip rebuild.
+- If stamp file doesn't exist, rebuild.
+- If mtime of `--included-icon-file` is newer than stamp file, rebuild.
 '''        )
 
         parser.add_argument(
@@ -1013,12 +1017,30 @@ def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
     else:
         return f"{size}x{size}@{scale}"
 
+def sha256_file_content(file_path: Path) -> str:
+    with file_path.open("rb") as f:
+        return hashlib.file_digest(f, "sha256").hexdigest()
+
 def all_icons_need_regenerate() -> bool:
-    '''Return True if icons need to be regenerated (compare the mtime of `included_icon_file` and `stamp_file`).'''
+    '''Return True if icons need to be regenerated (compare the SHA256 hash of `included_icon_file`).'''
     if not OPTIONS.stamp_file.exists():
+        print(f"""Stamp file "{OPTIONS.stamp_file}" doesn't exist, so start to build all icons.""")
         return True
-    if OPTIONS.included_icon_file.stat().st_mtime > OPTIONS.stamp_file.stat().st_mtime:
+    old_hash: str = OPTIONS.stamp_file.read_text().strip()
+    new_hash: str = sha256_file_content(OPTIONS.included_icon_file)
+    print(f"""SHA256 hash of {OPTIONS.included_icon_file}:""")
+    print(f"""Old: {old_hash}""")
+    print(f"""New: {new_hash}""")
+    if old_hash != new_hash:
+        print(f"""The SHA256 hash of "{OPTIONS.included_icon_file}" has been changed, start to build all icons.""")
         return True
+    else:
+        print(f"""The SHA256 hash of "{OPTIONS.included_icon_file}" doesn't change, skip icon building.""")
+        return False
+    # This Python script should not rely on mtime of included_icons.txt. mtime is designed for other build tools such as Makefile.
+    # if OPTIONS.included_icon_file.stat().st_mtime > OPTIONS.stamp_file.stat().st_mtime:
+    #     print(f"""The "{OPTIONS.included_icon_file}" is newer than stamp file "{OPTIONS.stamp_file}", so start to build all icons.""")
+    #     return True
     return False
 
 
@@ -1057,6 +1079,12 @@ def run_extra_copy():
         shutil.copytree(png_theme_folder, OPTIONS.output_png_theme_to_dir, dirs_exist_ok=True)
 
 
+def write_stamp_file():
+    OPTIONS.stamp_file.parent.mkdir(parents=True, exist_ok=True)
+    OPTIONS.stamp_file.touch()
+    new_hash: str = sha256_file_content(OPTIONS.included_icon_file)
+    OPTIONS.stamp_file.write_text(new_hash)
+
 def main():
     ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
     if not all_icons_need_regenerate():
@@ -1069,7 +1097,7 @@ def main():
     run_04_convert_svg_to_xdg_hicolor_theme_dir_structure()
     asyncio.run(run_05_convert_svg_to_png())
     run_extra_copy()
-    OPTIONS.stamp_file.touch()
+    write_stamp_file()
 
 if __name__ == "__main__":
     # profiler = cProfile.Profile()
