@@ -335,9 +335,13 @@ class BUILD_FOLDERS:
 
 @dataclass
 class ExtraIconTheme():
+    """
+    TODO: theme.index is ignored currently, so the scales defined in the theme pack are not supported. Because I think this should be rare...
+    """
     id: str
-    """Unique ID of the icon theme, this is same with the icon theme folder name.
-    (NOTE: the following are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)"""
+    """Unique ID of the icon theme, this `id` can be used in included_icons.txt
+    (NOTE: the following are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)
+    """
     icon_theme_root_folder_path: Path
     """The root folder of the icon theme. (Contains context folders (required) and `index.theme` (optional, unused currently))"""
 
@@ -372,6 +376,8 @@ class IconThemeOptions:
     sizes: List[IconSizeType]
     generate_scales: List[IconScaleType]
     qrc_qresource_prefix: str
+    verbose: bool
+    debug: bool
     """To specify the extra prefix for the QRC resource path (`RCC > qresource[prefix="..."]`).
 
     e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
@@ -393,14 +399,19 @@ class IconThemeOptions:
     @staticmethod
     def parse_extra_icon_theme(value: str) -> ExtraIconTheme:
         parts = value.split(":")
-        if len(parts) != 2:
+        # On Windows, path may contain multiple colons... (e.g. `TangoIcon:D:/a/myapp/resources/Tango`)
+        if len(parts) <= 1:
             raise ValueError("Invalid format. Must be `id:icon_theme_root_folder_path`")
         id = parts[0]
+        icon_theme_dir_path_str: str = ":".join(parts[1:])
+        icon_theme_dir_path = Path(icon_theme_dir_path_str).resolve()
+        # resolve() will convert relative path to absolute, according to current PWD instead of __file__.
+
         if id in BUILT_IN_ICON_THEMES:
             raise ValueError(f"Invalid ID: {id}. This ID is reserved for built-in icon themes ({', '.join(BUILT_IN_ICON_THEMES)}) .")
         return ExtraIconTheme(
             id=id,
-            icon_theme_root_folder_path=Path(parts[1]).resolve()   # resolve() will convert relative path to absolute, according to current PWD instead of __file__.
+            icon_theme_root_folder_path=icon_theme_dir_path
         )
 
     @classmethod
@@ -516,9 +527,26 @@ e.g. if set to `/xdg_icon_themes/` (default value), the icon `Humanity/apps/48/t
             type=cls.parse_extra_icon_theme,
             required=False,
             default=[],
-            help="""Extra icon theme. Format: `id:icon_theme_root_folder_path`. (e.g. `Tango:/usr/share/icons/Tango`)
+            help="""Extra icon theme. Format: `id:icon_theme_root_folder_path`. (e.g. you can refer to the icon theme installed on your system via `SystemTango:/usr/share/icons/Tango`)
+
+`id` is an unique ID of the icon theme. You can use this `id` in included_icons.txt.
+(NOTE: This id must be unique, the following ids are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)
+
+TODO: Currently `theme.index` under the specified path is ignored, only directory structure is handled.
 
 Multiple values can be specified via repeating using this option."""
+        )
+        parser.add_argument(
+            '--verbose',
+            type=bool,
+            default=False,
+            help="Output logs verbosely."
+        )
+        parser.add_argument(
+            '--debug',
+            type=bool,
+            default=False,
+            help="Output debug logs."
         )
         args = parser.parse_args()
 
@@ -533,11 +561,15 @@ Multiple values can be specified via repeating using this option."""
             sizes=args.sizes,
             generate_scales=args.generate_scales,
             qrc_qresource_prefix=args.qrc_qresource_prefix,
-            extra_icon_themes=args.extra_icon_theme
+            extra_icon_themes=args.extra_icon_theme,
+            debug=args.debug,
+            verbose=args.verbose,
         )
 
 OPTIONS = IconThemeOptions.from_args()
-pprint(asdict(OPTIONS), indent=2)
+if OPTIONS.debug:
+    print('Current options = \n')
+    pprint(asdict(OPTIONS), indent=2)
 
 
 
@@ -676,7 +708,8 @@ class SvgToPngConverter:
                     src_svg_mtime = src_svg.stat().st_mtime
                     dst_png_mtime = dst_png.stat().st_mtime
                     if src_svg_mtime <= dst_png_mtime:
-                        print(f"dst_png {dst_png} is newer than src_svg {src_svg}, don't need to build, skip.")
+                        if OPTIONS.verbose:
+                            print(f"dst_png {dst_png} is newer than src_svg {src_svg}, don't need to build, skip.")
                         return True
 
                 dst_png.parent.mkdir(parents=True, exist_ok=True)
