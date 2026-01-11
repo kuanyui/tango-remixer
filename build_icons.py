@@ -264,9 +264,10 @@ Directories={fmtted_directories}
             lines: List[str] = [f'[{entry.directory}]']
             if entry.scale != '1':
                 lines.append(f'Scale={entry.scale}')
-            ori_size: int = 48 if entry.ori_size == 'scalable' else int(entry.ori_size)
+            ori_size = entry.ori_size
             scale: int = int(entry.scale)
-            lines.append(f'Size={ori_size * scale}')
+            lines.append(f'Size={ori_size}')
+            lines.append(f'Scale={scale}')
             lines.append(f'Context={folder_context_to_ini_context(entry.context)}')
             lines.append(f'Type=Fixed')
             file_content += "\n".join(lines)
@@ -437,9 +438,7 @@ class IconThemeOptions:
         )
         parser.add_argument(
             '--clean-before-build', '-c',
-            type=bool,
-            required=False,
-            default=False,
+            action='store_true',
             help='Clean build folder before building.'
         )
         parser.add_argument(
@@ -961,7 +960,7 @@ def run_03_copy_included_icons():
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
-            if src_icon not in OPTIONS.input_svg_sizes:
+            if src_icon.size not in OPTIONS.input_svg_sizes:
                 continue
             # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
             #     continue
@@ -1061,6 +1060,8 @@ def sha256_file_content(file_path: Path) -> str:
 def all_icons_need_regenerate() -> bool:
     '''Return True if icons need to be regenerated (compare the SHA256 hash of `included_icon_file`).'''
     # TODO: Also record the commit hash of this repo.
+    if OPTIONS.clean_before_build:
+        return True
     if not OPTIONS.stamp_file.exists():
         print(f"""Stamp file "{OPTIONS.stamp_file}" doesn't exist, so start to build all icons.""")
         return True
