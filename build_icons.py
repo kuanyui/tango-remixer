@@ -20,7 +20,7 @@ import textwrap
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple
 # import cProfile
 # import pstats
 import argparse
@@ -233,18 +233,19 @@ class IndexThemeCreator():
     def __init__(self):
         self.ini_sections: List[IniSection] = []
 
-    def add_index_theme_ini_section(self, context: IconContextType, size: IconSizeType) -> None:
+    def add_index_theme_ini_section(self, context: IconContextType, size: IconSizeType, scale: IconScaleType) -> None:
         for exist_section in self.ini_sections:
-            if exist_section.context == context and exist_section.ori_size == size:
+            if (exist_section.context == context and
+                exist_section.ori_size == size and
+                exist_section.scale == scale):
                 return
-        # Scales (@1, @2, @3, @4)
-        for scale in OPTIONS.generate_scales:
-            directory: str = f'{get_xdg_size_folder_name(size, scale)}/{context}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
-            self.ini_sections.append(IniSection(
-                directory=directory,
-                context=context,
-                scale=scale,
-                ori_size=size
+
+        directory: str = f'{get_xdg_size_folder_name(size, scale)}/{context}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
+        self.ini_sections.append(IniSection(
+            directory=directory,
+            context=context,
+            scale=scale,
+            ori_size=size
             ))
     def write_index_theme_file(self, output_index_theme_file_path: Path):
         fmtted_directories: str = ",".join([x.directory for x in self.ini_sections])
@@ -695,7 +696,7 @@ class IconSearcher():
                 src_file_path_is_symlink = src_svg_file_path.is_symlink(),
                 src_file_path_resolved = src_svg_file_path.resolve()
             ))
-        final_arr.sort(key=lambda x: (x.size))
+        final_arr.sort(key=key_for_sorting_size(lambda x: x.size))
         return final_arr
 
     def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
@@ -716,7 +717,13 @@ class IconSearcher():
         return final
 
 
-
+def key_for_sorting_size(getter: Callable[[T], IconSizeType]) -> Callable[[T], Tuple[int, int]]:
+    def key(x: T) -> Tuple[int, int]:
+        try:
+            return (0, int(getter(x)))
+        except (TypeError, ValueError):
+            return (1, 0)
+    return key
 
 class SvgToPngConverter:
     """Call Inkscape to convert SVG to PNG using asyncio. Runs up to CPU count - 1 parallel processes."""
@@ -995,7 +1002,7 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
         qrc.add_file(icon.context, icon.size, icon.scale, icon.file_name)
 
         # index.theme
-        index_theme.add_index_theme_ini_section(icon.context, icon.size)
+        index_theme.add_index_theme_ini_section(icon.context, icon.size, icon.scale)
 
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
@@ -1023,7 +1030,7 @@ async def run_05_convert_svg_to_png():
                 if OPTIONS.output_png_sizes and icon.size not in OPTIONS.output_png_sizes:
                     continue
                 qrc.add_file(icon.context, icon.size, scale, f"{icon.icon_name}.png")
-                index_theme.add_index_theme_ini_section(icon.context, icon.size)
+                index_theme.add_index_theme_ini_section(icon.context, icon.size, scale)
                 dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(icon.size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                 dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                 deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(icon.size) * int(scale)))
@@ -1032,7 +1039,7 @@ async def run_05_convert_svg_to_png():
                 for fixed_px_size in OPTIONS.output_png_sizes_from_scalable:
                     if fixed_px_size == 'scalable': continue
                     qrc.add_file(icon.context, fixed_px_size, scale, f"{icon.icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
-                    index_theme.add_index_theme_ini_section(icon.context, fixed_px_size)
+                    index_theme.add_index_theme_ini_section(icon.context, fixed_px_size, scale)
                     dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(fixed_px_size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                     dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                     deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(fixed_px_size) * int(scale)))
