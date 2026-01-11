@@ -288,21 +288,77 @@ class RawIconTheme():
     copied_src_theme_folder: Path
     copied_dst_theme_name: str
     """This will be the name of the copied theme folder in BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES"""
+    authors: List[Path]
+    licenses: List[Path]
+    urls: List[str]
 
-BUILT_IN_RAW_ICON_THEMES_PATH: List[RawIconTheme] = [
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity", copied_dst_theme_name="Humanity"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "tarballs" / "humanity_0.4.6" / "Humanity-Dark", copied_dst_theme_name="Humanity-Dark"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "gnome-icon-theme-fork" / "src", copied_dst_theme_name="Gnome"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "floss-icon-themes" / "GimpDefault", copied_dst_theme_name="GimpDefault"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "floss-icon-themes" / "GimpLegacy", copied_dst_theme_name="GimpLegacy"),
-    RawIconTheme(copied_src_theme_folder=Path(__file__).parent / "submodules" / "floss-icon-themes" / "InkscapeTango", copied_dst_theme_name="InkscapeTango"),
-]
+def init_built_in_icon_themes() -> List[RawIconTheme]:
+    root: Path = Path(__file__).parent
+    repo_humanity       : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity"
+    repo_humanity_dark  : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity-Dark"
+    repo_gnome          : Path = root / "submodules" / "gnome-icon-theme-fork"
+    repo_gimp_default   : Path = root / "submodules" / "floss-icon-themes" / "GimpDefault"
+    repo_gimp_legacy    : Path = root / "submodules" / "floss-icon-themes" / "GimpLegacy"
+    repo_inkscape_tango : Path = root / "submodules" / "floss-icon-themes" / "InkscapeTango"
+    return [
+        RawIconTheme(
+            copied_dst_theme_name="Humanity",
+            copied_src_theme_folder=repo_humanity,
+            authors=[ repo_humanity / "AUTHORS" ],
+            licenses=[ repo_humanity / "COPYING" ],
+            urls=[ "https://launchpad.net/humanity/+download" ],
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="Humanity-Dark",   # Maybe HumanityDark would be better....?
+            copied_src_theme_folder=repo_humanity_dark,
+            authors=[ repo_humanity_dark / "AUTHORS" ],
+            licenses=[ repo_humanity_dark / "COPYING" ],
+            urls=[ "https://launchpad.net/humanity/+download" ],
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="Gnome",
+            copied_src_theme_folder=repo_gnome / "src",
+            authors=[ repo_gnome / "AUTHORS" ],
+            licenses=[
+                repo_gnome / "COPYING",
+                repo_gnome / "COPYING_CCBYSA3",
+                repo_gnome / "COPYING_LGPL",
+            ],
+            urls=[ "https://github.com/kuanyui/gnome-icon-theme-fork" ],
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="GimpDefault",
+            copied_src_theme_folder=repo_gimp_default,
+            authors=[],
+            licenses=[ repo_gimp_default / "COPYING" ],
+            urls=[ "https://gitlab.gnome.org/GNOME/gimp-data/-/tree/main/icons?ref_type=heads" ],
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="GimpLegacy",
+            copied_src_theme_folder=repo_gimp_legacy,
+            authors=[],
+            licenses=[ repo_gimp_legacy / "COPYING" ],
+            urls=[ "https://gitlab.gnome.org/GNOME/gimp-data/-/tree/main/icons?ref_type=heads" ],
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="InkscapeTango",
+            copied_src_theme_folder=repo_inkscape_tango,
+            # Inkscape had no independent COPYING & AUTHORS file for its icon theme, so these two are from root repo of Inkscape.
+            authors=[ repo_inkscape_tango / "AUTHORS" ],
+            licenses=[ repo_inkscape_tango / "COPYING" ],
+            urls=[ "https://gitlab.com/inkscape/inkscape/-/tree/master/share/icons?ref_type=heads" ],
+        )
+    ]
+
+BUILT_IN_RAW_ICON_THEMES_PATH: List[RawIconTheme] = init_built_in_icon_themes()
 '''Paths of XDG icon theme packs.
 
 According for XDG standard:
 - Directly contains contexts folders (e.g. apps, actions, ... etc).
 - (optional) Each icon theme pack folder should contain `index.theme`
 '''
+
+
 
 class BUILD_FOLDERS:
     FOLDER_ROOT: Final[Path] = Path(__file__).parent / "dist"
