@@ -47,8 +47,8 @@ BUILT_IN_ICON_THEMES: Final[List[str]] = [
 IconThemeFolderName = str
 
 """Source folder name of the icon theme pack. """
-IconSizeType = Literal["16", "22", "24", "32", "48", "64", "scalable"]
-"""The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable`"""
+IconSizeType = Literal["16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024", "scalable"]
+"""The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` are used by GNOME / Human icon themes."""
 IconContextType = Literal["actions", "animations", "apps", "categories",
                              "devices", "emblems", "emotes", "intl",
                              "mimetypes", "places", "status"]
@@ -57,6 +57,10 @@ IniContextNameType = Literal["Actions", "Animations", "Applications", "Categorie
                              "Devices", "Emblems", "Emotes", "International",
                              "MimeTypes", "Places", "Status"]
 """https://specifications.freedesktop.org/icon-naming-spec/latest/#context"""
+
+DEFAULT_SIZES: List[IconSizeType] = ['16', '22', '24', '32', '48']
+"""Only these sizes are used in Human / GNOME icon themes."""
+
 
 CONTEXT_MAPPING: Final[dict[IconContextType, IniContextNameType]] = {
     "actions": "Actions",
@@ -499,13 +503,12 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
             default="This index.theme is generated via tango-icons-collection",
             help='Output theme description, which will be written in the `Comment=` field of the index.theme file.'
         )
-
         parser.add_argument(
             '--sizes', '-z',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
-            default=list(get_args(IconSizeType)),
-            help=f'Comma-separated list of icon sizes (Available: { ", ".join(get_args(IconSizeType)) })'
+            default=DEFAULT_SIZES,
+            help=f'Comma-separated list of icon sizes (Available: { ", ".join(DEFAULT_SIZES) })'
         )
 
         parser.add_argument(
