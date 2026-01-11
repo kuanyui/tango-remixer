@@ -58,7 +58,12 @@ IniContextNameType = Literal["Actions", "Animations", "Applications", "Categorie
                              "MimeTypes", "Places", "Status"]
 """https://specifications.freedesktop.org/icon-naming-spec/latest/#context"""
 
-DEFAULT_SIZES: List[IconSizeType] = ['16', '22', '24', '32', '48']
+DEFAULT_INPUT_SIZES: Final[List[IconSizeType]] = ['16', '22', '24', '32', '48', "scalable"]
+DEFAULT_OUTPUT_SIZES: Final[List[IconSizeType]] = []
+DEFAULT_OUTPUT_SIZES_FROM_SCALABLE: Final[List[IconSizeType]] = ['48']
+AVAILABLE_INPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType)]
+AVAILABLE_OUTPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType) if x != 'scalable']
+
 """Only these sizes are used in Human / GNOME icon themes."""
 
 
@@ -377,7 +382,9 @@ class IconThemeOptions:
     output_svg_theme_to_dir: Path | None
     output_theme_name: str
     output_theme_description: str
-    sizes: List[IconSizeType]
+    input_svg_sizes: List[IconSizeType]
+    output_png_sizes: List[IconSizeType]
+    output_png_sizes_from_scalable: List[IconSizeType]
     generate_scales: List[IconScaleType]
     qrc_qresource_prefix: str
     verbose: bool
@@ -392,9 +399,13 @@ class IconThemeOptions:
         # if not self.themes_scan_path.exists():
         #     raise ValueError(f"Themes scan path does not exist: {self.themes_scan_path}")
 
-        for size in self.sizes:
+        for size in self.input_svg_sizes:
             if not is_icon_size_type(size):
-                raise ValueError(f"Invalid size: {size}")
+                raise ValueError(f"Invalid size in --input-svg-sizes: {size}")
+
+        for size in self.output_png_sizes:
+            if not is_icon_size_type(size):
+                raise ValueError(f"Invalid size in --output-png-sizes: {size}")
 
         for scale in self.generate_scales:
             if not is_icon_scale_type(scale):
@@ -489,7 +500,7 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
         )
 
         parser.add_argument(
-            '--output-theme-name', '-o',
+            '--output-theme-name', '-on',
             type=str,
             required=False,
             default="OutputTheme",
@@ -497,22 +508,38 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
         )
 
         parser.add_argument(
-            '--output-theme-description', '-d',
+            '--output-theme-description', '-od',
             type=str,
             required=False,
             default="This index.theme is generated via tango-icons-collection",
             help='Output theme description, which will be written in the `Comment=` field of the index.theme file.'
         )
         parser.add_argument(
-            '--sizes', '-z',
+            '--input-svg-sizes', '-iz',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
-            default=DEFAULT_SIZES,
-            help=f'Comma-separated list of icon sizes (Available: { ", ".join(DEFAULT_SIZES) })'
+            default=DEFAULT_INPUT_SIZES,
+            help=f'''Comma-separated list of icon sizes, to decide what numeric sizes (numeric size folder, ex: `/16/`) should be picked as SVG source files.
+(Available: { ", ".join(AVAILABLE_INPUT_SIZES) })'''
+        )
+        parser.add_argument(
+            '--output-png-sizes', '-oz',
+            type=lambda x: [s.strip() for s in x.split(',')],
+            required=False,
+            default=DEFAULT_OUTPUT_SIZES,
+            help=f'''Comma-separated list of icon sizes, to decide what sizes should be converted to PNGs from inputted numeric sizes (numeric size folder, ex: `/16/`). Only when the corresponding input sizes are existed, this option will be triggered (that is to say, output is `16,48`, but input only contains `16`, then `48` will not be converted to PNG.). Empty means all.
+(Available: { ", ".join(AVAILABLE_OUTPUT_SIZES) })'''
+        )
+        parser.add_argument(
+            '--output-png-sizes-from-scalable', '-oZ',
+            type=lambda x: [s.strip() for s in x.split(',')],
+            required=False,
+            default=DEFAULT_OUTPUT_SIZES_FROM_SCALABLE,
+            help=f'Comma-separated list of icon sizes to, to decide what sizes should be output from inputted `scalable/` folder (Available: { ", ".join(AVAILABLE_OUTPUT_SIZES) })'
         )
 
         parser.add_argument(
-            '--generate-scales', '-s',
+            '--generate-scales', '-os',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=['1', '2'],
@@ -565,7 +592,9 @@ Multiple values can be specified via repeating using this option."""
             output_svg_theme_to_dir=args.output_svg_theme_to_dir,
             output_theme_name=args.output_theme_name,
             output_theme_description=args.output_theme_description,
-            sizes=args.sizes,
+            input_svg_sizes=args.input_svg_sizes,
+            output_png_sizes=args.output_png_sizes,
+            output_png_sizes_from_scalable=args.output_png_sizes_from_scalable,
             generate_scales=args.generate_scales,
             qrc_qresource_prefix=args.qrc_qresource_prefix,
             extra_icon_themes=args.extra_icon_theme,
@@ -931,6 +960,9 @@ def run_03_copy_included_icons():
         for src_icon in src_icons:
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
+
+            if src_icon not in OPTIONS.input_svg_sizes:
+                continue
             # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
             #     continue
 
@@ -989,6 +1021,8 @@ async def run_05_convert_svg_to_png():
         for scale in OPTIONS.generate_scales:
             # qrc & index.theme
             if icon.size != 'scalable':    # FIXME: source file of scale != 1 is not supported currently
+                if OPTIONS.output_png_sizes and icon.size not in OPTIONS.output_png_sizes:
+                    continue
                 qrc.add_file(icon.context, icon.size, scale, f"{icon.icon_name}.png")
                 index_theme.add_index_theme_ini_section(icon.context, icon.size)
                 dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(icon.size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
@@ -996,7 +1030,7 @@ async def run_05_convert_svg_to_png():
                 deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(icon.size) * int(scale)))
                 print(f"Convert {dst_png_file_path}")
             else:
-                for fixed_px_size in OPTIONS.sizes:
+                for fixed_px_size in OPTIONS.output_png_sizes_from_scalable:
                     if fixed_px_size == 'scalable': continue
                     qrc.add_file(icon.context, fixed_px_size, scale, f"{icon.icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
                     index_theme.add_index_theme_ini_section(icon.context, fixed_px_size)
@@ -1026,6 +1060,7 @@ def sha256_file_content(file_path: Path) -> str:
 
 def all_icons_need_regenerate() -> bool:
     '''Return True if icons need to be regenerated (compare the SHA256 hash of `included_icon_file`).'''
+    # TODO: Also record the commit hash of this repo.
     if not OPTIONS.stamp_file.exists():
         print(f"""Stamp file "{OPTIONS.stamp_file}" doesn't exist, so start to build all icons.""")
         return True
