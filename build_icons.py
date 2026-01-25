@@ -791,10 +791,11 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
     patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
     patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
     patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
-    for line in file_path.read_text(encoding='utf-8').splitlines():
+    for line_no, line in enumerate(file_path.read_text(encoding='utf-8').splitlines(), start=1):
         seg_src_theme: str = ""
         seg_src_icon: str = ""
         seg_dst_icon: str = ""
+        line = re.sub(r' #.*$', '', line)  # remove comment at the EOL
         if line.startswith('#'): continue
         segs: List[str] = re.split(patt_separator, line.strip())
         if len(segs) == 0: continue
@@ -802,7 +803,7 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
             if segs[0].strip() == "":
                 continue
             else:
-                raise RuntimeError(f"Invalid line: {line}")
+                raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid line: {line}")
                 exit(1)
         if len(segs) == 2:
             seg_src_theme = segs[0].strip()
@@ -813,11 +814,11 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
             seg_src_icon = segs[1].strip()
             seg_dst_icon = segs[2].strip()
         if not is_icon_theme_src_folder_name(seg_src_theme):
-            raise RuntimeError(f"[ERROR] Invalid theme: {seg_src_theme}. (Available: {get_args(IconThemeFolderName)})")
+            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid theme: {seg_src_theme}. (Available: {get_all_icon_themes_folders})")
         src_m = patt_src_icon.match(seg_src_icon)
         dst_m = patt_dst_icon.match(seg_dst_icon)
         if not src_m or not dst_m:
-            raise RuntimeError(f"[ERROR] Invalid line: {line}")
+            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid line: {line}")
         src_context: str = src_m.group(1) or ''
         src_icon_name: str = src_m.group(2) or ''
         dst_context: str = dst_m.group(1) or ''
