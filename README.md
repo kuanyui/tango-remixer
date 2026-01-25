@@ -58,7 +58,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 - thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2) (Official final release)
   - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
 - Git repo ([cgit](https://cgit.freedesktop.org/tango/tango-icon-theme/), [gitlab](https://gitlab.freedesktop.org/tango/tango-icon-theme)) can be found in [freedesktop](https://cgit.freedesktop.org/), **but it lacks lots of original Tango icons... It looks more like... a draft of `gnome-icon-theme`**. Maybe it was faults of the administrators of freedesktop.org when migrating CVS server into git repo, mistakenly excluded lots of old SVG source code... Argh.
-- **Fortunately, [Debian's package server](https://tracker.debian.org/pkg/tango-icon-theme) still** remains a full (I guess) snapshot of source code, contains many useful SVG files! Heritage of forgotten ancient civilizations! **Thank you Debian!**
+- **Fortunately, [Debian's package server](https://tracker.debian.org/pkg/tango-icon-theme) still** remains a full (I guess) snapshot of source code and VCS ([src pkg](https://sources.debian.org/src/tango-icon-theme/0.9.0-1), [git](https://git.golem.linux.it/matteobin/tango-icon-theme)), contains many useful SVG files! Heritage of forgotten ancient civilizations! **Thank you Debian!**
 - License: **Public Domain** (!)
 
 > # More References & Todos
@@ -70,15 +70,28 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 
 # Built-in Icon Themes and Licenses
 
-| Theme ID        | Forked Source | License                     | Description                                                                   |
-|-----------------|---------------|-----------------------------|-------------------------------------------------------------------------------|
-| `Gnome`         | GNOME         | `LGPL v3` or `CC by-sa 3.0` | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
-| `BlueGnome`     | GNOME         | `LGPL v3` or `CC by-sa 3.0` | Same with `Gnome`, but with adjusted hue by Python script in this project     |
-| `Humanity`      | Ubuntu        | `GPL v2`                    |                                                                               |
-| `BlueHumanity`  | Ubuntu        | `GPL v2`                    | Same with `Humanity`, but with adjusted hue by Python script in this project  |
-| `GimpLegacy`    | GIMP          | `GPL v3+`                   |                                                                               |
-| `GimpDefault`   | GIMP          | `CC by-sa 3.0`              |                                                                               |
-| `InkscapeTango` | Inkscape      | `GPL v2`                    |                                                                               |
+> [!CAUTION]
+> This project merely a tool for developer, aimes to simplify the process of picking icons from multiple XDG-compatible icon themes, mixing and aggregating them into a new XDG-compatible icon theme. But for the final project you are about to create, license compatibility must to be checked:
+>
+> ### (L)GPL Compatibility
+> - Be careful, (L)GPL **v2** are **not compatible** with (L)GPL **v3**. You should **not** aggregate them together as derivated work.
+> - But (L)GPL licenses with **same version number** are compatible. That is, GPL v3 is compatible with LGPL v3. GPL v2 is compatible with LGPL v2.
+>
+> ### TL; DR
+> - If you are going to use these icons in a Qt project, Qt community version allows LGPLv3 or GPLv3 only, so you should **never** use **any** GPL v2 icon in it.
+> - If you are going to use these icons in a GTK project, GTK itself is licensed under LGPL v2.1+, so you can choose either GPL v2 or v3 according to the license of your project. **but** still should **never** mix v2 and v3 together.
+> - LGPL is with lesser restriction, you should can embed LGPL icons statically into your executable, as long as you provide all source code or object file which can be linked.
+
+| Theme ID        | Forked Source | License                            | Description                                                                   |
+|-----------------|---------------|------------------------------------|-------------------------------------------------------------------------------|
+| `Tango`         | Tango         | `CC0 1.0` (with a few `LGPL v2.1`) | Original Tango Icons from Freedesktop.org                                     |
+| `Gnome`         | GNOME         | `LGPL v3` or `CC by-sa 3.0`        | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
+| `BlueGnome`     | GNOME         | `LGPL v3` or `CC by-sa 3.0`        | Same with `Gnome`, but with adjusted hue by Python script in this project     |
+| `Humanity`      | Ubuntu        | `GPL v2`                           |                                                                               |
+| `BlueHumanity`  | Ubuntu        | `GPL v2`                           | Same with `Humanity`, but with adjusted hue by Python script in this project  |
+| `GimpLegacy`    | GIMP          | `GPL v3+`                          |                                                                               |
+| `GimpDefault`   | GIMP          | `CC by-sa 3.0`                     |                                                                               |
+| `InkscapeTango` | Inkscape      | `GPL v2`                           |                                                                               |
 
 # How to Use in Qt Project?
 
