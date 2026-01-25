@@ -54,11 +54,12 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
     - GIMP: `GimpDefault` (CC by-sa 3.0)
     - Inkscape: `InkscapeTango` (GPL v2)
 
-## Freedesktop Tango (**Unused**; for reference only.)
-- thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2)
-  - The original reference implementations following Tango icon specifications
+## Freedesktop Tango
+- thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2) (Official final release)
   - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
-  - License: Public Domain
+- Git repo ([cgit](https://cgit.freedesktop.org/tango/tango-icon-theme/), [gitlab](https://gitlab.freedesktop.org/tango/tango-icon-theme)) can be found in [freedesktop](https://cgit.freedesktop.org/), **but it lacks lots of original Tango icons... It looks more like... a draft of `gnome-icon-theme`**. Maybe it was faults of the administrators of freedesktop.org when migrating CVS server into git repo, mistakenly excluded lots of old SVG source code... Argh.
+- **Fortunately, [Debian's package server](https://tracker.debian.org/pkg/tango-icon-theme) still** remains a full (I guess) snapshot of source code, contains many useful SVG files! Heritage of forgotten ancient civilizations! **Thank you Debian!**
+- License: **Public Domain** (!)
 
 > # More References & Todos
 > - https://github.com/gnome-colors/gnome-colors (found from https://en.m.wikipedia.org/wiki/File:Dialog-apply.svg )
