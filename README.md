@@ -19,7 +19,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 ## GNOME Icon Theme Forked (Main)
 - submodules/[gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork)
   - A fork of GNOME 2/3 default XDG icon theme, provided as SVG files. Includes some fixes and new extra icons.
-  - License: GPLv3
+  - License: LGPL v3 / CC by-sa 3.0
 <!--
 - thirdparty/[gnome-icon-theme-2.20.0.tar.bz2](https://download.gnome.org/sources/gnome-icon-theme/2.20/gnome-icon-theme-2.20.0.tar.bz2)
   - Downloaded from [download.gnome.org](https://download.gnome.org/sources/gnome-icon-theme/2.20/)
@@ -55,11 +55,16 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
     - Inkscape: `InkscapeTango` (GPL v2)
 
 ## Freedesktop Tango
-- thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2) (Official final release)
-  - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
-- Git repo ([cgit](https://cgit.freedesktop.org/tango/tango-icon-theme/), [gitlab](https://gitlab.freedesktop.org/tango/tango-icon-theme)) can be found in [freedesktop](https://cgit.freedesktop.org/), **but it lacks lots of original Tango icons... It looks more like... a draft of `gnome-icon-theme`**. Maybe it was faults of the administrators of freedesktop.org when migrating CVS server into git repo, mistakenly excluded lots of old SVG source code... Argh.
-- **Fortunately, [Debian's package server](https://tracker.debian.org/pkg/tango-icon-theme) still** remains a full (I guess) snapshot of source code and VCS ([src pkg](https://sources.debian.org/src/tango-icon-theme/0.9.0-1), [git](https://git.golem.linux.it/matteobin/tango-icon-theme)), contains many useful SVG files! Heritage of forgotten ancient civilizations! **Thank you Debian!**
-- License: **Public Domain** (!)
+- submodules/[tango-icon-theme-fork](https://github.com/kuanyui/tango-icon-theme-fork)
+  - This was a long process of digital archaeology...
+    1. thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2) (Official final release)
+      - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
+    2. Git repo ([cgit](https://cgit.freedesktop.org/tango/tango-icon-theme/), [gitlab](https://gitlab.freedesktop.org/tango/tango-icon-theme)) can be found in [freedesktop](https://cgit.freedesktop.org/), **but it lacks lots of original Tango icons... It looks more like... a draft of `gnome-icon-theme`**. Maybe it was faults of the administrators of freedesktop.org when migrating CVS server into git repo, mistakenly excluded lots of old SVG source code... Argh.
+    3. **Fortunately, [Debian's package server](https://tracker.debian.org/pkg/tango-icon-theme) still** remains a full (I guess) snapshot of source code and VCS ([src pkg](https://sources.debian.org/src/tango-icon-theme/0.9.0-1), [git](https://git.golem.linux.it/matteobin/tango-icon-theme)), contains many useful SVG files! Heritage of forgotten ancient civilizations! **Thank you Debian!**
+      - However, the source code git repo I found on Debian already contains only 1 initial commit... No commit history is preserved... But its `README.md` described:
+        > This is a fork of Tango icon theme based on the 0.8.90-11 version of the Debian package and this Git repository <https://github.com/sebkur/tango-icon-theme>, to add XDG user directory icons, PDF MIME type icon, restore the missing scalable mail-mark-not-junk.svg icon from 0.8.90, and include some Debian patches. Tango icon theme was forked because upstream is dead.
+    4. **At last**, I found [sebkur/tango-icon-theme](http://github.com/sebkur/tango-icon-theme) still preserves commit history, so I decide to fork it. (out of nostalgia, respect to the original authors, and as records of the history of the Linux desktop in the 2000s.)
+  - License: **Public Domain** (!)
 
 > # More References & Todos
 > - https://github.com/gnome-colors/gnome-colors (found from https://en.m.wikipedia.org/wiki/File:Dialog-apply.svg )
@@ -82,16 +87,16 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 > - If you are going to use these icons in a GTK project, GTK itself is licensed under LGPL v2.1+, so you can choose either GPL v2 or v3 according to the license of your project. **but** still should **never** mix v2 and v3 together.
 > - LGPL is with lesser restriction, you should can embed LGPL icons statically into your executable, as long as you provide all source code or object file which can be linked.
 
-| Theme ID        | Forked Source | License                            | Description                                                                   |
-|-----------------|---------------|------------------------------------|-------------------------------------------------------------------------------|
-| `Tango`         | Tango         | `CC0 1.0` (with a few `LGPL v2.1`) | Original Tango Icons from Freedesktop.org                                     |
-| `Gnome`         | GNOME         | `LGPL v3` or `CC by-sa 3.0`        | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
-| `BlueGnome`     | GNOME         | `LGPL v3` or `CC by-sa 3.0`        | Same with `Gnome`, but with adjusted hue by Python script in this project     |
-| `Humanity`      | Ubuntu        | `GPL v2`                           |                                                                               |
-| `BlueHumanity`  | Ubuntu        | `GPL v2`                           | Same with `Humanity`, but with adjusted hue by Python script in this project  |
-| `GimpLegacy`    | GIMP          | `GPL v3+`                          |                                                                               |
-| `GimpDefault`   | GIMP          | `CC by-sa 3.0`                     |                                                                               |
-| `InkscapeTango` | Inkscape      | `GPL v2`                           |                                                                               |
+| Theme ID        | Forked Source | License                     | Description                                                                   |
+|-----------------|---------------|-----------------------------|-------------------------------------------------------------------------------|
+| `Tango`         | Tango         | `Public Domain`             | Original Tango Icons from Freedesktop.org                                     |
+| `Gnome`         | GNOME         | `LGPL v3` or `CC by-sa 3.0` | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
+| `BlueGnome`     | GNOME         | `LGPL v3` or `CC by-sa 3.0` | Same with `Gnome`, but with adjusted hue by Python script in this project     |
+| `Humanity`      | Ubuntu        | `GPL v2`                    |                                                                               |
+| `BlueHumanity`  | Ubuntu        | `GPL v2`                    | Same with `Humanity`, but with adjusted hue by Python script in this project  |
+| `GimpLegacy`    | GIMP          | `GPL v3+`                   |                                                                               |
+| `GimpDefault`   | GIMP          | `CC by-sa 3.0`              |                                                                               |
+| `InkscapeTango` | Inkscape      | `GPL v2`                    |                                                                               |
 
 # How to Use in Qt Project?
 
