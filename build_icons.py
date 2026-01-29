@@ -31,13 +31,14 @@ from lib_color_converter import *
 from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 BUILT_IN_ICON_THEMES: Final[List[str]] = [
     # Vanilla XDG Icon Themes
+    "Tango",
+    "Gnome",
     "Humanity",
     "Humanity-Dark",
-    "Gnome",
     # Hue-Adjusted XDG Icon Themes
+    "BlueGnome",
     "BlueHumanity",
     "BlueHumanity-Dark",
-    "BlueGnome",
     # Icon Packs in Thirdparty Apps
     "GimpDefault",
     "GimpLegacy",
@@ -294,13 +295,32 @@ class RawIconTheme():
 
 def init_built_in_icon_themes() -> List[RawIconTheme]:
     root: Path = Path(__file__).parent
+    repo_tango          : Path = root / "submodules" / "tango-icon-theme-fork"
+    repo_gnome          : Path = root / "submodules" / "gnome-icon-theme-fork"
     repo_humanity       : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity"
     repo_humanity_dark  : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity-Dark"
-    repo_gnome          : Path = root / "submodules" / "gnome-icon-theme-fork"
     repo_gimp_default   : Path = root / "submodules" / "floss-icon-themes" / "GimpDefault"
     repo_gimp_legacy    : Path = root / "submodules" / "floss-icon-themes" / "GimpLegacy"
     repo_inkscape_tango : Path = root / "submodules" / "floss-icon-themes" / "InkscapeTango"
     return [
+        RawIconTheme(
+            copied_dst_theme_name="Tango",
+            copied_src_theme_folder=repo_tango,
+            authors=[ repo_tango / "AUTHORS" ],
+            licenses=[ repo_tango / "COPYING", ],
+            urls=[ "https://github.com/kuanyui/tango-icon-theme-fork" ],
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="Gnome",
+            copied_src_theme_folder=repo_gnome / "src",
+            authors=[ repo_gnome / "AUTHORS" ],
+            licenses=[
+                repo_gnome / "COPYING",
+                repo_gnome / "COPYING_CCBYSA3",
+                repo_gnome / "COPYING_LGPL",
+            ],
+            urls=[ "https://github.com/kuanyui/gnome-icon-theme-fork" ],
+        ),
         RawIconTheme(
             copied_dst_theme_name="Humanity",
             copied_src_theme_folder=repo_humanity,
@@ -314,17 +334,6 @@ def init_built_in_icon_themes() -> List[RawIconTheme]:
             authors=[ repo_humanity_dark / "AUTHORS" ],
             licenses=[ repo_humanity_dark / "COPYING" ],
             urls=[ "https://launchpad.net/humanity/+download" ],
-        ),
-        RawIconTheme(
-            copied_dst_theme_name="Gnome",
-            copied_src_theme_folder=repo_gnome / "src",
-            authors=[ repo_gnome / "AUTHORS" ],
-            licenses=[
-                repo_gnome / "COPYING",
-                repo_gnome / "COPYING_CCBYSA3",
-                repo_gnome / "COPYING_LGPL",
-            ],
-            urls=[ "https://github.com/kuanyui/gnome-icon-theme-fork" ],
         ),
         RawIconTheme(
             copied_dst_theme_name="GimpDefault",
@@ -364,21 +373,21 @@ class BUILD_FOLDERS:
     FOLDER_ROOT: Final[Path] = Path(__file__).parent / "dist"
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
     '''00. Copy all icon themes folders here.
-    Contains "Humanity", "Humanity-Dark", "Gnome"
+    Contains "Tango", "Gnome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
     Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
-    Contains "Humanity", "Humanity-Dark", "Gnome"
+    Contains "Tango", "Gnome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
     Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
     '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
-    Contains "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark", "Gnome", "BlueGnome"
+    Contains "Tango", "Gnome", "BlueGnome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
     Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
@@ -567,7 +576,7 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
             '--output-theme-description', '-od',
             type=str,
             required=False,
-            default="This index.theme is generated via tango-icons-collection",
+            default="This index.theme is generated via tango-icons-remixer",
             help='Output theme description, which will be written in the `Comment=` field of the index.theme file.'
         )
         parser.add_argument(
@@ -620,7 +629,7 @@ e.g. if set to `/xdg_icon_themes/` (default value), the icon `Humanity/apps/48/t
             help="""Extra icon theme. Format: `id:icon_theme_root_folder_path`. (e.g. you can refer to the icon theme installed on your system via `SystemTango:/usr/share/icons/Tango`)
 
 `id` is an unique ID of the icon theme. You can use this `id` in included_icons.txt.
-(NOTE: This id must be unique, the following ids are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)
+(NOTE: This id must be unique, the following ids are occupied by built-in themes: `Tango`, `Gnome`, `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`)
 
 TODO: Currently `theme.index` under the specified path is ignored, only directory structure is handled.
 
@@ -753,6 +762,9 @@ class IconSearcher():
                 src_file_path_resolved = src_svg_file_path.resolve()
             ))
         final_arr.sort(key=key_for_sorting_size(lambda x: x.size))
+        for x in final_arr:
+            if x.theme_src_folder_name == 'Tango':
+                print(x)
         return final_arr
 
     def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
