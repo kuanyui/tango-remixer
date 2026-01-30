@@ -282,7 +282,6 @@ Directories={fmtted_directories}
             print(f"Error when creating {output_index_theme_file_path}: {e}")
 
 
-ICON_THEME_PATH_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z]+)/([0-9@x]+|scalable)/(.+\.svg)$")
 
 @dataclass
 class RawIconTheme():
@@ -376,21 +375,29 @@ class BUILD_FOLDERS:
     Contains "Tango", "Gnome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
+    Folder structures can be
+    - `<context>/<size>` (convension since CVS/SVN era)
+    - `<size>x<size>@<scale>` (XDG standard style)
+    '''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
     Contains "Tango", "Gnome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
+    Folder structures can be
+    - `<context>/<size>` (convension since CVS/SVN era)
+    - `<size>x<size>@<scale>` (XDG standard style)
+    '''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
     '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
     Contains "Tango", "Gnome", "BlueGnome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures can be `<context>/<size>` (convension since CVS/SVN era) or `<size>x<size>@<scale>` (XDG standard style)'''
+    Folder structures can be
+    - `<context>/<size>` (convension since CVS/SVN era)
+    - `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_03_INCLUDED_SVG_ICONS = FOLDER_ROOT / "03_INCLUDED_SVG_ICONS"
     '''03. Copy included icons (See option `--included-icon-file`) to this folder.
@@ -717,6 +724,10 @@ class IncludedIcon():
     dst_context: str
     dst_icon_name: str
 
+ICON_PATH_IN_THEME_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z0-9@]+)/([a-z0-9@]+)/([^\\/]+?\.svg)$")
+#                                                                ^              ^           ^           ^
+#                                                            ThemeName   /   Context  /    Size    /   Icon
+#                                                            ThemeName   /    Size    /   Context  /   Icon
 
 class IconSearcher():
     def __init__(self, themes_folder: Path):
@@ -737,12 +748,14 @@ class IconSearcher():
     def recursive_get_icon_list_in_theme(self, icon_theme_folder: Path) -> List[IconSrcFileInfo]:
         final_arr: List[IconSrcFileInfo] = []
         for src_svg_file_path in icon_theme_folder.rglob("*.svg"):
-            m: re.Match[str] | None = ICON_THEME_PATH_PATTERN.search(src_svg_file_path.as_posix())  # use as_posix() to avoid potential backslashes under windows.
+            m: re.Match[str] | None = ICON_PATH_IN_THEME_PATTERN.search(src_svg_file_path.as_posix())  # use as_posix() to avoid potential backslashes under windows.
             if not m: continue
             _theme_src_folder_name = m.group(1)
             _context = m.group(2)
             _size = m.group(3)
             parsed_size = parse_size_folder_name(_size)
+            icon_file_name: str = m.group(4)
+            icon_name: str = format_icon_name(m.group(4), 'noext')
             if not parsed_size:
                 _context, _size = _size, _context   # swap
                 parsed_size = parse_size_folder_name(_size)
@@ -755,16 +768,13 @@ class IconSearcher():
                 context = _context if is_icon_context_dir_type(_context) else "apps",
                 size = parsed_size.size,
                 scale = parsed_size.scale,
-                icon_name = format_icon_name(m.group(4), 'noext'),
-                file_name = m.group(4),
+                icon_name = icon_name,
+                file_name = icon_file_name,
                 src_file_path = src_svg_file_path,
                 src_file_path_is_symlink = src_svg_file_path.is_symlink(),
                 src_file_path_resolved = src_svg_file_path.resolve()
             ))
         final_arr.sort(key=key_for_sorting_size(lambda x: x.size))
-        for x in final_arr:
-            if x.theme_src_folder_name == 'Tango':
-                print(x)
         return final_arr
 
     def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
