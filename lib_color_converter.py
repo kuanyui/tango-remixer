@@ -4,7 +4,7 @@ from typing import List, Literal, Generic, TypeVar
 import re
 
 HumanityColorizeRule = Literal["orange_to_blue", "orange_to_dim_blue", "orange_to_green", "orange_to_dim_green", "orange_to_red", "red_to_blue", ]
-GnomeColorizeRule = Literal["brown_to_blue"]
+NomeColorizeRule = Literal["brown_to_blue"]
 
 T = TypeVar('T')
 
@@ -96,7 +96,7 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     # IncludedFile(name="", colorize_rules=[]),
 ]
 
-INCLUDED_GNOME_FILES: List[IncludedFile[GnomeColorizeRule]] = [
+INCLUDED_NOME_FILES: List[IncludedFile[NomeColorizeRule]] = [
     # =================
     # places
     # =================
@@ -188,7 +188,7 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
     l = min(100, l)
     return color_hsl_to_hex([h, s, l])
 
-def gnome_colorize_hex_code_with_rule(hex_color: str, rules: List[GnomeColorizeRule]) -> str:
+def nome_colorize_hex_code_with_rule(hex_color: str, rules: List[NomeColorizeRule]) -> str:
     h, s, l = color_hex_to_hsl(hex_color)
     for rule in rules:
         match rule:
@@ -211,10 +211,10 @@ def humanity_colorize_svg_content(svg_file_content: str, svg_file_name_without_e
     pattern = r'#[A-Fa-f0-9]{3}(?:[A-Fa-f0-9]{3})?'
     return re.sub(pattern, lambda m: humanity_colorize_hex_code_with_rule(m.group(0), included_file.colorize_rules), svg_file_content)
 
-def gnome_colorize_svg_content(svg_file_content: str, svg_file_name_without_ext: str) -> str:
-    included_file = next((x for x in INCLUDED_GNOME_FILES if x.name == svg_file_name_without_ext), None)
+def nome_colorize_svg_content(svg_file_content: str, svg_file_name_without_ext: str) -> str:
+    included_file = next((x for x in INCLUDED_NOME_FILES if x.name == svg_file_name_without_ext), None)
     if included_file is None:
         return svg_file_content
     pattern = r'#[A-Fa-f0-9]{3}(?:[A-Fa-f0-9]{3})?'
-    return re.sub(pattern, lambda m: gnome_colorize_hex_code_with_rule(m.group(0), included_file.colorize_rules), svg_file_content)
+    return re.sub(pattern, lambda m: nome_colorize_hex_code_with_rule(m.group(0), included_file.colorize_rules), svg_file_content)
 

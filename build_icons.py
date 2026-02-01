@@ -32,11 +32,11 @@ from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extract
 BUILT_IN_ICON_THEMES: Final[List[str]] = [
     # Vanilla XDG Icon Themes
     "Tango",
-    "Gnome",
+    "Nome",
     "Humanity",
     "Humanity-Dark",
     # Hue-Adjusted XDG Icon Themes
-    "BlueGnome",
+    "BlueNome",
     "BlueHumanity",
     "BlueHumanity-Dark",
     # Icon Packs in Thirdparty Apps
@@ -49,7 +49,7 @@ IconThemeFolderName = str
 
 """Source folder name of the icon theme pack. """
 IconSizeType = Literal["16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024", "scalable"]
-"""The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` are used by GNOME / Human icon themes."""
+"""The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` are used by Tango / Nome / Humanity icon themes."""
 IconContextType = Literal["actions", "animations", "apps", "categories",
                              "devices", "emblems", "emotes", "intl",
                              "mimetypes", "places", "status"]
@@ -65,7 +65,7 @@ DEFAULT_OUTPUT_SIZES_FROM_SCALABLE: Final[List[IconSizeType]] = ['48']
 AVAILABLE_INPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType)]
 AVAILABLE_OUTPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType) if x != 'scalable']
 
-"""Only these sizes are used in Human / GNOME icon themes."""
+"""Only these sizes are used in Tango / Nome / Humanity icon themes."""
 
 
 CONTEXT_MAPPING: Final[dict[IconContextType, IniContextNameType]] = {
@@ -294,8 +294,8 @@ class RawIconTheme():
 
 def init_built_in_icon_themes() -> List[RawIconTheme]:
     root: Path = Path(__file__).parent
-    repo_tango          : Path = root / "submodules" / "tango-icon-theme-fork"
-    repo_gnome          : Path = root / "submodules" / "gnome-icon-theme-fork"
+    repo_tango          : Path = root / "submodules" / "tango-icon-theme"
+    repo_nome           : Path = root / "submodules" / "nome-icon-theme"
     repo_humanity       : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity"
     repo_humanity_dark  : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity-Dark"
     repo_gimp_default   : Path = root / "submodules" / "floss-icon-themes" / "GimpDefault"
@@ -310,15 +310,15 @@ def init_built_in_icon_themes() -> List[RawIconTheme]:
             urls=[ "https://github.com/kuanyui/tango-icon-theme-fork" ],
         ),
         RawIconTheme(
-            copied_dst_theme_name="Gnome",
-            copied_src_theme_folder=repo_gnome / "src",
-            authors=[ repo_gnome / "AUTHORS" ],
+            copied_dst_theme_name="Nome",
+            copied_src_theme_folder=repo_nome / "src",
+            authors=[ repo_nome / "AUTHORS" ],
             licenses=[
-                repo_gnome / "COPYING",
-                repo_gnome / "COPYING_CCBYSA3",
-                repo_gnome / "COPYING_LGPL",
+                repo_nome / "COPYING",
+                repo_nome / "COPYING_CCBYSA3",
+                repo_nome / "COPYING_LGPL",
             ],
-            urls=[ "https://github.com/kuanyui/gnome-icon-theme-fork" ],
+            urls=[ "https://github.com/kuanyui/nome-icon-theme" ],
         ),
         RawIconTheme(
             copied_dst_theme_name="Humanity",
@@ -372,7 +372,7 @@ class BUILD_FOLDERS:
     FOLDER_ROOT: Final[Path] = Path(__file__).parent / "dist"
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
     '''00. Copy all icon themes folders here.
-    Contains "Tango", "Gnome", "Humanity", "Humanity-Dark"
+    Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
     Folder structures can be
@@ -382,7 +382,7 @@ class BUILD_FOLDERS:
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
-    Contains "Tango", "Gnome", "Humanity", "Humanity-Dark"
+    Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
     Folder structures can be
@@ -392,7 +392,7 @@ class BUILD_FOLDERS:
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
     '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
-    Contains "Tango", "Gnome", "BlueGnome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
+    Contains "Tango", "Nome", "BlueNome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
     Folder structures can be
@@ -423,7 +423,7 @@ class ExtraIconTheme():
     """
     id: str
     """Unique ID of the icon theme, this `id` can be used in included_icons.txt
-    (NOTE: the following are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Gnome`)
+    (NOTE: the following are occupied by built-in themes: `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`, `Nome`)
     """
     icon_theme_root_folder_path: Path
     """The root folder of the icon theme. (Contains context folders (required) and `index.theme` (optional, unused currently))"""
@@ -633,10 +633,10 @@ e.g. if set to `/xdg_icon_themes/` (default value), the icon `Humanity/apps/48/t
             type=cls.parse_extra_icon_theme,
             required=False,
             default=[],
-            help="""Extra icon theme. Format: `id:icon_theme_root_folder_path`. (e.g. you can refer to the icon theme installed on your system via `SystemTango:/usr/share/icons/Tango`)
+            help=f"""Extra icon theme. Format: `id:icon_theme_root_folder_path`. (e.g. you can refer to the icon theme installed on your system via `SystemTango:/usr/share/icons/Tango`)
 
 `id` is an unique ID of the icon theme. You can use this `id` in included_icons.txt.
-(NOTE: This id must be unique, the following ids are occupied by built-in themes: `Tango`, `Gnome`, `BlueHumanity`, `BlueHumanity-Dark`, `Humanity`, `Humanity-Dark`)
+(NOTE This id must be unique, the following ids are occupied by built-in themes: { ", ".join(BUILT_IN_ICON_THEMES) })
 
 TODO: Currently `theme.index` under the specified path is ignored, only directory structure is handled.
 
@@ -696,7 +696,7 @@ def format_icon_name(icon_name_or_file_name: str | Path, to_type: Literal['noext
             return f"{fn_without_ext}.png"
 
 
-def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none", "humanity_colorizer", "gnome_colorizer"]) -> None:
+def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none", "humanity_colorizer", "nome_colorizer"]) -> None:
     src_path: Path = Path(src)
     if src_path.is_symlink():
         return None
@@ -710,8 +710,8 @@ def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none"
     with open(dst, 'w', encoding='utf-8') as f:
         if preprocessor == 'humanity_colorizer':
             f.write(humanity_colorize_svg_content(raw_content, dst_path.stem))
-        elif preprocessor == 'gnome_colorizer':
-            f.write(gnome_colorize_svg_content(raw_content, dst_path.stem))
+        elif preprocessor == 'nome_colorizer':
+            f.write(nome_colorize_svg_content(raw_content, dst_path.stem))
     return
 
 
@@ -740,7 +740,7 @@ class IconSearcher():
         final_arr: List[Path] = []
         for folder in Path(icon_theme_search_root).iterdir():
             if not folder.is_dir(): continue
-            # NOTE: gnome-icon-theme has no index.theme file.
+            # NOTE: nome-icon-theme has no index.theme file.
             # if (folder.joinpath('index.theme')).exists():
             final_arr.append(folder)
         return final_arr
@@ -1019,11 +1019,11 @@ def run_02_colorize_themes():
             dst_svg_file_path = dst_theme_folder / svg_relative_file_path
             dst_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
             copy_svg_file(src_svg_file_path, dst_svg_file_path, "none")
-            if src_theme_folder.name == "Gnome":
-                # Copy gnome icons to blue gnome
-                dst_gnome_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueGnome" / svg_relative_file_path
-                dst_gnome_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
-                copy_svg_file(src_svg_file_path, dst_gnome_svg_file_path, "gnome_colorizer")
+            if src_theme_folder.name == "Nome":
+                # Copy nome icons to blue nome
+                dst_nome_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueNome" / svg_relative_file_path
+                dst_nome_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
+                copy_svg_file(src_svg_file_path, dst_nome_svg_file_path, "nome_colorizer")
             elif src_theme_folder.name == "Humanity":
                 dst_tango_svg_file_path = BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT / "BlueHumanity" / svg_relative_file_path
                 dst_tango_svg_file_path.parent.mkdir(parents=True, exist_ok=True)

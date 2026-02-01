@@ -17,7 +17,7 @@ Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Hum
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
 ## GNOME Icon Theme Forked (Main)
-- submodules/[gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork)
+- submodules/[nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)
   - A fork of GNOME 2/3 default XDG icon theme, provided as SVG files. Includes some fixes and new extra icons.
   - License: LGPL v3 / CC by-sa 3.0
 <!--
@@ -87,16 +87,16 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 > - If you are going to use these icons in a GTK project, GTK itself is licensed under LGPL v2.1+, so you can choose either GPL v2 or v3 according to the license of your project. **but** still should **never** mix v2 and v3 together.
 > - LGPL is with lesser restriction, you should can embed LGPL icons statically into your executable, as long as you provide all source code or object file which can be linked.
 
-| Theme ID        | Forked Source | License                     | Description                                                                   |
-|-----------------|---------------|-----------------------------|-------------------------------------------------------------------------------|
-| `Tango`         | Tango         | `Public Domain`             | Original Tango Icons from Freedesktop.org                                     |
-| `Gnome`         | GNOME         | `LGPL v3` or `CC by-sa 3.0` | See [gnome-icon-theme-fork](https://github.com/kuanyui/gnome-icon-theme-fork) |
-| `BlueGnome`     | GNOME         | `LGPL v3` or `CC by-sa 3.0` | Same with `Gnome`, but with adjusted hue by Python script in this project     |
-| `Humanity`      | Ubuntu        | `GPL v2`                    |                                                                               |
-| `BlueHumanity`  | Ubuntu        | `GPL v2`                    | Same with `Humanity`, but with adjusted hue by Python script in this project  |
-| `GimpLegacy`    | GIMP          | `GPL v3+`                   |                                                                               |
-| `GimpDefault`   | GIMP          | `CC by-sa 3.0`              |                                                                               |
-| `InkscapeTango` | Inkscape      | `GPL v2`                    |                                                                               |
+| Theme ID        | Forked Source | License                     | Description                                                                                           |
+|-----------------|---------------|-----------------------------|-------------------------------------------------------------------------------------------------------|
+| `Tango`         | Tango         | `GPL v2` or `GPL v3`        | Tango Icons from Freedesktop.org, See [tango-icon-theme](https://github.com/kuanyui/tango-icon-theme) |
+| `Nome`          | GNOME         | `LGPL v3` or `CC by-sa 3.0` | See [nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)                                     |
+| `BlueNome`      | GNOME         | `LGPL v3` or `CC by-sa 3.0` | Same with `Gnome`, but with adjusted hue by Python script in this project                             |
+| `Humanity`      | Ubuntu        | `GPL v2`                    |                                                                                                       |
+| `BlueHumanity`  | Ubuntu        | `GPL v2`                    | Same with `Humanity`, but with adjusted hue by Python script in this project                          |
+| `GimpLegacy`    | GIMP          | `GPL v3+`                   |                                                                                                       |
+| `GimpDefault`   | GIMP          | `CC by-sa 3.0`              |                                                                                                       |
+| `InkscapeTango` | Inkscape      | `GPL v2`                    |                                                                                                       |
 
 # How to Use in Qt Project?
 
