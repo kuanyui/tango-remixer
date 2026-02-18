@@ -943,6 +943,8 @@ def sync_tree(src: Path, dst: Path, symlinks: bool = True) -> None:
     dst.mkdir(parents=True, exist_ok=True)
 
     for src_path in src.rglob("*"):   # recursive glob
+        if ".git" in src_path.parts:
+            continue
         relative_path = src_path.relative_to(src)
         dst_path = dst / relative_path
 
@@ -981,9 +983,9 @@ def run_00_copy_icon_themes():
         BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
         for raw_theme in BUILT_IN_RAW_ICON_THEMES_PATH:
             # Keep relative symlinks, but I don't sure what will happen under Windows.
-            shutil.copytree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True)
+            shutil.copytree(raw_theme.copied_src_theme_folder, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / raw_theme.copied_dst_theme_name, symlinks=True, ignore=shutil.ignore_patterns('.git'))
         for extra_theme in OPTIONS.extra_icon_themes:
-            shutil.copytree(extra_theme.icon_theme_root_folder_path, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / extra_theme.id, symlinks=True)
+            shutil.copytree(extra_theme.icon_theme_root_folder_path, BUILD_FOLDERS.FOLDER_00_ORIGINAL_THEMES_ROOT / extra_theme.id, symlinks=True, ignore=shutil.ignore_patterns('.git'))
     else:
         BUILD_FOLDERS.FOLDER_ROOT.mkdir(parents=True, exist_ok=True)
         for raw_theme in BUILT_IN_RAW_ICON_THEMES_PATH:
