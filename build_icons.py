@@ -451,7 +451,8 @@ class MyHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 class IconThemeOptions:
     clean_before_build: bool
     included_icon_file: Path
-    stamp_file: Path
+    output_stamp_file: Path
+    rebuild_regardless_of_stamp_file: bool
     output_png_theme_to_dir: Path | None
     output_svg_theme_to_dir: Path | None
     output_theme_name: str
@@ -512,7 +513,7 @@ class IconThemeOptions:
         parser.add_argument(
             '--clean-before-build', '-c',
             action='store_true',
-            help='Clean build folder before building.'
+            help='Clean build folder before building. Basically means force rebuild.'
         )
         parser.add_argument(
             '--included-icon-file', '-i',
@@ -537,11 +538,13 @@ When this file is older than `--stamp-file`, the build will not be triggered.
 '''
         )
         parser.add_argument(
-            '--stamp-file', '-t',
+            '--output-stamp-file', '--stamp-file', '-t',
             type=Path,
             required=False,
             default=BUILD_FOLDERS.FOLDER_ROOT / 'built.stamp',
             help='''
+Briefly, this is a stamp-file to track the modification of `--included-icon-file`. If no modification detected, skip the build immediately.
+
 This is an output stamp-file. When build finished successfully:
 - The stamp-file will be created and touched.
 - The SHA256 hash of the content of `included_icons.txt` will be saved into stamp file.
@@ -552,7 +555,15 @@ The rebuild logic:
 - If stamp file doesn't exist, rebuild.
 - If mtime of `--included-icon-file` is newer than stamp file, rebuild.
 '''        )
+        parser.add_argument(
+            '--rebuild-regardless-of-stamp-file', '-r',
+            action='store_true',
+            help='''Ignore the hash recorded in `--stamp-file`, ignore `--included-icon-file`, merely relys on the mtime of each source SVG & output SVG file to determine whether to rebuild the SVG file.
 
+This is useful when you need to build SVG files after modifying SVG files, but without modifying `--included-icon-file`.
+
+OPTIMIZE: Note that checking the mtime of each SVG files is still somewhat slow, donno why, need to be optimized.'''
+        )
         parser.add_argument(
             '--output-svg-theme-to-dir', '-S',
             type=Path,
@@ -659,7 +670,8 @@ Multiple values can be specified via repeating using this option."""
         return cls(
             clean_before_build=args.clean_before_build,
             included_icon_file=args.included_icon_file,
-            stamp_file=args.stamp_file,
+            output_stamp_file=args.output_stamp_file,
+            rebuild_regardless_of_stamp_file=args.rebuild_regardless_of_stamp_file,
             output_png_theme_to_dir=args.output_png_theme_to_dir,
             output_svg_theme_to_dir=args.output_svg_theme_to_dir,
             output_theme_name=args.output_theme_name,
@@ -1148,12 +1160,14 @@ def sha256_file_content(file_path: Path) -> str:
 def all_icons_need_regenerate() -> bool:
     '''Return True if icons need to be regenerated (compare the SHA256 hash of `included_icon_file`).'''
     # TODO: Also record the commit hash of this repo.
+    if OPTIONS.rebuild_regardless_of_stamp_file:
+        return True
     if OPTIONS.clean_before_build:
         return True
-    if not OPTIONS.stamp_file.exists():
-        print(f"""Stamp file "{OPTIONS.stamp_file}" doesn't exist, so start to build all icons.""")
+    if not OPTIONS.output_stamp_file.exists():
+        print(f"""Stamp file "{OPTIONS.output_stamp_file}" doesn't exist, so start to build all icons.""")
         return True
-    old_hash: str = OPTIONS.stamp_file.read_text().strip()
+    old_hash: str = OPTIONS.output_stamp_file.read_text().strip()
     new_hash: str = sha256_file_content(OPTIONS.included_icon_file)
     print(f"""SHA256 hash of {OPTIONS.included_icon_file}:""")
     print(f"""Old: {old_hash}""")
@@ -1165,8 +1179,8 @@ def all_icons_need_regenerate() -> bool:
         print(f"""The SHA256 hash of "{OPTIONS.included_icon_file}" doesn't change, skip icon building.""")
         return False
     # This Python script should not rely on mtime of included_icons.txt. mtime is designed for other build tools such as Makefile.
-    # if OPTIONS.included_icon_file.stat().st_mtime > OPTIONS.stamp_file.stat().st_mtime:
-    #     print(f"""The "{OPTIONS.included_icon_file}" is newer than stamp file "{OPTIONS.stamp_file}", so start to build all icons.""")
+    # if OPTIONS.included_icon_file.stat().st_mtime > OPTIONS.output_stamp_file.stat().st_mtime:
+    #     print(f"""The "{OPTIONS.included_icon_file}" is newer than stamp file "{OPTIONS.output_stamp_file}", so start to build all icons.""")
     #     return True
     return False
 
@@ -1207,10 +1221,10 @@ def run_extra_copy():
 
 
 def write_stamp_file():
-    OPTIONS.stamp_file.parent.mkdir(parents=True, exist_ok=True)
-    OPTIONS.stamp_file.touch()
+    OPTIONS.output_stamp_file.parent.mkdir(parents=True, exist_ok=True)
+    OPTIONS.output_stamp_file.touch()
     new_hash: str = sha256_file_content(OPTIONS.included_icon_file)
-    OPTIONS.stamp_file.write_text(new_hash)
+    OPTIONS.output_stamp_file.write_text(new_hash)
 
 def main():
     ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
