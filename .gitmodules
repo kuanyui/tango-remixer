@@ -7,3 +7,6 @@
 [submodule "submodules/floss-icon-themes"]
 	path = submodules/floss-icon-themes
 	url = git@github.com:kuanyui/floss-icon-themes.git
+[submodule "submodules/humanity-icon-theme"]
+	path = submodules/humanity-icon-theme
+	url = git@github.com:kuanyui/humanity-icon-theme.git
