@@ -1,9 +1,9 @@
-[submodule "tango-icon-theme"]
+[submodule "submodules/tango-icon-theme"]
 	path = submodules/tango-icon-theme
 	url = git@github.com:kuanyui/tango-icon-theme.git
-[submodule "nome-icon-theme"]
+[submodule "submodules/nome-icon-theme"]
 	path = submodules/nome-icon-theme
 	url = git@github.com:kuanyui/nome-icon-theme.git
-[submodule "floss-icon-themes"]
+[submodule "submodules/floss-icon-themes"]
 	path = submodules/floss-icon-themes
 	url = git@github.com:kuanyui/floss-icon-themes.git
