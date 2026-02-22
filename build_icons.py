@@ -300,9 +300,9 @@ def init_built_in_icon_themes() -> List[RawIconTheme]:
     repo_nome           : Path = root / "submodules" / "nome-icon-theme"
     repo_humanity       : Path = root / "submodules" / "humanity-icon-theme" / "Humanity"
     repo_humanity_dark  : Path = root / "submodules" / "humanity-icon-theme" / "Humanity-Dark"
-    repo_gimp_default   : Path = root / "submodules" / "floss-icon-themes" / "GimpDefault"
-    repo_gimp_legacy    : Path = root / "submodules" / "floss-icon-themes" / "GimpLegacy"
-    repo_inkscape_tango : Path = root / "submodules" / "floss-icon-themes" / "InkscapeTango"
+    repo_gimp_default   : Path = root / "submodules" / "floss-icon-collections" / "GimpDefault"
+    repo_gimp_legacy    : Path = root / "submodules" / "floss-icon-collections" / "GimpLegacy"
+    repo_inkscape_tango : Path = root / "submodules" / "floss-icon-collections" / "InkscapeTango"
     return [
         RawIconTheme(
             copied_dst_theme_name="Tango",
