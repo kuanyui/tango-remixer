@@ -28,7 +28,7 @@ import logging
 import platform
 import enum
 from lib_color_converter import *
-from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
+# from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 BUILT_IN_ICON_THEMES: Final[List[str]] = [
     # Vanilla XDG Icon Themes
     "Tango",
@@ -294,10 +294,12 @@ class RawIconTheme():
 
 def init_built_in_icon_themes() -> List[RawIconTheme]:
     root: Path = Path(__file__).parent
+    # repo_humanity       : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity"
+    # repo_humanity_dark  : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity-Dark"
     repo_tango          : Path = root / "submodules" / "tango-icon-theme"
     repo_nome           : Path = root / "submodules" / "nome-icon-theme"
-    repo_humanity       : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity"
-    repo_humanity_dark  : Path = root / "tarballs" / "humanity_0.4.6" / "Humanity-Dark"
+    repo_humanity       : Path = root / "submodules" / "humanity-icon-theme" / "Humanity"
+    repo_humanity_dark  : Path = root / "submodules" / "humanity-icon-theme" / "Humanity-Dark"
     repo_gimp_default   : Path = root / "submodules" / "floss-icon-themes" / "GimpDefault"
     repo_gimp_legacy    : Path = root / "submodules" / "floss-icon-themes" / "GimpLegacy"
     repo_inkscape_tango : Path = root / "submodules" / "floss-icon-themes" / "InkscapeTango"
@@ -1227,7 +1229,7 @@ def write_stamp_file():
     OPTIONS.output_stamp_file.write_text(new_hash)
 
 def main():
-    ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
+    # ensure_tarballs_downloaded_and_extracted(Path(__file__).parent / "tarballs")
     if not all_icons_need_regenerate():
         print('''Icons don't need regenerating. Skip.''')
         exit(0)
