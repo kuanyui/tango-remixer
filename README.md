@@ -128,16 +128,20 @@ For example:
 ```conf
 # Line started with `#` will be seen as comment and be ignored.
 
-# Include the icon named `application-exit` in icon theme `Gnome`.
-Gnome     application-exit
+# Include the icon named `application-exit` in icon theme `Nome`.
+Nome     application-exit
 
-# Include the icon named `preferences-desktop-theme` in icon theme `Gnome`, and rename it in our outputted new icon theme.
-Gnome     preferences-desktop-theme      apps/palettes
+# Include the icon named `preferences-desktop-theme` in icon theme `Nome`, and rename it in our outputted new icon theme.
+Nome     preferences-desktop-theme      apps/palettes
 
 # The following two lines have same meaning. (`devices` is context, can be omitted.)
-Gnome     devices/computer
-Gnome     computer
+Nome     devices/computer
+Nome     computer
 
+# Include the icon named `folder`, `folder-open`, `folder-new` in icon theme `Tango`.
+Tango    folder
+Tango    folder-open
+Tango    folder-new
 ```
 
 > [!NOTE]
