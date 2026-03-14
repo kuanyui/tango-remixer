@@ -20,28 +20,16 @@ Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Hum
 # Used Submodules / Thirdparties Tarballs
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
-## Freedesktop Tango Icon Theme
-- submodules/[tango-icon-theme-fork](https://github.com/kuanyui/tango-icon-theme-fork)
-  - This was a long process of digital archaeology...
-    1. thirdparty/[tango-icon-theme-0.8.90.tar.bz2](http://tango.freedesktop.org/releases/tango-icon-theme-0.8.90.tar.bz2) (Official final release)
-      - **For reference only, it provides PNG only, except 48x48 are in SVG**. The official site of Freedesktop Tango Project has already been down... This URL is found in [AUR](https://aur.archlinux.org/packages/tango-icon-theme)...
-    2. Git repo ([cgit](https://cgit.freedesktop.org/tango/tango-icon-theme/), [gitlab](https://gitlab.freedesktop.org/tango/tango-icon-theme)) can be found in [freedesktop](https://cgit.freedesktop.org/), **but it lacks lots of original Tango icons... It looks more like... a draft of `gnome-icon-theme`**. Maybe it was faults of the administrators of freedesktop.org when migrating CVS server into git repo, mistakenly excluded lots of old SVG source code... Argh.
-    3. **Fortunately, [Debian's package server](https://tracker.debian.org/pkg/tango-icon-theme) still** remains a full (I guess) snapshot of source code and VCS ([src pkg](https://sources.debian.org/src/tango-icon-theme/0.9.0-1), [git](https://git.golem.linux.it/matteobin/tango-icon-theme)), contains many useful SVG files! Heritage of forgotten ancient civilizations! **Thank you Debian!**
-      - However, the source code git repo I found on Debian already contains only 1 initial commit... No commit history is preserved... But its `README.md` described:
-        > This is a fork of Tango icon theme based on the 0.8.90-11 version of the Debian package and this Git repository <https://github.com/sebkur/tango-icon-theme>, to add XDG user directory icons, PDF MIME type icon, restore the missing scalable mail-mark-not-junk.svg icon from 0.8.90, and include some Debian patches. Tango icon theme was forked because upstream is dead.
-    4. **At last**, I found [sebkur/tango-icon-theme](http://github.com/sebkur/tango-icon-theme) still preserves commit history, so I decide to fork it. (out of nostalgia, respect to the original authors, and as records of the history of the Linux desktop in the 2000s.)
-  - License: **Public Domain** (!)
-
-> # More References & Todos
-> - https://github.com/gnome-colors/gnome-colors (found from https://en.m.wikipedia.org/wiki/File:Dialog-apply.svg )
-> - https://commons.wikimedia.org/wiki/Comparison_of_icon_sets
->   - https://commons.wikimedia.org/wiki/GNOME_Desktop_icons
->   - https://commons.wikimedia.org/wiki/Tango_icons
+## Tango Icon Theme
+- **submodules/[tango-icon-theme](https://github.com/kuanyui/tango-icon-theme)**
+  - A fork of **Freefesktop**'s **authentic** Tango Icon Theme.
+  - License: GPL v3 or GPL v2
 
 ## Nome Icon Theme
-- submodules/[nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)
+- **submodules/[nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)**
   - A fork of GNOME 2/3 default XDG icon theme, provided as SVG files. Includes some fixes and new extra icons.
   - License: LGPL v3 / CC by-sa 3.0
+
 <!--
 - thirdparty/[gnome-icon-theme-2.20.0.tar.bz2](https://download.gnome.org/sources/gnome-icon-theme/2.20/gnome-icon-theme-2.20.0.tar.bz2)
   - Downloaded from [download.gnome.org](https://download.gnome.org/sources/gnome-icon-theme/2.20/)
@@ -64,13 +52,19 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 -->
 
 ## Ubuntu Humanity
+- **submodules/[humanity-icon-theme](https://github.com/kuanyui/humanity-icon-theme)**
+  - A fork of Ubuntu's Humanity Icon Theme (migrated from Launchpad Bazzar repository), provided as SVG files. May includes some fixes and new extra icons.
+  - License: Some are GPL, some are Public Domain
+
+<!--
 - thirdparty/[humanity_0.4.6.tar.gz](https://launchpad.net/humanity/0.4/0.4/+download/humanity_0.4.6.tar.gz)
   - **The only tarball which is being processed by our script.**
   - Clone from [Humanity official launchpad repo](https://launchpad.net/humanity/+download). (I guess this would be the last version after all...)
   - License: GPLv2
+-->
 
-## FLOSS Icon Themes
-- submodules/[floss-icon-themes](https://github.com/kuanyui/floss-icon-themes)
+## FLOSS Icon Collections
+- **submodules/[floss-icon-collections](https://github.com/kuanyui/floss-icon-collections)**
   - Icons collected from the source code of some FLOSS projects:
     - GIMP: `GimpLegacy` (GPL v3+, licensed the same as GIMP application core)
     - GIMP: `GimpDefault` (CC by-sa 3.0)
