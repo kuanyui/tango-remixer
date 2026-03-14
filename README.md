@@ -103,7 +103,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 
 ## 1. Clone this project into `MY_QT_PROJ/resources/`
 ```
-git clone --recursive git@github.com:kuanyui/tango-icon-remixer.git
+git clone --recursive git@github.com:kuanyui/tango-remixer.git
 ```
 
 ## 2. Specify wanted icons via `included_icons.txt`
@@ -145,9 +145,9 @@ Tango    folder-new
 > [!NOTE]
 > Then you can test your `included_icons.txt` like this:
 > ```sh
-> ./tango-icon-remixer/build_icons.py --included-icon-file ./included_icons.txt --output-theme-name "CustomizedTango"
+> ./tango-remixer/build_icons.py --included-icon-file ./included_icons.txt --output-theme-name "CustomizedTango"
 > ```
-> The built SVG and PNG files can be found in `./tango-icon-remixer/dist/`. PNG is recommended because Qt's SVG renderer is not very well... Some icons may unable to be rendered correctly.
+> The built SVG and PNG files can be found in `./tango-remixer/dist/`. PNG is recommended because Qt's SVG renderer is not very well... Some icons may unable to be rendered correctly.
 
 > [!TIP]
 > You can also add your personal XDG-compatible SVG icon theme(s) and include them in `included_icons.txt` via `--extra-icon-theme`.
@@ -167,7 +167,7 @@ set(PROJ_GENERATED_DIR "${CMAKE_SOURCE_DIR}/generated" CACHE PATH
     "Directory for generated, platform independent files (e.g. XDG icon theme, changelogs...etc)")
 
 set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
-set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-icon-remixer")
+set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-remixer")
 set(ICON_BUILD_SCRIPT "${ICON_REPO_DIR}/build_icons.py")
 set(ICON_THEME_NAME "CustomizedTango")
 set(ICON_PNG_XDG_THEME_DIR "${PROJ_GENERATED_DIR}/icon_theme__png/${ICON_THEME_NAME}")
@@ -218,7 +218,7 @@ add_dependencies(myprojectname icontheme)
 # ===============================================
 find_package(Python3 REQUIRED Interpreter)
 set(RESOURCES_DIR "${CMAKE_SOURCE_DIR}/resources")
-set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-icon-remixer")
+set(ICON_REPO_DIR "${CMAKE_SOURCE_DIR}/resources/tango-remixer")
 set(ICON_BUILD_SCRIPT "${ICON_REPO_DIR}/build_icons.py")
 execute_process(
     COMMAND ${Python3_EXECUTABLE} ${ICON_BUILD_SCRIPT} --included-icon-file "${RESOURCES_DIR}/included_icons.txt" --output-theme-name "CustomizedTango"
@@ -233,7 +233,7 @@ set_property(
 qt_add_executable(myprojectname
      MANUAL_FINALIZATION
      ${PROJECT_SOURCES}
-     resources/tango-icon-remixer/dist/04_FINAL_PNG_THEME/CustomizedTango/index.qrc
+     resources/tango-remixer/dist/04_FINAL_PNG_THEME/CustomizedTango/index.qrc
 )
 
 ```
@@ -265,7 +265,7 @@ For how to use in Qt C++ project, see the following descriptions.
 > - https://openapplibrary.org/dev-tutorials/qt-icon-themes
 >
 > ## Terminology
-> - `REPO` is this icon repo, that is, `tango-icon-remixer/`
+> - `REPO` is this icon repo, that is, `tango-remixer/`
 
 ## About Qt 6 C++ API & Freedesktop Supports
 Qt 6 follows freedesktop.org XDG's specifications and implement a cross-platform XDG icon theme support for Qt application. So you can use any icon theme pack which follows freedesktop.org standard in your Qt application and run on Linux / Mac / Windows.
