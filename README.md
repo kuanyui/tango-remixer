@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="tango-mixer-banner.svg" alt="Banner of Tango Mixer" />
+</div>
+
 # Tango Remixer
 
 Remix multiple [Tango-flavoured icon themes](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (e.g. Freedesktop Tango Icon Theme, GNOME Icon Theme, Ubuntu Humanity Icon Theme...etc) into an independent XDG-compatible icon theme pack, especially for Qt / GTK applications (e.g. directly retrieve icon via `QIcon::fromTheme(QString iconName)`)
