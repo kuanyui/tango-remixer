@@ -9,7 +9,10 @@ Remix multiple [Tango-flavoured icon themes](https://en.wikipedia.org/wiki/Tango
 This project is to convert it to `.qrc` which can be easily to be used in your Qt project. (only tested on Qt 6, mainly the HiDPI support.)
 
 # Why
-[Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) is my favorite icon style (precisely, [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with a very limited amounts of icons), I feel it's elegant, distinguishing on screen, and prefer it over flat-design nowadays (about 2010~).
+
+I personally strongly believe that **flat design + monotone icon since the 2010s is completely a disastrous regression in the field of UI/UX designing**, at least for me who am somewhat dyslexia and rely on colorful and distinguishing icon. The monotone icons in UI **significantly** decrease my reaction speed when interacting with an UI.
+
+So when I need to add icons into a GUI application (ex: Qt), I always perfer my favorite icon style [Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons), I adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
 
 However, Tango Desktop Project has already discontinued and seems not to be promoted anymore ([official site](http://tango.freedesktop.org/Tango_Desktop_Project) has been down... an archive in [2007](https://web.archive.org/web/20070314003558/http://tango.freedesktop.org/Tango_Desktop_Project) and [2021](https://web.archive.org/web/20211002063126/http://tango.freedesktop.org/Tango_Desktop_Project)), and itself contains only a very limited amounts of icons which are hardly able to satisfy the requirements of desktop application development.
 
@@ -22,7 +25,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 
 ## Tango Icon Theme
 - **submodules/[tango-icon-theme](https://github.com/kuanyui/tango-icon-theme)**
-  - A fork of **Freefesktop**'s **authentic** Tango Icon Theme.
+  - A fork of **Freefesktop**'s **authentic** Tango Icon Theme; which is the official reference implementation of [Tango Icon Theme Guidelines](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines).
   - License: GPL v3 or GPL v2
 
 ## Nome Icon Theme
