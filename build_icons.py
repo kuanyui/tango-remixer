@@ -525,15 +525,25 @@ class IconThemeOptions:
 This file should be a plain text file, and the format of each line can be any of the following:
 
 ```
-SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t[DST_CONTEXT/]DST_ICON_NAME
 SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t[DST_CONTEXT/]DST_ICON_NAME
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16,22,24}
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-24}
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{scalable>24}
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-32,48>128}
 ```
 
-- Separate fields by tab, or >=2 spaces.
+- Separate fields by tab, or >=4 spaces.
 - SRC_CONTEXT is unused currently. Can be omitted.
 - DST_CONTEXT is optional. Default is same with the context of the source icon.
 - ICON_NAME should not contain the extension. All extensions will be ignored.
 
+- Specify wanted input & output size via `{...}` in the end of line:
+  - Not specified means pick all sizes (default).
+  - `{16,22,24}` means picking `16`, `22`, `24` only.
+  - `{16-24}` means picking sizes of `16` ~ `24`, that is to say, `16`, `22`, `24`.
+  - `{scalable>24}` means picking `scalable` of this icon and copy into `24/` SVG folder, and force rasterize it into `24x24` PNG.
+  - `{16-32,48>128}` means picking `16`, `22`, `24`, `32` and convert them into corresponding sizes of PNG files. Then pick `48` and convert it into `128x128`.
 ---
 
 When this file is older than `--stamp-file`, the build will not be triggered.
@@ -737,6 +747,9 @@ class IncludedIcon():
     src_icon_name: str
     dst_context: str
     dst_icon_name: str
+    """ Input & output sizes.
+    Empty list means all. """
+    sizes_io: List[Tuple[IconSizeType, IconSizeType]]
 
 ICON_PATH_IN_THEME_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z0-9@]+)/([a-z0-9@]+)/([^\\/]+?\.svg)$")
 #                                                                ^              ^           ^           ^
@@ -791,12 +804,18 @@ class IconSearcher():
         final_arr.sort(key=key_for_sorting_size(lambda x: x.size))
         return final_arr
 
-    def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
+    def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str, size: IconSizeType | None = None) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
         icon_name = format_icon_name(icon_name, 'noext')
         for icon in self.all_found_icons:
             if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
+                if size is not None and icon.size != size:
+                    continue
                 return icon
-        raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
+        if size is None:
+            raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
+        else:
+            raise FileNotFoundError(f'Icon "{icon_name}" of size "{size}" is not found in {theme_name}')
+
 
     def filter_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> List[IconSrcFileInfo]:   # FIXME: source file of scale != 1 is not supported currently
         icon_name = format_icon_name(icon_name, 'noext')
@@ -880,52 +899,53 @@ class SvgToPngConverter:
 def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -> List[IncludedIcon]:
     fin: List[IncludedIcon] = []
     # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
-    patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
-    patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
-    patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
+    _patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
+    _patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
+    _patt_sizes: re.Pattern[str] = re.compile(r'^(?:\{[0-9>,scalable-]+\})?$')
+    _patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
+    patt_line: re.Pattern[str] = re.compile(r'''
+                                            ^
+                                            (?P<src_theme_name>[A-Za-z0-9_-]+)
+                                            (?:\t+|[ ][ ][ ][ ]+)
+                                            (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>.+?)(?:\.svg)?)
+                                            (?:
+                                                (?:\t+|[ ][ ][ ][ ]+)
+                                                (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>.+?)(?:\.svg)?)
+                                            )?
+                                            (?:
+                                                (?:\t+|[ ][ ][ ][ ]+)
+                                                (?:\{(?P<sizes_io_expr>[0-9>,scalable-]+)\})
+                                            )?
+                                            $
+                                            ''', re.VERBOSE)
     for line_no, line in enumerate(file_path.read_text(encoding='utf-8').splitlines(), start=1):
-        seg_src_theme: str = ""
-        seg_src_icon: str = ""
-        seg_dst_icon: str = ""
-        line = re.sub(r' #.*$', '', line)  # remove comment at the EOL
+        line = re.sub(r'[ \t]#.*$', '', line)  # remove comment at the EOL
+        line = line.strip()  # trim other remained spaces
         if line.startswith('#'): continue
-        segs: List[str] = re.split(patt_separator, line.strip())
-        if len(segs) == 0: continue
-        if len(segs) == 1:
-            if segs[0].strip() == "":
-                continue
-            else:
-                raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid line: {line}")
-                exit(1)
-        if len(segs) == 2:
-            seg_src_theme = segs[0].strip()
-            seg_src_icon = segs[1].strip()
-            seg_dst_icon = segs[1].strip()
-        if len(segs) == 3:
-            seg_src_theme = segs[0].strip()
-            seg_src_icon = segs[1].strip()
-            seg_dst_icon = segs[2].strip()
-        if not is_icon_theme_src_folder_name(seg_src_theme):
-            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid theme: {seg_src_theme}. (Available: {get_all_icon_themes_folders})")
-        src_m = patt_src_icon.match(seg_src_icon)
-        dst_m = patt_dst_icon.match(seg_dst_icon)
-        if not src_m or not dst_m:
+        if len(line) == 0: continue
+        m = patt_line.match(line)
+        if not m:
             raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid line: {line}")
-        src_context: str = src_m.group(1) or ''
-        src_icon_name: str = src_m.group(2) or ''
-        dst_context: str = dst_m.group(1) or ''
-        dst_icon_name: str = dst_m.group(2) or ''
-        if src_context == '':
-            icon = icon_searcher.find_src_icon_by_icon_name(seg_src_theme, src_icon_name)
+        src_theme_name = m.group('src_theme_name')
+        if not is_icon_theme_src_folder_name(src_theme_name):
+            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid theme: {src_theme_name}. (Available: {get_all_icon_themes_folders})")
+        src_context = m.group('src_context')       # Optional
+        src_icon_name = m.group('src_icon_name')   # Required
+        dst_context = m.group('dst_context')       # Optional
+        dst_icon_name = m.group('dst_icon_name')   # Optional
+        sizes_io_expr = m.group('sizes_io_expr')   # Optional
+        if not src_context:   # If
+            icon = icon_searcher.find_src_icon_by_icon_name(src_theme_name, src_icon_name)
             src_context = icon.context
-        if dst_context == '':
+        if dst_context:   # If dst context is explicitly specified via `included_icons.txt``
             dst_context = src_context
         fin.append(IncludedIcon(
-            src_theme=seg_src_theme,
+            src_theme=src_theme_name,
             src_context=src_context,
             src_icon_name=src_icon_name,
             dst_context=dst_context,
             dst_icon_name=dst_icon_name,
+            sizes_io=
         ))
     return fin
 
