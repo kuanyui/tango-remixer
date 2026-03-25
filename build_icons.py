@@ -20,7 +20,7 @@ import textwrap
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple, Optional, cast
 # import cProfile
 # import pstats
 import argparse
@@ -738,6 +738,73 @@ def copy_svg_file(src: str | Path, dst: str | Path, preprocessor: Literal["none"
             f.write(nome_colorize_svg_content(raw_content, dst_path.stem))
     return
 
+@dataclass
+class SizeIo():
+    input: IconSizeType
+    output: IconSizeType
+
+@dataclass
+class SizeIoMatrix():
+    data: List[SizeIo] = field(default_factory=lambda: cast(list[SizeIo], []))
+    def add(self, input_size: IconSizeType, output_size: Optional[IconSizeType] = None):
+        if output_size == 'scalable':
+            raise SyntaxError(f"In size conversion matrix definition, you explicitly define `scalable` as output size, this is unreasonable.")
+        if output_size == None:
+            output_size = input_size
+        for other in self.data:
+            if other.input == input_size:
+                raise SyntaxError(f"Source size {input_size} cannot be redefined.")
+            elif other.output == output_size:
+                raise SyntaxError(f"Dest size {output_size} cannot be redefined.")
+            else:
+                self.data.append(SizeIo(input=input_size, output=output_size))
+
+    def parse_expr(size_io_matrix_expr: str, line_no: int):
+        """
+        # for each seg:
+        # <single> : 16
+        # <range>  : 16-32
+        # <resize> : 16>24
+
+        # examples:
+        16;22                 # same as `16>16;22>22`
+        16>16;22              # same as `16;22`
+        16;24-48
+        16>32;32>64
+        16;scalable>48
+        -48                   # same as 16-48
+        32-                   # same as 32-128
+        """
+        segs: list[str] = size_io_matrix_expr.split(";")
+        patt_seg = re.compile(r'''
+                              ^
+                              (?:
+                              (?P<single>[0-9]+|scalable)|                                                       # ex: `16`
+                              (?P<range>(?P<range_from>[0-9]+)?\s*-\s*(?P<range_to>[0-9]+)?)|                    # ex: `16-32`, `-48`   # NOTE: `scalable` cannot be used in a range expression
+                              (?P<resize>(?P<resize_from>[0-9]+|scalable)\s*>\s*(?P<resize_to>[0-9]+|scalable))  # ex: `16>24`          #  ... Can `scalable` be as output size??
+                              )
+                              $
+                              ''', re.VERBOSE)
+        matrix = SizeIoMatrix()
+        for _seg in segs:
+            seg = _seg.strip()  # trim
+            m = patt_seg.search(seg)
+            if not m: raise SyntaxError(f"Invalid expression for size conversion matrix at line {line_no}: `{seg}`")
+            if m.group('single') is not None:
+                single = m.group('single')
+                if not is_icon_size_type(single): raise SyntaxError(f"Invalid size `{single}` at line {line_no}")
+                matrix.add(single)
+            if m.group('range') is not None:
+                range_from = m.group('range_from')
+                range_to = m.group('range_to')
+                if is_icon_size_type(range_from) and is_icon_size_type(range_to):
+                    matrix.add(range_from, range_to)
+                elif is_icon_size_type(range_from) and range_to is None:
+                elif range_from is None and is_icon_size_type(range_from):
+                    for x in
+                else:
+                    raise SyntaxError(f"Invalid size range `{m.group('range')}` at line {line_no}")
+                if not is_icon_size_type(range_to): raise SyntaxError(f"Invalid size `{range_to}` at line {line_no}")
 
 @dataclass
 class IncludedIcon():
@@ -749,7 +816,7 @@ class IncludedIcon():
     dst_icon_name: str
     """ Input & output sizes.
     Empty list means all. """
-    sizes_io: List[Tuple[IconSizeType, IconSizeType]]
+    size_io_matrix: SizeIoMatrix
 
 ICON_PATH_IN_THEME_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z0-9@]+)/([a-z0-9@]+)/([^\\/]+?\.svg)$")
 #                                                                ^              ^           ^           ^
@@ -923,7 +990,7 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
         line = line.strip()  # trim other remained spaces
         if line.startswith('#'): continue
         if len(line) == 0: continue
-        m = patt_line.match(line)
+        m = patt_line.search(line)
         if not m:
             raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid line: {line}")
         src_theme_name = m.group('src_theme_name')
@@ -945,7 +1012,7 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
             src_icon_name=src_icon_name,
             dst_context=dst_context,
             dst_icon_name=dst_icon_name,
-            sizes_io=
+            size_io_matrix=
         ))
     return fin
 
