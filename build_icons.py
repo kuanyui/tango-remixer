@@ -48,7 +48,7 @@ BUILT_IN_ICON_THEMES: Final[List[str]] = [
 IconThemeFolderName = str
 
 """Source folder name of the icon theme pack. """
-IconSizeType = Literal["16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024", "scalable"]
+IconSizeType = Literal["8", "16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024", "scalable"]
 """The real geometry size defined in this SVG. `16`, `22`, `24`, `32`, `48`, `64`, `scalable` are used by Tango / Nome / Humanity icon themes."""
 IconContextType = Literal["actions", "animations", "apps", "categories",
                              "devices", "emblems", "emotes", "intl",
@@ -62,8 +62,8 @@ IniContextNameType = Literal["Actions", "Animations", "Applications", "Categorie
 DEFAULT_INPUT_SIZES: Final[List[IconSizeType]] = ['16', '22', '24', '32', '48', "scalable"]
 DEFAULT_OUTPUT_SIZES: Final[List[IconSizeType]] = []
 DEFAULT_OUTPUT_SIZES_FROM_SCALABLE: Final[List[IconSizeType]] = ['48']
-AVAILABLE_INPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType)]
-AVAILABLE_OUTPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType) if x != 'scalable']
+ALL_AVAILABLE_INPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType)]
+ALL_AVAILABLE_OUTPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType) if x != 'scalable']
 
 """Only these sizes are used in Tango / Nome / Humanity icon themes."""
 
@@ -615,7 +615,7 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
             required=False,
             default=DEFAULT_INPUT_SIZES,
             help=f'''Comma-separated list of icon sizes, to decide what numeric sizes (numeric size folder, ex: `/16/`) should be picked as SVG source files.
-(Available: { ", ".join(AVAILABLE_INPUT_SIZES) })'''
+(Available: { ", ".join(ALL_AVAILABLE_INPUT_SIZES) })'''
         )
         parser.add_argument(
             '--output-png-sizes', '-oz',
@@ -623,14 +623,14 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
             required=False,
             default=DEFAULT_OUTPUT_SIZES,
             help=f'''Comma-separated list of icon sizes, to decide what sizes should be converted to PNGs from inputted numeric sizes (numeric size folder, ex: `/16/`). Only when the corresponding input sizes are existed, this option will be triggered (that is to say, output is `16,48`, but input only contains `16`, then `48` will not be converted to PNG.). Empty means all.
-(Available: { ", ".join(AVAILABLE_OUTPUT_SIZES) })'''
+(Available: { ", ".join(ALL_AVAILABLE_OUTPUT_SIZES) })'''
         )
         parser.add_argument(
             '--output-png-sizes-from-scalable', '-oZ',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
             default=DEFAULT_OUTPUT_SIZES_FROM_SCALABLE,
-            help=f'Comma-separated list of icon sizes to, to decide what sizes should be output from inputted `scalable/` folder (Available: { ", ".join(AVAILABLE_OUTPUT_SIZES) })'
+            help=f'Comma-separated list of icon sizes to, to decide what sizes should be output from inputted `scalable/` folder (Available: { ", ".join(ALL_AVAILABLE_OUTPUT_SIZES) })'
         )
 
         parser.add_argument(
@@ -746,7 +746,8 @@ class SizeIo():
 @dataclass
 class SizeIoMatrix():
     data: List[SizeIo] = field(default_factory=lambda: cast(list[SizeIo], []))
-    def add(self, input_size: IconSizeType, output_size: Optional[IconSizeType] = None):
+    def add_resize_io(self, input_size: IconSizeType, output_size: Optional[IconSizeType] = None):
+        """This supports resize"""
         if output_size == 'scalable':
             raise SyntaxError(f"In size conversion matrix definition, you explicitly define `scalable` as output size, this is unreasonable.")
         if output_size == None:
@@ -758,8 +759,15 @@ class SizeIoMatrix():
                 raise SyntaxError(f"Dest size {output_size} cannot be redefined.")
             else:
                 self.data.append(SizeIo(input=input_size, output=output_size))
+    def add_by_range(self, size_range_begin: IconSizeType, size_range_end: IconSizeType):
+        """This doesn't support resize."""
+        for x in ALL_AVAILABLE_INPUT_SIZES:
+            if x == 'scalable': continue
+            if not is_icon_size_type(x): continue
+            if size_range_begin <= x and x <= size_range_end:
+                self.add_resize_io(x, x)
 
-    def parse_expr(size_io_matrix_expr: str, line_no: int):
+    def parse_expr(self, size_io_matrix_expr: str, line_no: int):
         """
         # for each seg:
         # <single> : 16
@@ -793,19 +801,24 @@ class SizeIoMatrix():
             if m.group('single') is not None:
                 single = m.group('single')
                 if not is_icon_size_type(single): raise SyntaxError(f"Invalid size `{single}` at line {line_no}")
-                matrix.add(single)
+                matrix.add_resize_io(single, single)
             if m.group('range') is not None:
                 range_from = m.group('range_from')
                 range_to = m.group('range_to')
                 if is_icon_size_type(range_from) and is_icon_size_type(range_to):
-                    matrix.add(range_from, range_to)
+                    matrix.add_by_range(range_from, range_to)
                 elif is_icon_size_type(range_from) and range_to is None:
-                elif range_from is None and is_icon_size_type(range_from):
-                    for x in
+                    matrix.add_by_range(range_from, ALL_AVAILABLE_OUTPUT_SIZES[-1])
+                elif range_from is None and is_icon_size_type(range_to):
+                    matrix.add_by_range(ALL_AVAILABLE_OUTPUT_SIZES[0], range_to)
                 else:
                     raise SyntaxError(f"Invalid size range `{m.group('range')}` at line {line_no}")
-                if not is_icon_size_type(range_to): raise SyntaxError(f"Invalid size `{range_to}` at line {line_no}")
-
+            if m.group('resize') is not None:
+                resize_from = m.group('resize_from')
+                resize_to = m.group('resize_to')
+                if not is_icon_size_type(resize_from): raise SyntaxError(f"""Invalid size "resize from" definition in `{m.group('resize')}` at line {line_no}. (Expected: `FROM>TO`)""")
+                if not is_icon_size_type(resize_to): raise SyntaxError(f"""Invalid size "resize to" definition in `{m.group('resize')}` at line {line_no}. (Expected: `FROM>TO`)""")
+                matrix.add_resize_io(resize_from, resize_to)
 @dataclass
 class IncludedIcon():
     src_theme: str
