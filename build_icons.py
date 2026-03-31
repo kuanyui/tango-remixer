@@ -66,8 +66,7 @@ DEFAULT_INPUT_SIZES: Final[List[IconSizeType]] = ['16', '22', '24', '32', '48', 
 DEFAULT_OUTPUT_SIZES: Final[List[IconSizeType]] = []
 DEFAULT_OUTPUT_SIZES_FROM_SCALABLE: Final[List[IconSizeType]] = ['48']
 ALL_AVAILABLE_INPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType)]
-ALL_AVAILABLE_OUTPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType) if x != 'scalable']
-
+ALL_AVAILABLE_OUTPUT_SIZES: Final[List[IconSizeType]] = [x for x in get_args(IconSizeType) if x != 'scalable']  # TODO: If specifying output size as `scalable`, copy it into `scalable/` and never rasterize it.
 """Only these sizes are used in Tango / Nome / Humanity icon themes."""
 
 
@@ -380,7 +379,7 @@ class BUILD_FOLDERS:
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures can be
+    Folder structures can be:
     - `<context>/<size>` (convension since CVS/SVN era)
     - `<size>x<size>@<scale>` (XDG standard style)
     '''
@@ -390,7 +389,7 @@ class BUILD_FOLDERS:
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures can be
+    Folder structures can be:
     - `<context>/<size>` (convension since CVS/SVN era)
     - `<size>x<size>@<scale>` (XDG standard style)
     '''
@@ -400,25 +399,37 @@ class BUILD_FOLDERS:
     Contains "Tango", "Nome", "BlueNome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    Folder structures can be
+    Folder structures can be:
     - `<context>/<size>` (convension since CVS/SVN era)
     - `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_03_INCLUDED_SVG_ICONS = FOLDER_ROOT / "03_INCLUDED_SVG_ICONS"
     '''03. Copy included icons (See option `--included-icon-file`) to this folder.
 
-    Folder structure **will be formalized** to `<context>/<size>` (convension since CVS/SVN era)'''
+    Folder structure **will be formalized** to `<context>/<size>` (convension since CVS/SVN era)
+
+    Size matrix: **only the specified input**-sizes of the icons will be picked.
+                 **No duplicated input size of the same icon. (ex: `{16>16;16>24;16>32}` will copy only `16` SVG to the `16/`)**
+    '''
 
 
     FOLDER_04_XDG_SVG_THEME = FOLDER_ROOT / "04_XDG_SVG_THEME"
     '''04. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.
 
-    Folder structure is in XDG standard's `hicolor` format `<size>x<size>/<context>`, but <scale> is ignore (because this is SVG)'''
+    Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>`, but <scale> is ignore (because this is SVG)
+
+    Size matrix: icons will be **arbitrarily copied** from source folders to destination folders, according to the specified input-sizes and output-sizes.
+                 **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16` SVG to the `16/`, `24/`, `32/` three folders)**
+    '''
 
     FOLDER_05_XDG_PNG_THEME = FOLDER_ROOT / "05_XDG_PNG_THEME"
     '''05. Convert SVG files to this folder, generate index.theme and index.qrc
 
-    Folder structure is in XDG standard's `hicolor` format `<size>x<size>/<context>` (scale == 1) or `<size>x<size>@<scale>/<context>` (scale >= 2)'''
+    Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>` (scale == 1) or `<size>x<size>@<scale>/<context>` (scale >= 2)
+
+    Size matrix: icons will be **rasterized** from source folders to destination folders, according to the specified input-sizes and output-sizes.
+                 **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will be rasterized `16` SVG to PNG in the `16/`, `24/`, `32/` three folders)**
+    '''
 
 
 @dataclass
@@ -1196,20 +1207,20 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
 
-    for icon in icon_searcher.all_found_icons:
+    for src_icon in icon_searcher.all_found_icons:
         # copy files
-        if icon.src_file_path_is_symlink:
+        if src_icon.src_file_path_is_symlink:
             print("Impossible bug.")
             continue
-        icon_dst_file_path: Path = this_theme_folder / get_xdg_size_folder_name(icon.size, icon.scale) / icon.context / icon.file_name   # SVN / CVS convension
+        icon_dst_file_path: Path = this_theme_folder / get_xdg_size_folder_name(src_icon.size, src_icon.scale) / src_icon.context / src_icon.file_name   # SVN / CVS convension
         icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(icon.src_file_path_resolved, icon_dst_file_path)
+        shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
 
         # add to qrc
-        qrc.add_file(icon.context, icon.size, icon.scale, icon.file_name)
+        qrc.add_file(src_icon.context, src_icon.size, src_icon.scale, src_icon.file_name)
 
         # index.theme
-        index_theme.add_index_theme_ini_section(icon.context, icon.size, icon.scale)
+        index_theme.add_index_theme_ini_section(src_icon.context, src_icon.size, src_icon.scale)
 
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
