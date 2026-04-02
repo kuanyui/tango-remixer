@@ -842,6 +842,17 @@ class SizeIoMatrix():
                 if not is_icon_size_type(resize_from): raise SyntaxError(f"""Invalid size "resize from" definition in `{m.group('resize')}` at line {line_no}. (Expected: `FROM>TO`)""")
                 if not is_icon_size_type(resize_to): raise SyntaxError(f"""Invalid size "resize to" definition in `{m.group('resize')}` at line {line_no}. (Expected: `FROM>TO`)""")
                 self.add_resize_io(resize_from, resize_to)
+
+    def is_empty(self) -> bool:
+        return len(self.data) == 0
+
+    def get_all_input_sizes(self) -> set[IconSizeType]:
+        """Return values are de-duplicated."""
+        fin: set[IconSizeType] = set()
+        for io in self.data:
+            fin.add(io.input)
+        return fin
+
 @dataclass
 class IncludedIcon():
     src_theme: str
@@ -907,24 +918,46 @@ class IconSearcher():
         final_arr.sort(key=key_for_sorting_size(lambda x: x.size))
         return final_arr
 
-    def find_src_icon_by_icon_name(self, theme_name: str, icon_name: str, size: IconSizeType | None = None) -> IconSrcFileInfo:   # FIXME: source file of scale != 1 is not supported currently
+    def find_src_icon_of_any_size(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:
         icon_name = format_icon_name(icon_name, 'noext')
         for icon in self.all_found_icons:
             if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
-                if size is not None and icon.size != size:
-                    continue
                 return icon
-        if size is None:
-            raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
-        else:
-            raise FileNotFoundError(f'Icon "{icon_name}" of size "{size}" is not found in {theme_name}')
+        raise FileNotFoundError(f'Not found icon of any size named "{icon_name}" in theme {theme_name}')
 
+    def filter_src_icons_of_all_sizes(self, theme_name: str, icon_name: str) -> List[IconSrcFileInfo]:
+        """Filter icons by:
+        - Theme Name
+        - Icon Name
 
-    def filter_src_icon_by_icon_name(self, theme_name: str, icon_name: str) -> List[IconSrcFileInfo]:   # FIXME: source file of scale != 1 is not supported currently
+        All sizes of this icon will be returned.
+
+        *(FIXME: source file of scale != 1 is not supported currently)*
+        """
         icon_name = format_icon_name(icon_name, 'noext')
         final: List[IconSrcFileInfo] = []
         for icon in self.all_found_icons:
             if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
+                final.append(icon)
+        if len(final) == 0:
+            raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
+        return final
+
+    def filter_src_icons_of_specified_sizes(self, theme_name: str, icon_name: str, sizes: list[IconSizeType] | set[IconSizeType]) -> List[IconSrcFileInfo]:
+        """Filter icons by:
+        - Theme Name
+        - Icon Name
+        - Icon Sizes
+
+        All matched icons will be returned.
+
+        *(FIXME: source file of scale != 1 is not supported currently)*
+        """
+        uniq_sizes = list(set(sizes))
+        icon_name = format_icon_name(icon_name, 'noext')
+        final: List[IconSrcFileInfo] = []
+        for icon in self.all_found_icons:
+            if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name and icon.size in uniq_sizes:
                 final.append(icon)
         if len(final) == 0:
             raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
@@ -1038,7 +1071,7 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
         dst_icon_name = m.group('dst_icon_name')   # Optional
         sizes_io_expr = m.group('sizes_io_expr')   # Optional
         if not src_context:   # If
-            icon = icon_searcher.find_src_icon_by_icon_name(src_theme_name, src_icon_name)
+            icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name)
             src_context = icon.context
         if dst_context:   # If dst context is explicitly specified via `included_icons.txt``
             dst_context = src_context
@@ -1180,12 +1213,17 @@ def run_03_copy_included_icons():
     icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
 
     for line in read_included_icons_as_lines(icon_searcher, OPTIONS.included_icon_file):
-        src_icons = icon_searcher.filter_src_icon_by_icon_name(line.src_theme, line.src_icon_name)
-        for src_icon in src_icons:
+        size_io_specified: bool = not line.size_io_matrix.is_empty()
+        if size_io_specified:
+            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_specified_sizes(line.src_theme, line.src_icon_name, line.size_io_matrix.get_all_input_sizes())
+        else:
+            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_all_sizes(line.src_theme, line.src_icon_name)
+
+        for src_icon in found_src_icons_of_specified_input_sizes:
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
-            if src_icon.size not in OPTIONS.input_svg_sizes:
+            if (not size_io_specified) and (src_icon.size not in OPTIONS.input_svg_sizes):
                 continue
             # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
             #     continue
