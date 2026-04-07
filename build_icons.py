@@ -27,6 +27,7 @@ import argparse
 import logging
 import platform
 import enum
+from warnings import deprecated
 from lib_color_converter import *
 # from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 BUILT_IN_ICON_THEMES: Final[List[str]] = [
@@ -763,7 +764,8 @@ class SizeIo():
 @dataclass
 class SizeIoMatrix():
     """Notice: This is used to describe the directives of user, doesn't mean that the inputted size is actually existed."""
-    data: List[SizeIo] = field(default_factory=lambda: cast(list[SizeIo], []))
+    all_data: List[SizeIo] = field(default_factory=lambda: cast(list[SizeIo], []))
+    """all definitions of `input -> output`"""
     def __init__(self, size_io_matrix_expr: str, line_no: int):
         self.parse_full_matrix_expr(size_io_matrix_expr, line_no)
 
@@ -773,13 +775,13 @@ class SizeIoMatrix():
             raise SyntaxError(f"In size conversion matrix definition, you explicitly define `scalable` as output size, this is unreasonable.")
         if output_size == None:
             output_size = input_size
-        for other in self.data:
+        for other in self.all_data:
             if other.input == input_size:
                 raise SyntaxError(f"Source size {input_size} cannot be redefined.")
             elif other.output == output_size:
                 raise SyntaxError(f"Dest size {output_size} cannot be redefined.")
             else:
-                self.data.append(SizeIo(input=input_size, output=output_size))
+                self.all_data.append(SizeIo(input=input_size, output=output_size))
 
     def add_by_range(self, size_range_begin: IconSizeType, size_range_end: IconSizeType):
         """This doesn't support resize."""
@@ -845,18 +847,18 @@ class SizeIoMatrix():
                 self.add_resize_io(resize_from, resize_to)
 
     def is_empty(self) -> bool:
-        return len(self.data) == 0
+        return len(self.all_data) == 0
 
     def get_all_input_sizes(self) -> set[IconSizeType]:
         """Return values are de-duplicated."""
         fin: set[IconSizeType] = set()
-        for io in self.data:
+        for io in self.all_data:
             fin.add(io.input)
         return fin
 
 @dataclass
-class IncludedIcon():
-    """This data class describes one line in `included_icons.txt`"""
+class ParsedIncludedIcon():
+    """This data class describes a single parsed line in `included_icons.txt`"""
     src_theme: str
     src_context: str
     """ This is unused currently."""
@@ -867,12 +869,17 @@ class IncludedIcon():
     Empty list means all. """
     size_io_matrix: SizeIoMatrix
 
+@deprecated("Unused currently")
+class ParsedIncludedIconsTxtFile():
+    data: List[ParsedIncludedIcon]
+
 ICON_PATH_IN_THEME_PATTERN: re.Pattern[str] = re.compile(r"/([A-Za-z_-]+)/([a-z0-9@]+)/([a-z0-9@]+)/([^\\/]+?\.svg)$")
 #                                                                ^              ^           ^           ^
 #                                                            ThemeName   /   Context  /    Size    /   Icon
 #                                                            ThemeName   /    Size    /   Context  /   Icon
 
-class IconSearcher():
+class IconFileSearcher():
+    """Recursively search an icon file in a folder."""
     def __init__(self, themes_folder: Path):
         self.all_icon_theme_folders: List[Path] = self.get_icon_theme_folder_list(themes_folder)
         self.all_found_icons: List[IconSrcFileInfo] = []
@@ -967,6 +974,21 @@ class IconSearcher():
             raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
         return final
 
+    def get_src_icon(self, theme_name: str, icon_name: str, icon_size: IconSizeType) -> IconSrcFileInfo:
+        """Filter icons by:
+        - Theme Name
+        - Icon Name
+        - Icon Sizes
+
+        All matched icons will be returned.
+
+        *(FIXME: source file of scale != 1 is not supported currently)*
+        """
+        icon_name = format_icon_name(icon_name, 'noext')
+        for icon in self.all_found_icons:
+            if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name and icon.size == icon_size:
+                return icon
+        raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
 
 def key_for_sorting_size(getter: Callable[[T], IconSizeType]) -> Callable[[T], Tuple[int, int]]:
     def key(x: T) -> Tuple[int, int]:
@@ -1036,7 +1058,7 @@ class SvgToPngConverter:
                 self.logger.exception(f"Error during conversion {e}")
                 return False
 
-def read_included_icons_txt(icon_searcher: IconSearcher, file_path: Path) -> List[IncludedIcon]:
+def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) -> List[ParsedIncludedIcon]:
     """This function read `included_icons.txt` and returns parsed lines.
 
     Notice that the `icon_searcher: IconSearcher` is merely used to:
@@ -1044,7 +1066,7 @@ def read_included_icons_txt(icon_searcher: IconSearcher, file_path: Path) -> Lis
     - Find out the correct context of an icon.
 
     The returned value doesn't contains any file path."""
-    fin: List[IncludedIcon] = []
+    fin: List[ParsedIncludedIcon] = []
     # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
     _patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
     _patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
@@ -1093,7 +1115,7 @@ def read_included_icons_txt(icon_searcher: IconSearcher, file_path: Path) -> Lis
         src_context = found_icon.context
         if dst_context:   # If dst context is explicitly specified via `included_icons.txt`. (Note: This let user able to forcely change the context of an icon)
             dst_context = src_context
-        fin.append(IncludedIcon(
+        fin.append(ParsedIncludedIcon(
             src_theme=src_theme_name,
             src_context=src_context,
             src_icon_name=src_icon_name,
@@ -1223,19 +1245,22 @@ def run_02_colorize_themes():
                 dst_tango_svg_file_path.parent.mkdir(parents=True, exist_ok=True)
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "humanity_colorizer")
 
+
+
 def run_03_copy_included_icons():
     print("03_INCLUDED_SVG_ICONS")
     this_theme_folder = BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS / OPTIONS.output_theme_name
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for colorized themes folder.
-    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
-
-    for line in read_included_icons_txt(icon_searcher, OPTIONS.included_icon_file):
-        size_io_specified: bool = not line.size_io_matrix.is_empty()
+    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
+    global PARSED_INCLUDED_ICONS_TXT_LINES
+    PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(icon_searcher, OPTIONS.included_icon_file)
+    for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
+        size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
-            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_specified_sizes(line.src_theme, line.src_icon_name, line.size_io_matrix.get_all_input_sizes())
+            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
         else:
-            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_all_sizes(line.src_theme, line.src_icon_name)
+            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
 
         for src_icon in found_src_icons_of_specified_input_sizes:
             if src_icon.src_file_path_is_symlink:
@@ -1249,8 +1274,8 @@ def run_03_copy_included_icons():
             #     continue
 
             # copy included icon.
-            context = line.dst_context or src_icon.context
-            file_name = format_icon_name(line.dst_icon_name or src_icon.file_name, 'svg')
+            context = pline.dst_context or src_icon.context
+            file_name = format_icon_name(pline.dst_icon_name or src_icon.file_name, 'svg')
             icon_dst_file_path: Path = this_theme_folder / context / src_icon.size / file_name   # SVN / CVS convension
             icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
@@ -1260,25 +1285,29 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
     this_theme_folder = BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME / OPTIONS.output_theme_name
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for previous folder.
-    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
+    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
+    for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
+        for size_io in pline.size_io_matrix.all_data:   # all definitions of `input -> output
+            src_icon_file = icon_searcher.get_src_icon(pline.src_theme, pline.src_icon_name, size_io.input)   # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
+            if not src_icon_file:
+                raise FileNotFoundError(f'''Impossible. Not found icon "{pline.src_icon_name}" in "{BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS}".''')
 
-    for src_icon in icon_searcher.all_found_icons:
-        # copy files
-        if src_icon.src_file_path_is_symlink:
-            print("Impossible bug.")
-            continue
-        icon_dst_file_path: Path = this_theme_folder / get_xdg_size_folder_name(src_icon.size, src_icon.scale) / src_icon.context / src_icon.file_name   # SVN / CVS convension
-        icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
+            # copy files
+            if src_icon_file.src_file_path_is_symlink:
+                print("Impossible bug.")
+                continue
+            icon_dst_file_path: Path = this_theme_folder / get_xdg_size_folder_name(size_io.output, src_icon_file.scale) / src_icon_file.context / src_icon_file.file_name   # SVN / CVS convension
+            icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(src_icon_file.src_file_path_resolved, icon_dst_file_path)
 
-        # add to qrc
-        qrc.add_file(src_icon.context, src_icon.size, src_icon.scale, src_icon.file_name)
+            # add to qrc
+            qrc.add_file(src_icon_file.context, size_io.output, src_icon_file.scale, src_icon_file.file_name)
 
-        # index.theme
-        index_theme.add_index_theme_ini_section(src_icon.context, src_icon.size, src_icon.scale)
+            # index.theme
+            index_theme.add_index_theme_ini_section(src_icon_file.context, size_io.output, src_icon_file.scale)
 
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
@@ -1292,7 +1321,7 @@ async def run_05_convert_svg_to_png():
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
 
     # Initialize icon searcher for previous folder.
-    icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
+    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
