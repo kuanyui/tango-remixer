@@ -20,7 +20,7 @@ import textwrap
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Literal, Union, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple, Optional, cast
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple, Optional, cast
 # import cProfile
 # import pstats
 import argparse
@@ -50,7 +50,8 @@ IconThemeFolderName = str
 
 IconSizeNumericType = Literal["8", "16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024"]
 
-IconSizeType = Union[IconSizeNumericType, Literal["scalable"]]
+# IconSizeType = Union[IconSizeNumericType, Literal["scalable"]]   # Don't use Union[] it will cause runtime error, while the static type checking passed.
+IconSizeType        = Literal["8", "16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024", "scalable"]
 """The real geometry size defined in this SVG. Only `16`, `22`, `24`, `32`, `48`, `64`, `scalable` are used by Tango / Nome / Humanity icon themes."""
 
 IconContextType = Literal["actions", "animations", "apps", "categories",
@@ -548,7 +549,7 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-32,48>128}
 ```
 
 - Separate fields by tab, or >=4 spaces.
-- SRC_CONTEXT is unused currently. Can be omitted.
+- SRC_CONTEXT is can be omitted. Actually, this is usually unneeded. Because in a valid XDG icon theme, all icon names are expected to be unique across all context.
 - DST_CONTEXT is optional. Default is same with the context of the source icon.
 - ICON_NAME should not contain the extension. All extensions will be ignored.
 
@@ -855,6 +856,7 @@ class SizeIoMatrix():
 
 @dataclass
 class IncludedIcon():
+    """This data class describes one line in `included_icons.txt`"""
     src_theme: str
     src_context: str
     """ This is unused currently."""
@@ -918,12 +920,14 @@ class IconSearcher():
         final_arr.sort(key=key_for_sorting_size(lambda x: x.size))
         return final_arr
 
-    def find_src_icon_of_any_size(self, theme_name: str, icon_name: str) -> IconSrcFileInfo:
+    def find_src_icon_of_any_size(self, theme_name: str, icon_name: str, icon_context: str | None) -> IconSrcFileInfo | None:
         icon_name = format_icon_name(icon_name, 'noext')
         for icon in self.all_found_icons:
-            if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
+            if icon_context and icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name and icon.context == icon_context:
                 return icon
-        raise FileNotFoundError(f'Not found icon of any size named "{icon_name}" in theme {theme_name}')
+            elif icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
+                return icon
+        return None
 
     def filter_src_icons_of_all_sizes(self, theme_name: str, icon_name: str) -> List[IconSrcFileInfo]:
         """Filter icons by:
@@ -1032,7 +1036,14 @@ class SvgToPngConverter:
                 self.logger.exception(f"Error during conversion {e}")
                 return False
 
-def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -> List[IncludedIcon]:
+def read_included_icons_txt(icon_searcher: IconSearcher, file_path: Path) -> List[IncludedIcon]:
+    """This function read `included_icons.txt` and returns parsed lines.
+
+    Notice that the `icon_searcher: IconSearcher` is merely used to:
+    - Validate if an icon file is really existed in the specified theme. (only search by icon name (icon context is optional). **Size is NOT used in searching.**)
+    - Find out the correct context of an icon.
+
+    The returned value doesn't contains any file path."""
     fin: List[IncludedIcon] = []
     # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
     _patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
@@ -1061,19 +1072,26 @@ def read_included_icons_as_lines(icon_searcher: IconSearcher, file_path: Path) -
         if len(line) == 0: continue
         m = patt_line.search(line)
         if not m:
-            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid line: {line}")
+            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file}:{line_no}: Invalid line format: {line}")
         src_theme_name = m.group('src_theme_name')
         if not is_icon_theme_src_folder_name(src_theme_name):
-            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file} L{line_no}: Invalid theme: {src_theme_name}. (Available: {get_all_icon_themes_folders})")
-        src_context = m.group('src_context')       # Optional
+            raise FileNotFoundError(f'''[ERROR] {OPTIONS.included_icon_file}:{line_no}: Invalid theme: "{src_theme_name}". (Available: {get_all_icon_themes_folders})''')
+        src_context = m.group('src_context')       # Optional. Actually, this is usually unneeded. Because in a valid XDG icon theme, all icon names are expected to be unique across all context.
         src_icon_name = m.group('src_icon_name')   # Required
         dst_context = m.group('dst_context')       # Optional
         dst_icon_name = m.group('dst_icon_name')   # Optional
         sizes_io_expr = m.group('sizes_io_expr')   # Optional
-        if not src_context:   # If
-            icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name)
-            src_context = icon.context
-        if dst_context:   # If dst context is explicitly specified via `included_icons.txt``
+        found_icon: IconSrcFileInfo | None = None
+        if src_context:
+            found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, src_context)
+            if not found_icon:
+                raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}" and specified context "{src_context}". (Hint: context of source icon is optional, you usually can omit it.)')
+        elif not found_icon:
+            found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, None)
+        if not found_icon:
+            raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}"')
+        src_context = found_icon.context
+        if dst_context:   # If dst context is explicitly specified via `included_icons.txt`. (Note: This let user able to forcely change the context of an icon)
             dst_context = src_context
         fin.append(IncludedIcon(
             src_theme=src_theme_name,
@@ -1212,7 +1230,7 @@ def run_03_copy_included_icons():
     # Initialize icon searcher for colorized themes folder.
     icon_searcher = IconSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
 
-    for line in read_included_icons_as_lines(icon_searcher, OPTIONS.included_icon_file):
+    for line in read_included_icons_txt(icon_searcher, OPTIONS.included_icon_file):
         size_io_specified: bool = not line.size_io_matrix.is_empty()
         if size_io_specified:
             found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_specified_sizes(line.src_theme, line.src_icon_name, line.size_io_matrix.get_all_input_sizes())
@@ -1223,8 +1241,10 @@ def run_03_copy_included_icons():
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
-            if (not size_io_specified) and (src_icon.size not in OPTIONS.input_svg_sizes):
+            if (size_io_specified) and (src_icon.size not in OPTIONS.input_svg_sizes):
                 continue
+            else:
+                pass
             # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
             #     continue
 
