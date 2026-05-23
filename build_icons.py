@@ -1079,14 +1079,16 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
     _patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
     _patt_sizes: re.Pattern[str] = re.compile(r'^(?:\{[0-9>,scalable-]+\})?$')
     _patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
+    # Quoted from XDG Spec ( https://specifications.freedesktop.org/icon-naming/latest/#guidelines ):
+    # "all icon names may only contain lowercase letters, numbers, underscore, dash, or period characters. Spaces, colons, slashes, and backslashes are not allowed"
     patt_line: re.Pattern[str] = re.compile(r'''
                                             ^
                                             (?P<src_theme_name>[A-Za-z0-9_-]+)
                                             (?:\t+|[ ][ ][ ][ ]+)
-                                            (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>.+?)(?:\.svg)?)
+                                            (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>[a-z0-9_.-]+?)(?:\.svg)?)
                                             (?:
                                                 (?:\t+|[ ][ ][ ][ ]+)
-                                                (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>.+?)(?:\.svg)?)
+                                                (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>[a-z0-9_.-]+?)(?:\.svg)?)
                                             )?
                                             (?:
                                                 (?:\t+|[ ][ ][ ][ ]+)
