@@ -1127,7 +1127,7 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
             src_context=src_context,
             src_icon_name=src_icon_name,
             dst_context=dst_context,
-            dst_icon_name=dst_icon_name,
+            dst_icon_name=dst_icon_name or src_icon_name,
             size_io_matrix=SizeIoMatrix(sizes_io_expr, line_no)
         ))
     return fin
@@ -1281,9 +1281,9 @@ def run_03_copy_included_icons():
             #     continue
 
             # copy included icon.
-            context = pline.dst_context or src_icon.context
-            file_name = format_icon_name(pline.dst_icon_name or src_icon.file_name, 'svg')
-            icon_dst_file_path: Path = this_theme_folder / context / src_icon.size / file_name   # SVN / CVS convension
+            dst_context = pline.dst_context
+            dst_file_name = format_icon_name(pline.dst_icon_name, 'svg')
+            icon_dst_file_path: Path = this_theme_folder / dst_context / src_icon.size / dst_file_name   # SVN / CVS convension
             icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
 

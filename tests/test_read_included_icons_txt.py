@@ -124,7 +124,7 @@ class TestBasicLines(unittest.TestCase):
         parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-save")
         self.assertEqual(parsed_line.src_theme, "Tango")
         self.assertEqual(parsed_line.src_icon_name, "document-save")
-        self.assertEqual(parsed_line.dst_icon_name, None)
+        self.assertEqual(parsed_line.dst_icon_name, "document-save")
 
 
 class TestSeparators(unittest.TestCase):
@@ -225,7 +225,7 @@ class TestContext(unittest.TestCase):
         self.assertEqual(parsed_line.src_context, "places")
         self.assertEqual(parsed_line.src_icon_name, "folder-documents")
         self.assertEqual(parsed_line.dst_context, "places")
-        self.assertEqual(parsed_line.dst_icon_name, None)
+        self.assertEqual(parsed_line.dst_icon_name, "folder-documents")
 
     def test_src_context_dst_no_context(self) -> None:
         # src has explicit context, dst doesn't: dst_context falls back
