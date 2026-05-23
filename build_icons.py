@@ -1105,22 +1105,22 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
         src_theme_name = m.group('src_theme_name')
         if not is_icon_theme_src_folder_name(src_theme_name):
             raise FileNotFoundError(f'''[ERROR] {OPTIONS.included_icon_file}:{line_no}: Invalid theme: "{src_theme_name}". (Available: {get_all_icon_themes_folders})''')
-        src_context = m.group('src_context')       # Optional. Actually, this is usually unneeded. Because in a valid XDG icon theme, all icon names are expected to be unique across all context.
+        src_context = m.group('src_context')       # Optional. Though this is usually unneeded, because in a valid XDG icon theme, all icon names are expected to be unique across all context. But this strictly validate the source context.
         src_icon_name = m.group('src_icon_name')   # Required
-        dst_context = m.group('dst_context')       # Optional
+        dst_context = m.group('dst_context')       # Optional. Let user explicitly forcibly change the context of an icon.
         dst_icon_name = m.group('dst_icon_name')   # Optional
         sizes_io_expr = m.group('sizes_io_expr') or ""   # Optional; normalize None -> "" for SizeIoMatrix. (Python's type system cannot even find such type error. Ridiculous.)
         found_icon: IconSrcFileInfo | None = None
         if src_context:
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, src_context)
-            if not found_icon:
+            if not found_icon:   # If combination theme+context+icon not found, raise an exception.
                 raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}" and specified context "{src_context}". (Hint: context of source icon is optional, you usually can omit it.)')
         elif not found_icon:
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, None)
         if not found_icon:
             raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}"')
         src_context = found_icon.context
-        if dst_context:   # If dst context is explicitly specified via `included_icons.txt`. (Note: This let user able to forcely change the context of an icon)
+        if not dst_context:   # If destination context is NOT explicitly specified, make it same as the source context.
             dst_context = src_context
         fin.append(ParsedIncludedIcon(
             src_theme=src_theme_name,
