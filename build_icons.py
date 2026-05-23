@@ -779,8 +779,7 @@ class SizeIoMatrix():
                 raise SyntaxError(f"Source size {input_size} cannot be redefined.")
             elif other.output == output_size:
                 raise SyntaxError(f"Dest size {output_size} cannot be redefined.")
-            else:
-                self.all_data.append(SizeIo(input=input_size, output=output_size))
+        self.all_data.append(SizeIo(input=input_size, output=output_size))
 
     def add_by_range(self, size_range_begin: IconSizeType, size_range_end: IconSizeType):
         """This doesn't support resize."""
