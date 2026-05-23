@@ -124,16 +124,19 @@ class TestRange(unittest.TestCase):
         )
 
     def test_open_range_left(self) -> None:
-        # Per docstring: `-48` is the same as `16-48`.
+        # `-48` = smallest available size (8) up to 48.
         m: SizeIoMatrix = SizeIoMatrix("-48", line_no=1)
         inputs: list[str] = [io.input for io in m.all_data]
-        self.assertEqual(inputs, ["16", "22", "24", "32", "36", "48"])
+        self.assertEqual(inputs, ["8", "16", "22", "24", "32", "36", "48"])
 
     def test_open_range_right(self) -> None:
-        # Per docstring: `32-` is the same as `32-128`.
+        # `32-` = 32 up to largest available size (1024).
         m: SizeIoMatrix = SizeIoMatrix("32-", line_no=1)
         inputs: list[str] = [io.input for io in m.all_data]
-        self.assertEqual(inputs, ["32", "36", "48", "64", "72", "96", "128"])
+        self.assertEqual(
+            inputs,
+            ["32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024"],
+        )
 
 
 class TestInvalidSyntax(unittest.TestCase):

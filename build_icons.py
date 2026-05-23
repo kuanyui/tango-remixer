@@ -800,12 +800,12 @@ class SizeIoMatrix():
 
         # examples:
         16;22                 # same as `16>16;22>22`
-        16>16;22              # same as `16;22`
-        16;24-48
+        16>16;22              # same as `16;22` or `16>16;22>22`
+        16;24-48              # same as `16;24;32;48` or `16>16;24>24;32>32;48>48`
         16>32;32>64
         16;scalable>48
-        -48                   # same as 16-48
-        32-                   # same as 32-128
+        -48                   # same as 8-48  (smallest available size up to 48)
+        32-                   # same as 32-1024  (32 up to largest available size)
         ```
         """
         segs: list[str] = size_io_matrix_expr.split(";")
