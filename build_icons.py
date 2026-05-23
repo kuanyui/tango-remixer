@@ -761,12 +761,11 @@ class SizeIo():
     output: IconSizeType
     """Usually this should not include `scalable`."""
 
-@dataclass
 class SizeIoMatrix():
     """Notice: This is used to describe the directives of user, doesn't mean that the inputted size is actually existed."""
-    all_data: List[SizeIo] = field(default_factory=lambda: cast(list[SizeIo], []))
-    """all definitions of `input -> output`"""
     def __init__(self, size_io_matrix_expr: str, line_no: int):
+        self.all_data: List[SizeIo] = []
+        """all definitions of `input -> output`"""
         self.parse_full_matrix_expr(size_io_matrix_expr, line_no)
 
     def add_resize_io(self, input_size: IconSizeType, output_size: Optional[IconSizeType] = None):
