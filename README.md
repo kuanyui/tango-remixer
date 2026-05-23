@@ -114,19 +114,34 @@ git clone --recursive git@github.com:kuanyui/tango-remixer.git
 `cd` into `MY_QT_PROJ/resources` and create `included_icons.txt`, then specify the required icons in following format:
 
 > ```
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME    [{SIZE_MATRIX}]
 > SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [{SIZE_MATRIX}]
 > SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME
 > ```
 >
-> - Separate fields by tab, or >=2 spaces.
-> - `SRC_CONTEXT` is unused currently. Can be omitted.
-> - `SRC_ICON_NAME` is required. Should not contain the extension. All extensions will be ignored.
-> - `DST_CONTEXT` is optional. Default is same with the context of the source icon.
-> - `DST_ICON_NAME` is optional, which can be used to rename the outputted icon name.
-> - All `*_ICON_NAME` should not contain the extension. All extensions will be ignored.
+- Separate fields by tab, or >=4 spaces.
+- `SRC_CONTEXT` is unused currently. Can be omitted.
+- `SRC_ICON_NAME` is required. Should not contain the extension. All extensions will be ignored.
+- `DST_CONTEXT` is optional. Default is same with the context of the source icon.
+- `DST_ICON_NAME` is optional, which can be used to rename the outputted icon name.
+- All `*_ICON_NAME` should not contain the extension. All extensions will be ignored.
+- `{SIZE_MATRIX}` is optional. Restricts which input sizes are picked / how they map to output sizes. If omitted, all available source sizes are used. Segments separated by `;`. Each segment is one of:
+
+  | Segment    | Expression    | Expression Meaning                              | Other Equivalents                              |
+  |------------|---------------|-------------------------------------------------|------------------------------------------------|
+  | **single** | `16`          | pick `16` in source, and output same size `16`. | `16>16`                                        |
+  | **range**  | `16-32`       | pick every available size in the range .        | `16;22;24;32`, `16>16;22>22;24>24;32>32`       |
+  |            | `-32`         | Open ranges, means "min size ~ `32`"            | `8;16;22;24;32`, `8>8;16>16;22>22;24>24;32>32` |
+  |            | `32-`         | Open ranges, means "`32` ~ max size"            | (Too long, omitted.)                           |
+  | **resize** | `16>32`       | take source size `16` and output as size `32`.  | (None)                                         |
+  |            | `scalable>48` | rasterize the SVG source at size `48`.          | (None)                                         |
+
+  - Example: `{16;22-48;scalable>64}` = single `16`, range `22..48`, plus scalable rasterized to `64`.
+  - Note: If you pick `{22-48}`, but `32` is not found in icon theme, the `32` will be just ignored.
 
 For example:
-```conf
+```py
 # Line started with `#` will be seen as comment and be ignored.
 
 # Include the icon named `application-exit` in icon theme `Nome`.
@@ -143,6 +158,31 @@ Nome     computer
 Tango    folder
 Tango    folder-open
 Tango    folder-new
+
+# ======================================================
+# Restrict / convert sizes via the {SIZE_MATRIX} field
+# ======================================================
+
+# Only build sizes 16, 22, and 48 of this icon (skip 24, 32, ...).
+Tango    folder    {16;22;48}
+
+# Include every source size in range 16..48 (each maps to itself).
+Tango    folder-open    {16-48}
+
+# Open range: from the smallest available size up to 48.
+Tango    document-save    {-48}
+
+# Take the scalable source and rasterize it as size 64.
+Tango    document-open    {scalable>64}
+
+# Resize: take the 16-size source and output it as 32.
+Tango    go-up    {16>32}
+
+# Mix: single + range + scalable->fixed, separated by `;`.
+Tango    user-home    {16;22-48;scalable>64}
+
+# Rename + size matrix combined.
+Tango    folder    folder-blue    {16;22;48}
 ```
 
 > [!NOTE]
@@ -492,7 +532,9 @@ Type=Fixed
 
 As a reference, the final file-system structure looks like:
 
-
+# Acknowledgments
+- This project's Python scripts relys on LLM slightly (about ~20% of codebase, mainly for scaffold, boilerplate code, Python API), including ChatGPT (Web UI), Gemini (Web UI), Claude (Web UI), but with human fully-reviewed.
+- But tests are completely written by LLM (Claude Code), according to the documentations in code and my instructions. Roughly reviewed by human..
 
 # License
 
