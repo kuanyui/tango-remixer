@@ -764,9 +764,18 @@ class SizeIo():
 class SizeIoMatrix():
     """Notice: This is used to describe the directives of user, doesn't mean that the inputted size is actually existed."""
     def __init__(self, size_io_matrix_expr: str, line_no: int):
+        """Parse a matrix expression and populate `all_data`.
+
+        Args:
+            size_io_matrix_expr:
+                - A matrix expression like `16;22>32;-48`.
+                - An empty string produces an empty matrix (`is_empty()` is `True`), which means "no size directives specified".
+            line_no: Line number in the source file, used for error messages.
+        """
         self.all_data: List[SizeIo] = []
         """all definitions of `input -> output`"""
-        self.parse_full_matrix_expr(size_io_matrix_expr, line_no)
+        if size_io_matrix_expr:
+            self.parse_full_matrix_expr(size_io_matrix_expr, line_no)
 
     def add_resize_io(self, input_size: IconSizeType, output_size: Optional[IconSizeType] = None):
         """This supports resize"""
@@ -1100,7 +1109,7 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
         src_icon_name = m.group('src_icon_name')   # Required
         dst_context = m.group('dst_context')       # Optional
         dst_icon_name = m.group('dst_icon_name')   # Optional
-        sizes_io_expr = m.group('sizes_io_expr')   # Optional
+        sizes_io_expr = m.group('sizes_io_expr') or ""   # Optional; normalize None -> "" for SizeIoMatrix. (Python's type system cannot even find such type error. Ridiculous.)
         found_icon: IconSrcFileInfo | None = None
         if src_context:
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, src_context)
