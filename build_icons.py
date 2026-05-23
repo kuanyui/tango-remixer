@@ -1092,7 +1092,7 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
                                             )?
                                             (?:
                                                 (?:\t+|[ ][ ][ ][ ]+)
-                                                (?:\{(?P<sizes_io_expr>[ 0-9>,scalable-]+)\})
+                                                (?:\{(?P<sizes_io_expr>[ 0-9>;scalable-]+)\})
                                             )?
                                             $
                                             ''', re.VERBOSE)

@@ -258,6 +258,103 @@ class TestExtensionStripping(unittest.TestCase):
         self.assertEqual(parsed_line.dst_icon_name, "document-save-as")
 
 
+class TestSizesMatrix(unittest.TestCase):
+    """Optional `{...}` sizes matrix at the end of a line.
+
+    Quirk: because `{...}` is captured as a separate optional group that
+    sits AFTER dst, the dst field must be explicitly written (even if it
+    is the same as src) — otherwise `{...}` gets eaten as dst_icon_name.
+    """
+
+    def test_size_matrix_empty_when_omitted(self) -> None:
+        # When no `{...}` is present, size_io_matrix is empty.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open")
+        self.assertTrue(parsed_line.size_io_matrix.is_empty())
+
+    def test_size_matrix_single_size(self) -> None:
+        # `{16}` -> one entry: input=16, output=16.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16}")
+        sizes = parsed_line.size_io_matrix.all_data
+        self.assertEqual(len(sizes), 1)
+        self.assertEqual(sizes[0].input, "16")
+        self.assertEqual(sizes[0].output, "16")
+
+    def test_size_matrix_resize(self) -> None:
+        # `{16>32}` -> resize: input=16, output=32.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16>32}")
+        sizes = parsed_line.size_io_matrix.all_data
+        self.assertEqual(len(sizes), 1)
+        self.assertEqual(sizes[0].input, "16")
+        self.assertEqual(sizes[0].output, "32")
+
+    def test_size_matrix_range(self) -> None:
+        # `{16-48}` -> each size in range 16..48 maps to itself.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16-48}")
+        inputs = [io.input for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, ["16", "22", "24", "32", "36", "48"])
+
+    def test_size_matrix_scalable_to_fixed_size(self) -> None:
+        # `{scalable>48}` -> rasterize the scalable source at size 48.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {scalable>48}")
+        sizes = parsed_line.size_io_matrix.all_data
+        self.assertEqual(len(sizes), 1)
+        self.assertEqual(sizes[0].input, "scalable")
+        self.assertEqual(sizes[0].output, "48")
+
+    def test_size_matrix_open_range_left(self) -> None:
+        # `{-48}` -> smallest available size up to 48.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {-48}")
+        inputs = [io.input for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, ["8", "16", "22", "24", "32", "36", "48"])
+
+    def test_size_matrix_open_range_right(self) -> None:
+        # `{32-}` -> 32 up to largest available size.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {32-}")
+        inputs = [io.input for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, ["32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024"])
+
+    def test_size_matrix_without_explicit_dst(self) -> None:
+        # dst is optional even when `{...}` is specified — user can write
+        # `THEME    ICON    {16}` without repeating the icon name as dst.
+        # When dst is omitted, dst_icon_name falls back to src_icon_name.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    {16}")
+        self.assertEqual(parsed_line.src_icon_name, "document-open")
+        self.assertEqual(parsed_line.dst_icon_name, "document-open")
+        sizes = parsed_line.size_io_matrix.all_data
+        self.assertEqual(len(sizes), 1)
+        self.assertEqual(sizes[0].input, "16")
+        self.assertEqual(sizes[0].output, "16")
+
+    def test_size_matrix_multi_singles(self) -> None:
+        # `{16;22}` -> two single-size entries.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16;22}")
+        inputs = [(io.input, io.output) for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, [("16", "16"), ("22", "22")])
+
+    def test_size_matrix_single_plus_range(self) -> None:
+        # `{16;24-48}` -> single 16 plus range 24..48.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16;24-48}")
+        inputs = [io.input for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, ["16", "24", "32", "36", "48"])
+
+    def test_size_matrix_multi_resizes(self) -> None:
+        # `{16>32;32>64}` -> two resize entries.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16>32;32>64}")
+        inputs = [(io.input, io.output) for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, [("16", "32"), ("32", "64")])
+
+    def test_size_matrix_single_plus_scalable_resize(self) -> None:
+        # `{16;scalable>48}` -> mix single and scalable->fixed.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    document-open    {16;scalable>48}")
+        inputs = [(io.input, io.output) for io in parsed_line.size_io_matrix.all_data]
+        self.assertEqual(inputs, [("16", "16"), ("scalable", "48")])
+
+    def test_size_matrix_comma_separator_rejected(self) -> None:
+        # `,` is not a valid separator (only `;` is).
+        with self.assertRaises(RuntimeError):
+            _parse_line("Tango    document-open    document-open    {16,22}")
+
+
 class TestErrors(unittest.TestCase):
     """Invalid input raises clear errors."""
 
