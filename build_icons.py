@@ -786,7 +786,7 @@ class SizeIoMatrix():
         for x in ALL_AVAILABLE_INPUT_SIZES:
             if x == 'scalable': continue
             if not is_icon_size_type(x): continue
-            if size_range_begin <= x and x <= size_range_end:
+            if int(size_range_begin) <= int(x) and int(x) <= int(size_range_end):
                 self.add_resize_io(x, x)
 
     def parse_full_matrix_expr(self, size_io_matrix_expr: str, line_no: int):
