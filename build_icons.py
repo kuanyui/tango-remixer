@@ -938,8 +938,9 @@ class IconFileSearcher():
     def find_src_icon_of_any_size(self, theme_name: str, icon_name: str, icon_context: str | None) -> IconSrcFileInfo | None:
         icon_name = format_icon_name(icon_name, 'noext')
         for icon in self.all_found_icons:
-            if icon_context and icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name and icon.context == icon_context:
-                return icon
+            if icon_context:
+                if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name and icon.context == icon_context:
+                    return icon
             elif icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name:
                 return icon
         return None
