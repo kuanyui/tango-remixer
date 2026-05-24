@@ -268,12 +268,10 @@ Directories={fmtted_directories}
 """
         for entry in self.ini_sections:
             lines: List[str] = [f'[{entry.directory}]']
+            ori_size = entry.ori_size
+            lines.append(f'Size={ori_size}')
             if entry.scale != '1':
                 lines.append(f'Scale={entry.scale}')
-            ori_size = entry.ori_size
-            scale: int = int(entry.scale)
-            lines.append(f'Size={ori_size}')
-            lines.append(f'Scale={scale}')
             lines.append(f'Context={folder_context_to_ini_context(entry.context)}')
             lines.append(f'Type=Fixed')
             file_content += "\n".join(lines)
