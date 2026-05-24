@@ -5,10 +5,13 @@ Tests for `read_included_icons_txt` in build_icons.py — the parser
 for the `included_icons.txt` configuration file.
 
 These tests exercise the parser's line-level behavior (separators,
-comments, optional fields, .svg stripping, error cases). The real
-filesystem-walking `IconFileSearcher` is replaced with a fake that
-returns a synthetic IconSrcFileInfo for any lookup, so we focus on
-parsing logic and not on whether SVGs exist on disk.
+comments, optional fields, .svg stripping, error cases). They use the
+real `IconFileSearcher` pointed at the actual Tango submodule rather
+than a hand-rolled fake, so we don't accidentally test against buggy
+mock logic. All test icon names below correspond to real SVGs that
+exist in the Tango submodule.
+
+Skipped automatically when the Tango submodule is not checked out.
 
 Note: the parser accepts either a tab or 4+ spaces as a field
 separator. Most tests below use 4 spaces for readability; the few
@@ -19,114 +22,90 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
-from typing import Optional, List, Protocol
+from typing import Optional, List
+
+_PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(_PROJECT_ROOT))
 
 # build_icons.py parses CLI args at import time -> spoof argv first.
 sys.argv = [
     "test_read_included_icons_txt.py",
-    "--included-icon-file", str(Path(__file__).parent / "_dummy_not_used.txt"),
+    "--included-icon-file", str(_PROJECT_ROOT / "_dummy_not_used.txt"),
 ]
 
 from build_icons import (  # noqa: E402
     read_included_icons_txt,
-    IconSrcFileInfo,
+    IconFileSearcher,
     ParsedIncludedIcon,
 )
 
 
-class IconSearcherLike(Protocol):
-    """Structural type that the fake searchers below conform to.
-    Matches the subset of IconFileSearcher used by read_included_icons_txt."""
-
-    def find_src_icon_of_any_size(
-        self, theme: str, icon_name: str, context: Optional[str],
-    ) -> Optional[IconSrcFileInfo]: ...
+_TANGO_SUBMODULE: Path = _PROJECT_ROOT / "submodules" / "tango-icon-theme"
 
 
-def _fake_icon(theme: str, icon_name: str, context: str) -> IconSrcFileInfo:
-    """Build a synthetic IconSrcFileInfo for fake searchers."""
-    return IconSrcFileInfo(
-        theme_src_folder_name=theme,
-        context=context,  # type: ignore[arg-type]
-        size="16",
-        scale="1",
-        icon_name=icon_name,
-        file_name=f"{icon_name}.svg",
-        src_file_path=Path(f"/fake/{theme}/{icon_name}.svg"),
-        src_file_path_is_symlink=False,
-        src_file_path_resolved=Path(f"/fake/{theme}/{icon_name}.svg"),
-    )
+def _build_real_searcher() -> Optional[IconFileSearcher]:
+    """Construct a real IconFileSearcher pointed at the Tango submodule.
 
+    IconFileSearcher treats each immediate subdirectory of the given root
+    as a separate theme, named after the folder. We need the searcher to
+    see a folder literally called `Tango`, so we set up a tempdir with a
+    symlink `tempdir/Tango -> submodules/tango-icon-theme` and point the
+    searcher at the tempdir.
 
-class AlwaysFoundIconFileSearcher:
-    """Searcher that always finds the icon, reporting whatever `context`
-    the caller asked for (or "apps" if the caller passed None).
-    Used as the default happy-path searcher."""
-
-    def find_src_icon_of_any_size(
-        self, theme: str, icon_name: str, context: Optional[str],
-    ) -> Optional[IconSrcFileInfo]:
-        return _fake_icon(theme, icon_name, context or "apps")
-
-
-class NotFoundIconFileSearcher:
-    """Searcher that never finds anything — used to test the not-found branches."""
-
-    def find_src_icon_of_any_size(
-        self, theme: str, icon_name: str, context: Optional[str],
-    ) -> Optional[IconSrcFileInfo]:
-        return None
-
-
-class FixedContextIconFileSearcher:
-    """Searcher where the icon lives in exactly one context.
-    Returns the icon when asked with `context=None` (any context) or with
-    the matching context; returns None when asked with a different context.
-    Used to test "icon exists but user asked for the wrong context".
+    Returns None when the submodule isn't checked out (tests will skip).
     """
-
-    def __init__(self, icon_context: str) -> None:
-        self._icon_context = icon_context
-
-    def find_src_icon_of_any_size(
-        self, theme: str, icon_name: str, context: Optional[str],
-    ) -> Optional[IconSrcFileInfo]:
-        if context is not None and context != self._icon_context:
-            return None
-        return _fake_icon(theme, icon_name, self._icon_context)
+    if not (_TANGO_SUBMODULE / "16x16").exists():
+        return None
+    searcher_dir: Path = Path(tempfile.mkdtemp(prefix="tango_searcher_root_"))
+    (searcher_dir / "Tango").symlink_to(_TANGO_SUBMODULE)
+    return IconFileSearcher(searcher_dir)
 
 
-def _parse_multi_lines(text: str, searcher: Optional[IconSearcherLike] = None) -> List[ParsedIncludedIcon]:
+_REAL_SEARCHER: Optional[IconFileSearcher] = _build_real_searcher()
+
+
+def _parse_multi_lines(text: str, searcher: Optional[IconFileSearcher] = None) -> List[ParsedIncludedIcon]:
     """Write multi-line `included_icons.txt`-format `text` to a temp file
-    and parse it. Returns the list of parsed entries (one per non-comment,
-    non-blank line)."""
-    s: IconSearcherLike = searcher or AlwaysFoundIconFileSearcher()
+    and parse it with the real Tango searcher (unless overridden)."""
+    s: IconFileSearcher = searcher or _REAL_SEARCHER  # type: ignore[assignment]
     with tempfile.NamedTemporaryFile("w", suffix=".txt", delete=False, encoding="utf-8") as f:
         f.write(text)
         path: Path = Path(f.name)
     try:
-        return read_included_icons_txt(s, path)  # type: ignore[arg-type]
+        return read_included_icons_txt(s, path)
     finally:
         path.unlink()
 
 
-def _parse_line(text: str, searcher: Optional[IconSearcherLike] = None) -> ParsedIncludedIcon:
+def _parse_line(text: str, searcher: Optional[IconFileSearcher] = None) -> ParsedIncludedIcon:
     """Parse `text` and return the (single) parsed entry.
     For tests where exactly one entry is expected."""
     return _parse_multi_lines(text, searcher)[0]
 
 
+# ---------------------------------------------------------------------------
+# Quick map of real Tango icons used below, for grep-ability:
+#   actions/: dialog-cancel, document-open, document-save, go-up, go-down,
+#             system-log-out
+#   places/:  folder, network-server, user-home
+# Rename targets (e.g. folder-blue, document-export) need not exist on disk;
+# only src icon names are looked up.
+# ---------------------------------------------------------------------------
+
+
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestBasicLines(unittest.TestCase):
     """Smallest valid line forms."""
 
     def test_theme_and_icon_only(self) -> None:
-        # `THEME    ICON` -> src_theme + src_icon_name, no dst.
+        # `THEME    ICON` -> src_theme + src_icon_name, dst falls back to src.
         parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-save")
         self.assertEqual(parsed_line.src_theme, "Tango")
         self.assertEqual(parsed_line.src_icon_name, "document-save")
         self.assertEqual(parsed_line.dst_icon_name, "document-save")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestSeparators(unittest.TestCase):
     """Field separator can be one-or-more tabs OR four-or-more spaces."""
 
@@ -167,8 +146,9 @@ class TestSeparators(unittest.TestCase):
         self.assertEqual(parsed_line.dst_icon_name, "folder-blue")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestComments(unittest.TestCase):
-    """Comments and blank lines should be ignored."""
+    """Comment handling: full-line and end-of-line comments."""
 
     def test_full_line_comment(self) -> None:
         # Comment line is skipped, only the data line produces an entry.
@@ -197,55 +177,55 @@ class TestComments(unittest.TestCase):
         self.assertEqual(result[0].src_icon_name, "go-down")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestContext(unittest.TestCase):
     """Optional context in src and dst (specified via the `context/icon` syntax)."""
 
     def test_dst_context_override_preserved(self) -> None:
-        # User explicitly specifies destination context different from src.
-        # Per the comment in build_icons.py: an explicit dst context should
-        # let user forcibly change the context of an icon.
-        parsed_line: ParsedIncludedIcon = _parse_line("Tango    network-server    places/network-blue")
-        self.assertEqual(parsed_line.src_context, "apps")     # fake default
-        self.assertEqual(parsed_line.src_icon_name, "network-server")
+        # User explicitly forces dst context different from src.
+        # document-save lives in actions; user forces dst into places.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-save    places/document-save-bookmark")
+        self.assertEqual(parsed_line.src_context, "actions")
+        self.assertEqual(parsed_line.src_icon_name, "document-save")
         self.assertEqual(parsed_line.dst_context, "places")
-        self.assertEqual(parsed_line.dst_icon_name, "network-blue")
+        self.assertEqual(parsed_line.dst_icon_name, "document-save-bookmark")
 
     def test_dst_context_defaults_to_src(self) -> None:
-        # When dst has no context, dst_context should fall back to src_context.
+        # When dst has no context, dst_context falls back to src_context.
         parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-save    document-export")
-        self.assertEqual(parsed_line.src_context, "apps")     # fake default
+        self.assertEqual(parsed_line.src_context, "actions")
         self.assertEqual(parsed_line.src_icon_name, "document-save")
-        self.assertEqual(parsed_line.dst_context, "apps")     # fallback
+        self.assertEqual(parsed_line.dst_context, "actions")
         self.assertEqual(parsed_line.dst_icon_name, "document-export")
 
     def test_src_context_no_dst(self) -> None:
-        # src has explicit context, no dst at all: dst_context should still
-        # fall back to the src's context (not stay None).
-        parsed_line: ParsedIncludedIcon = _parse_line("Tango    places/folder-documents")
+        # src has explicit context, no dst at all: dst_context falls back to src.
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    places/folder")
         self.assertEqual(parsed_line.src_context, "places")
-        self.assertEqual(parsed_line.src_icon_name, "folder-documents")
+        self.assertEqual(parsed_line.src_icon_name, "folder")
         self.assertEqual(parsed_line.dst_context, "places")
-        self.assertEqual(parsed_line.dst_icon_name, "folder-documents")
+        self.assertEqual(parsed_line.dst_icon_name, "folder")
 
     def test_src_context_dst_no_context(self) -> None:
         # src has explicit context, dst doesn't: dst_context falls back
         # to the src's user-specified context, not to a generic default.
-        parsed_line: ParsedIncludedIcon = _parse_line("Tango    places/folder-documents    folder-docs")
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    places/folder    folder-renamed")
         self.assertEqual(parsed_line.src_context, "places")
-        self.assertEqual(parsed_line.src_icon_name, "folder-documents")
+        self.assertEqual(parsed_line.src_icon_name, "folder")
         self.assertEqual(parsed_line.dst_context, "places")
-        self.assertEqual(parsed_line.dst_icon_name, "folder-docs")
+        self.assertEqual(parsed_line.dst_icon_name, "folder-renamed")
 
     def test_both_contexts_explicit_and_different(self) -> None:
         # src and dst each have their own explicit, different context.
         # Both should be retained independently.
-        parsed_line: ParsedIncludedIcon = _parse_line("Tango    places/folder-documents    actions/folder-doc")
+        parsed_line: ParsedIncludedIcon = _parse_line("Tango    places/folder    actions/folder-as-action")
         self.assertEqual(parsed_line.src_context, "places")
-        self.assertEqual(parsed_line.src_icon_name, "folder-documents")
+        self.assertEqual(parsed_line.src_icon_name, "folder")
         self.assertEqual(parsed_line.dst_context, "actions")
-        self.assertEqual(parsed_line.dst_icon_name, "folder-doc")
+        self.assertEqual(parsed_line.dst_icon_name, "folder-as-action")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestExtensionStripping(unittest.TestCase):
     """`.svg` extensions in icon names should be stripped."""
 
@@ -258,13 +238,9 @@ class TestExtensionStripping(unittest.TestCase):
         self.assertEqual(parsed_line.dst_icon_name, "document-save-as")
 
 
-class TestSizesMatrix(unittest.TestCase):
-    """Optional `{...}` sizes matrix at the end of a line.
-
-    Quirk: because `{...}` is captured as a separate optional group that
-    sits AFTER dst, the dst field must be explicitly written (even if it
-    is the same as src) — otherwise `{...}` gets eaten as dst_icon_name.
-    """
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
+class TestSizeMatrix(unittest.TestCase):
+    """Optional `{...}` size matrix at the end of a line."""
 
     def test_size_matrix_empty_when_omitted(self) -> None:
         # When no `{...}` is present, size_io_matrix is empty.
@@ -355,6 +331,7 @@ class TestSizesMatrix(unittest.TestCase):
             _parse_line("Tango    document-open    document-open    {16,22}")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestErrors(unittest.TestCase):
     """Invalid input raises clear errors."""
 
@@ -373,29 +350,29 @@ class TestErrors(unittest.TestCase):
             _parse_line("Tango document-open")
 
     def test_icon_not_found_in_specified_context_raises(self) -> None:
-        # The icon DOES exist (in "apps"), but the user asked for it in
-        # "places" -> the wrong-context lookup returns None.
-        # Must hit the "specified context" raise (build_icons line ~1108).
-        searcher = FixedContextIconFileSearcher(icon_context="apps")
+        # document-save exists in Tango but in `actions`. Asking for it in
+        # `places` -> searcher returns None, parser raises with the
+        # "specified context" message.
         with self.assertRaises(FileNotFoundError) as cm:
-            _parse_line("Tango    places/folder-documents", searcher=searcher)
+            _parse_line("Tango    places/document-save")
         msg: str = str(cm.exception)
         self.assertIn("specified context", msg)
         self.assertIn('"places"', msg)
 
     def test_icon_not_found_in_any_context_raises(self) -> None:
-        # No src context specified, and searcher can't find the icon anywhere.
-        # Must hit the "no specified context" raise (build_icons line ~1112)
-        # — verify by ensuring the message does NOT contain the
-        # "specified context" phrase that's unique to the other branch.
+        # Icon name that doesn't exist anywhere in Tango. Must hit the
+        # "no specified context" raise — verify by ensuring the message
+        # does NOT contain the "specified context" phrase that's unique
+        # to the other branch.
         with self.assertRaises(FileNotFoundError) as cm:
-            _parse_line("Tango    folder-documents", searcher=NotFoundIconFileSearcher())
+            _parse_line("Tango    completely-nonexistent-icon-name")
         msg: str = str(cm.exception)
         self.assertNotIn("specified context", msg)
-        self.assertIn("folder-documents", msg)
+        self.assertIn("completely-nonexistent-icon-name", msg)
         self.assertIn("Tango", msg)
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestMultipleLines(unittest.TestCase):
     """Multiple lines parse independently and order is preserved."""
 
@@ -403,7 +380,7 @@ class TestMultipleLines(unittest.TestCase):
         text: str = (
             "Tango    document-open\n"
             "Tango    document-save    document-export\n"
-            "Tango    folder-pictures\n"
+            "Tango    user-home\n"
         )
         result: List[ParsedIncludedIcon] = _parse_multi_lines(text)
         self.assertEqual(len(result), 3)
@@ -411,7 +388,7 @@ class TestMultipleLines(unittest.TestCase):
         self.assertEqual(result[0].src_icon_name, "document-open")
         self.assertEqual(result[1].src_icon_name, "document-save")
         self.assertEqual(result[1].dst_icon_name, "document-export")
-        self.assertEqual(result[2].src_icon_name, "folder-pictures")
+        self.assertEqual(result[2].src_icon_name, "user-home")
 
     def test_comments_interleaved_with_lines(self) -> None:
         text: str = (
@@ -419,13 +396,13 @@ class TestMultipleLines(unittest.TestCase):
             "Tango    document-open\n"
             "\n"
             "# Section: places\n"
-            "Tango    folder-documents\n"
+            "Tango    folder\n"
         )
         result: List[ParsedIncludedIcon] = _parse_multi_lines(text)
         self.assertEqual(len(result), 2)
         self.assertEqual(result[0].src_icon_name, "document-open")
-        self.assertEqual(result[1].src_icon_name, "folder-documents")
+        self.assertEqual(result[1].src_icon_name, "folder")
 
 
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main(argv=[sys.argv[0]])

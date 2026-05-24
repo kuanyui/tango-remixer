@@ -96,9 +96,38 @@ class _ClassGroupedResult(unittest.TextTestResult):
             self.stream.flush()
 
 
+def _flatten(suite: unittest.TestSuite):
+    """Yield individual test cases from a (possibly nested) TestSuite."""
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from _flatten(item)
+        else:
+            yield item
+
+
+def _is_integration(test: unittest.TestCase) -> bool:
+    """Test belongs to an integration module (slow, depends on submodules)."""
+    return "integration" in type(test).__module__.lower()
+
+
 def main() -> int:
     loader = unittest.TestLoader()
-    suite = loader.discover("tests")
+    raw_suite = loader.discover("tests")
+
+    # Run unit tests first; integration tests last (slower, deps on
+    # submodules/inkscape). Within each bucket keep module/class/method
+    # alphabetical so output stays stable.
+    ordered = sorted(
+        _flatten(raw_suite),
+        key=lambda t: (
+            _is_integration(t),
+            type(t).__module__,
+            type(t).__name__,
+            t._testMethodName,
+        ),
+    )
+    suite = unittest.TestSuite(ordered)
+
     runner = unittest.TextTestRunner(resultclass=_ClassGroupedResult, verbosity=2)
     result = runner.run(suite)
     return 0 if result.wasSuccessful() else 1
