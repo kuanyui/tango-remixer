@@ -20,7 +20,9 @@ PNG-conversion assertions are skipped when Inkscape is not on PATH.
 
 import asyncio
 import configparser
+import re
 import shutil
+import struct
 import sys
 import tempfile
 import unittest
@@ -92,7 +94,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             input_svg_sizes=["16", "22", "32"],   # source sizes needed: 16 (all), 22 (dialog-cancel), 32 (system-log-out)
             output_png_sizes=[],                   # no filter; let run_05 emit at all picked sizes
             output_png_sizes_from_scalable=[],
-            generate_scales=["1"],
+            generate_scales=["1", "2"],
             qrc_qresource_prefix="/xdg_icon_themes/",
             verbose=False,
             debug=False,
@@ -149,6 +151,31 @@ class TestEndToEndPipeline(unittest.TestCase):
         self.assertEqual(data[:8], b"\x89PNG\r\n\x1a\n", f"not a valid PNG header: {path}")
         self.assertGreater(len(data), 100, f"PNG suspiciously small: {path}")
 
+    def _xdg_size_from_path(self, path: Path) -> tuple[int, int]:
+        """Extract (base_size, scale) from an XDG icon path. Examples:
+            `.../48x48/actions/foo.png`    -> (48, 1)
+            `.../48x48@2/actions/foo.png`  -> (48, 2)
+        """
+        m = re.match(r"^(\d+)x\d+(?:@(\d+))?$", path.parent.parent.name)
+        if not m:
+            raise ValueError(f"path doesn't look like an XDG icon path: {path}")
+        base: int = int(m.group(1))
+        scale: int = int(m.group(2)) if m.group(2) else 1
+        return base, scale
+
+    def _assert_png_pixel_size_matches_folder(self, path: Path) -> None:
+        """For resize / non-@1x cases - verify the PNG's actual pixel
+        dimensions match the XDG size folder (base * scale). Catches the
+        case where the PNG sits at the right path but wasn't rasterized
+        at the intended pixel size."""
+        base, scale = self._xdg_size_from_path(path)
+        expected: int = base * scale
+        width, height = struct.unpack(">II", path.read_bytes()[16:24])
+        self.assertEqual(
+            (width, height), (expected, expected),
+            f"PNG pixel dims {width}x{height} != folder '{path.parent.parent.name}' (expected {expected}x{expected}) at {path}",
+        )
+
     def _parse_index_theme(self, path: Path) -> configparser.ConfigParser:
         cp = configparser.ConfigParser()
         cp.read(path, encoding="utf-8")
@@ -158,6 +185,10 @@ class TestEndToEndPipeline(unittest.TestCase):
         """Return every <file> text content from the qrc."""
         tree = ET.parse(path)
         return [f.text or "" for f in tree.getroot().findall(".//file")]
+
+    def _print_major_section(self, title: str) -> None:
+        bar: str = "=" * 60
+        print(f"\n  {bar}\n  {title}\n  {bar}")
 
     def _print_section(self, title: str) -> None:
         print(f"\n  --- {title} ---")
@@ -176,6 +207,13 @@ class TestEndToEndPipeline(unittest.TestCase):
             if p.is_file():
                 print(f"      {p.relative_to(root)}")
 
+    def _print_file_content(self, path: Path) -> None:
+        """Print the full text content of a (small) generated file, indented."""
+        if not path.is_file():
+            print(f"    (does not exist: {path})")
+            return
+        self._print_indented(path.read_text(encoding="utf-8"))
+
     # --- the test --------------------------------------------------------
 
     def test_full_pipeline_produces_every_expected_output_file(self) -> None:
@@ -189,16 +227,28 @@ class TestEndToEndPipeline(unittest.TestCase):
             asyncio.run(run_05_convert_svg_to_png())
         run_extra_copy()
 
-        # Echo input and output side-by-side - doubles as live documentation.
-        # Printed AFTER the pipeline runs so the input recipe and the produced
-        # trees sit adjacent in the output, easy to eyeball-compare.
-        self._print_section("input: included_icons.txt")
+        # Echo input and outputs side-by-side - doubles as live documentation.
+        # Printed AFTER the pipeline runs so the input recipe, file trees, and
+        # generated configs sit adjacent in the output for eyeball-compare.
+        self._print_major_section("input: included_icons.txt")
         self._print_indented(self.included_text)
-        self._print_section(f"output: SVG XDG theme tree ({self.svg_out})")
+
+        self._print_major_section("04_XDG_SVG_THEME")
+        self._print_section(f"tree ({self.svg_out})")
         self._print_tree(self.svg_out)
+        self._print_section("index.theme")
+        self._print_file_content(self.svg_out / "index.theme")
+        self._print_section("index.qrc")
+        self._print_file_content(self.svg_out / "index.qrc")
+
         if inkscape_available:
-            self._print_section(f"output: PNG XDG theme tree ({self.png_out})")
+            self._print_major_section("05_XDG_PNG_THEME")
+            self._print_section(f"tree ({self.png_out})")
             self._print_tree(self.png_out)
+            self._print_section("index.theme")
+            self._print_file_content(self.png_out / "index.theme")
+            self._print_section("index.qrc")
+            self._print_file_content(self.png_out / "index.qrc")
         print()
 
         # ---- SVG output: every individual file --------------------------
@@ -234,11 +284,12 @@ class TestEndToEndPipeline(unittest.TestCase):
             {"16x16/actions", "22x22/actions", "24x24/actions", "32x32/actions", "48x48/actions"},
         )
 
-        # Per-size sections
+        # Per-size sections. SVG output is always @1x (sources are @1x), and
+        # `Scale=1` is omitted by convention (defaults to 1 per XDG spec).
         for size in ("16", "22", "24", "32", "48"):
             section = f"{size}x{size}/actions"
             self.assertEqual(cp[section]["Size"], size)
-            self.assertEqual(cp[section]["Scale"], "1")
+            self.assertNotIn("Scale", cp[section])
             self.assertEqual(cp[section]["Context"], "Actions")
             self.assertEqual(cp[section]["Type"], "Fixed")
 
@@ -270,17 +321,34 @@ class TestEndToEndPipeline(unittest.TestCase):
             self.skipTest("Inkscape not available; PNG conversion skipped")
 
         self.assertTrue(self.png_out.is_dir(), f"PNG output dir missing: {self.png_out}")
+        # @1x scale: PNGs at `<size>x<size>/` folders.
         self._assert_png(self.png_out / "16x16" / "actions" / "dialog-cancel.png")
         self._assert_png(self.png_out / "22x22" / "actions" / "dialog-cancel.png")
         self._assert_png(self.png_out / "16x16" / "actions" / "system-log-out.png")
         self._assert_png(self.png_out / "32x32" / "actions" / "system-log-out.png")
-        # INTENDED behavior below - EXPECTED TO FAIL on current code: run_05
-        # ignores the matrix's output size and emits PNGs at the source
-        # size, so the resize / one-to-many cases under-produce.
-        self._assert_png(self.png_out / "48x48" / "actions" / "go-up.png")     # {16>48}
-        self._assert_png(self.png_out / "16x16" / "actions" / "go-down.png")   # {16>16;...}
-        self._assert_png(self.png_out / "24x24" / "actions" / "go-down.png")   # {...;16>24;...}
-        self._assert_png(self.png_out / "32x32" / "actions" / "go-down.png")   # {...;16>32}
+        self._assert_png(self.png_out / "48x48" / "actions" / "go-up.png")
+        self._assert_png(self.png_out / "16x16" / "actions" / "go-down.png")
+        self._assert_png(self.png_out / "24x24" / "actions" / "go-down.png")
+        self._assert_png(self.png_out / "32x32" / "actions" / "go-down.png")
+        # @2x scale: same icons under `<size>x<size>@2/` folders, doubled pixels.
+        self._assert_png(self.png_out / "16x16@2" / "actions" / "dialog-cancel.png")
+        self._assert_png(self.png_out / "22x22@2" / "actions" / "dialog-cancel.png")
+        self._assert_png(self.png_out / "16x16@2" / "actions" / "system-log-out.png")
+        self._assert_png(self.png_out / "32x32@2" / "actions" / "system-log-out.png")
+        self._assert_png(self.png_out / "48x48@2" / "actions" / "go-up.png")
+        self._assert_png(self.png_out / "16x16@2" / "actions" / "go-down.png")
+        self._assert_png(self.png_out / "24x24@2" / "actions" / "go-down.png")
+        self._assert_png(self.png_out / "32x32@2" / "actions" / "go-down.png")
+
+        # Resize cases need the actual pixel dimensions verified
+        # (a 16x16 PNG misplaced into 48x48/ would otherwise slip through).
+        self._assert_png_pixel_size_matches_folder(self.png_out / "48x48" / "actions" / "go-up.png")
+        self._assert_png_pixel_size_matches_folder(self.png_out / "24x24" / "actions" / "go-down.png")
+        self._assert_png_pixel_size_matches_folder(self.png_out / "32x32" / "actions" / "go-down.png")
+        # @2x PNGs must be rasterized at base*2 pixels (HiDPI).
+        self._assert_png_pixel_size_matches_folder(self.png_out / "16x16@2" / "actions" / "dialog-cancel.png")
+        self._assert_png_pixel_size_matches_folder(self.png_out / "48x48@2" / "actions" / "go-up.png")
+        self._assert_png_pixel_size_matches_folder(self.png_out / "32x32@2" / "actions" / "go-down.png")
 
         # ---- PNG index.theme -------------------------------------------
         png_index_theme: Path = self.png_out / "index.theme"
@@ -290,7 +358,13 @@ class TestEndToEndPipeline(unittest.TestCase):
         png_dirs: set[str] = set(d.strip() for d in cp_png["Icon Theme"]["Directories"].split(","))
         self.assertEqual(
             png_dirs,
-            {"16x16/actions", "22x22/actions", "24x24/actions", "32x32/actions", "48x48/actions"},
+            {
+                "16x16/actions",   "16x16@2/actions",
+                "22x22/actions",   "22x22@2/actions",
+                "24x24/actions",   "24x24@2/actions",
+                "32x32/actions",   "32x32@2/actions",
+                "48x48/actions",   "48x48@2/actions",
+            },
         )
 
         # ---- PNG index.qrc ---------------------------------------------
@@ -301,14 +375,24 @@ class TestEndToEndPipeline(unittest.TestCase):
             png_qrc_files,
             {
                 "index.theme",
+                # @1x
                 "16x16/actions/dialog-cancel.png",
                 "22x22/actions/dialog-cancel.png",
                 "16x16/actions/system-log-out.png",
                 "32x32/actions/system-log-out.png",
-                "48x48/actions/go-up.png",      # bug: run_05 emits at 16x16
+                "48x48/actions/go-up.png",
                 "16x16/actions/go-down.png",
-                "24x24/actions/go-down.png",    # bug: missing under current run_05
-                "32x32/actions/go-down.png",    # bug: missing under current run_05
+                "24x24/actions/go-down.png",
+                "32x32/actions/go-down.png",
+                # @2x
+                "16x16@2/actions/dialog-cancel.png",
+                "22x22@2/actions/dialog-cancel.png",
+                "16x16@2/actions/system-log-out.png",
+                "32x32@2/actions/system-log-out.png",
+                "48x48@2/actions/go-up.png",
+                "16x16@2/actions/go-down.png",
+                "24x24@2/actions/go-down.png",
+                "32x32@2/actions/go-down.png",
             },
         )
 
