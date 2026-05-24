@@ -40,7 +40,7 @@ class _ClassGroupedResult(unittest.TextTestResult):
         self._current_class: str | None = None
 
     def startTest(self, test) -> None:
-        # Bookkeeping only — skip TextTestResult's default "description ... " write.
+        # Bookkeeping only - skip TextTestResult's default "description ... " write.
         unittest.TestResult.startTest(self, test)
 
         cls_name: str = type(test).__name__

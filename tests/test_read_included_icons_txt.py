@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Tests for `read_included_icons_txt` in build_icons.py — the parser
+Tests for `read_included_icons_txt` in build_icons.py - the parser
 for the `included_icons.txt` configuration file.
 
 These tests exercise the parser's line-level behavior (separators,
@@ -160,7 +160,7 @@ class TestComments(unittest.TestCase):
 
     def test_end_of_line_comment_after_space(self) -> None:
         # EOL comment must be preceded by space or tab to be stripped.
-        # Single-line input — EOL comment is stripped, the line still parses.
+        # Single-line input - EOL comment is stripped, the line still parses.
         parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open # used in File>Open")
         self.assertEqual(parsed_line.src_icon_name, "document-open")
 
@@ -290,7 +290,7 @@ class TestSizeMatrix(unittest.TestCase):
         self.assertEqual(inputs, ["32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024"])
 
     def test_size_matrix_without_explicit_dst(self) -> None:
-        # dst is optional even when `{...}` is specified — user can write
+        # dst is optional even when `{...}` is specified - user can write
         # `THEME    ICON    {16}` without repeating the icon name as dst.
         # When dst is omitted, dst_icon_name falls back to src_icon_name.
         parsed_line: ParsedIncludedIcon = _parse_line("Tango    document-open    {16}")
@@ -361,7 +361,7 @@ class TestErrors(unittest.TestCase):
 
     def test_icon_not_found_in_any_context_raises(self) -> None:
         # Icon name that doesn't exist anywhere in Tango. Must hit the
-        # "no specified context" raise — verify by ensuring the message
+        # "no specified context" raise - verify by ensuring the message
         # does NOT contain the "specified context" phrase that's unique
         # to the other branch.
         with self.assertRaises(FileNotFoundError) as cm:

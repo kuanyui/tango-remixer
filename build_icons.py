@@ -1354,7 +1354,7 @@ async def run_05_convert_svg_to_png():
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
 
     # Initialize icon searcher for previous folder.
-    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
+    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()

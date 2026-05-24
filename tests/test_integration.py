@@ -7,11 +7,12 @@ output artifact (SVG files, PNG files, index.theme, index.qrc).
 To keep this test fast:
   - we restrict the built-in themes to Tango only (skip Humanity / Nome /
     Gimp* / Inkscape* which collectively are ~100MB and irrelevant here);
-  - we pick three icons that exist as SVG in Tango;
+  - we pick four icons that exist as SVG in Tango;
   - each line exercises a different size-matrix syntax:
-      * `{16-22}` — range (each source size maps to itself)
-      * `{16;32}` — multi-singles
-      * `{16>48}` — resize (source 16 -> output 48)
+      * `{16-22}`             - range (each source size maps to itself)
+      * `{16;32}`             - multi-singles
+      * `{16>48}`             - resize (source 16 -> output 48)
+      * `{16>16;16>24;16>32}` - one source size driving multiple outputs
 
 Skipped automatically when the Tango submodule is not checked out.
 PNG-conversion assertions are skipped when Inkscape is not on PATH.
@@ -66,11 +67,12 @@ class TestEndToEndPipeline(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.tmp, ignore_errors=True)
 
         # included_icons.txt: each line exercises a different matrix syntax.
-        # All three icons exist in Tango at sizes 16/22/32/48.
+        # All four icons exist in Tango at sizes 16/22/32/48.
         self.included_text: str = (
-            "Tango    dialog-cancel     {16-22}\n"   # range
-            "Tango    system-log-out    {16;32}\n"   # multi-singles
-            "Tango    go-up             {16>48}\n"   # resize: 16 source -> 48 output
+            "Tango    dialog-cancel     {16-22}\n"               # range
+            "Tango    system-log-out    {16;32}\n"               # multi-singles
+            "Tango    go-up             {16>48}\n"               # resize: 16 src -> 48 out
+            "Tango    go-down           {16>16;16>24;16>32}\n"   # one src -> multiple outs
         )
         included_path: Path = self.tmp / "included.txt"
         included_path.write_text(self.included_text, encoding="utf-8")
@@ -187,7 +189,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             asyncio.run(run_05_convert_svg_to_png())
         run_extra_copy()
 
-        # Echo input and output side-by-side — doubles as live documentation.
+        # Echo input and output side-by-side - doubles as live documentation.
         # Printed AFTER the pipeline runs so the input recipe and the produced
         # trees sit adjacent in the output, easy to eyeball-compare.
         self._print_section("input: included_icons.txt")
@@ -201,9 +203,10 @@ class TestEndToEndPipeline(unittest.TestCase):
 
         # ---- SVG output: every individual file --------------------------
         # Expected files per matrix:
-        #   dialog-cancel  {16-22} -> 16x16, 22x22
-        #   system-log-out {16;32} -> 16x16, 32x32
-        #   go-up          {16>48} -> 48x48 (source 16 resized to output 48)
+        #   dialog-cancel  {16-22}             -> 16x16, 22x22
+        #   system-log-out {16;32}             -> 16x16, 32x32
+        #   go-up          {16>48}             -> 48x48 (source 16 resized to output 48)
+        #   go-down        {16>16;16>24;16>32} -> 16x16, 24x24, 32x32 (one source -> 3 outs)
         self.assertTrue(self.svg_out.is_dir(), f"SVG output dir missing: {self.svg_out}")
 
         self._assert_svg(self.svg_out / "16x16" / "actions" / "dialog-cancel.svg")
@@ -211,6 +214,9 @@ class TestEndToEndPipeline(unittest.TestCase):
         self._assert_svg(self.svg_out / "16x16" / "actions" / "system-log-out.svg")
         self._assert_svg(self.svg_out / "32x32" / "actions" / "system-log-out.svg")
         self._assert_svg(self.svg_out / "48x48" / "actions" / "go-up.svg")
+        self._assert_svg(self.svg_out / "16x16" / "actions" / "go-down.svg")
+        self._assert_svg(self.svg_out / "24x24" / "actions" / "go-down.svg")
+        self._assert_svg(self.svg_out / "32x32" / "actions" / "go-down.svg")
 
         # ---- SVG index.theme: parse and verify every key ----------------
         svg_index_theme: Path = self.svg_out / "index.theme"
@@ -225,11 +231,11 @@ class TestEndToEndPipeline(unittest.TestCase):
         dirs: set[str] = set(d.strip() for d in cp["Icon Theme"]["Directories"].split(","))
         self.assertEqual(
             dirs,
-            {"16x16/actions", "22x22/actions", "32x32/actions", "48x48/actions"},
+            {"16x16/actions", "22x22/actions", "24x24/actions", "32x32/actions", "48x48/actions"},
         )
 
         # Per-size sections
-        for size in ("16", "22", "32", "48"):
+        for size in ("16", "22", "24", "32", "48"):
             section = f"{size}x{size}/actions"
             self.assertEqual(cp[section]["Size"], size)
             self.assertEqual(cp[section]["Scale"], "1")
@@ -249,6 +255,9 @@ class TestEndToEndPipeline(unittest.TestCase):
                 "16x16/actions/system-log-out.svg",
                 "32x32/actions/system-log-out.svg",
                 "48x48/actions/go-up.svg",
+                "16x16/actions/go-down.svg",
+                "24x24/actions/go-down.svg",
+                "32x32/actions/go-down.svg",
             },
         )
         # qresource prefix is wired correctly
@@ -265,10 +274,13 @@ class TestEndToEndPipeline(unittest.TestCase):
         self._assert_png(self.png_out / "22x22" / "actions" / "dialog-cancel.png")
         self._assert_png(self.png_out / "16x16" / "actions" / "system-log-out.png")
         self._assert_png(self.png_out / "32x32" / "actions" / "system-log-out.png")
-        # Intended behavior: go-up's matrix is {16>48}, so its PNG should be
-        # at 48x48 too. EXPECTED TO FAIL on current code: run_05 ignores the
-        # matrix's output size and emits PNGs at the source size (16x16).
-        self._assert_png(self.png_out / "48x48" / "actions" / "go-up.png")
+        # INTENDED behavior below - EXPECTED TO FAIL on current code: run_05
+        # ignores the matrix's output size and emits PNGs at the source
+        # size, so the resize / one-to-many cases under-produce.
+        self._assert_png(self.png_out / "48x48" / "actions" / "go-up.png")     # {16>48}
+        self._assert_png(self.png_out / "16x16" / "actions" / "go-down.png")   # {16>16;...}
+        self._assert_png(self.png_out / "24x24" / "actions" / "go-down.png")   # {...;16>24;...}
+        self._assert_png(self.png_out / "32x32" / "actions" / "go-down.png")   # {...;16>32}
 
         # ---- PNG index.theme -------------------------------------------
         png_index_theme: Path = self.png_out / "index.theme"
@@ -278,7 +290,7 @@ class TestEndToEndPipeline(unittest.TestCase):
         png_dirs: set[str] = set(d.strip() for d in cp_png["Icon Theme"]["Directories"].split(","))
         self.assertEqual(
             png_dirs,
-            {"16x16/actions", "22x22/actions", "32x32/actions", "48x48/actions"},
+            {"16x16/actions", "22x22/actions", "24x24/actions", "32x32/actions", "48x48/actions"},
         )
 
         # ---- PNG index.qrc ---------------------------------------------
@@ -293,7 +305,10 @@ class TestEndToEndPipeline(unittest.TestCase):
                 "22x22/actions/dialog-cancel.png",
                 "16x16/actions/system-log-out.png",
                 "32x32/actions/system-log-out.png",
-                "48x48/actions/go-up.png",   # same bug — run_05 emits at 16x16, not 48x48
+                "48x48/actions/go-up.png",      # bug: run_05 emits at 16x16
+                "16x16/actions/go-down.png",
+                "24x24/actions/go-down.png",    # bug: missing under current run_05
+                "32x32/actions/go-down.png",    # bug: missing under current run_05
             },
         )
 
