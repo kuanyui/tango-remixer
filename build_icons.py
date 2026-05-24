@@ -28,8 +28,8 @@ import logging
 import platform
 import enum
 from warnings import deprecated
-from lib_color_converter import *
-# from lib_download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
+from lib.color_converter import *
+# from lib.download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 BUILT_IN_ICON_THEMES: Final[List[str]] = [
     # Vanilla XDG Icon Themes
     "Tango",
