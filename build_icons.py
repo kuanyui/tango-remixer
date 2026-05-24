@@ -377,7 +377,7 @@ According for XDG standard:
 class BUILD_FOLDERS:
     FOLDER_ROOT: Final[Path] = Path(__file__).parent / "dist"
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
-    '''00. Copy all icon themes folders here.
+    '''`00` Copy all icon themes folders here.
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
@@ -387,7 +387,7 @@ class BUILD_FOLDERS:
     '''
 
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
-    '''01. Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
+    '''`01` Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
@@ -397,7 +397,7 @@ class BUILD_FOLDERS:
     '''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
-    '''02. Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
+    '''`02` Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
     Contains "Tango", "Nome", "BlueNome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
@@ -406,32 +406,42 @@ class BUILD_FOLDERS:
         - `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_03_INCLUDED_SVG_ICONS = FOLDER_ROOT / "03_INCLUDED_SVG_ICONS"
-    '''03. According to the specified **"icon name + icon size"** (See option `--included-icon-file`),
-    aggregate and copy the included icons from multiple themes' folders, and merge into the single `<output_theme_name>/` folder.
+    '''`03` Parse `included_icons.txt` to pick necessary SVG source files.
+
+    1. Aggregate and copy the included icons from multiple themes' folders, according to the specified **"icon name + icon size matrix"** (See option `--included-icon-file`).
+    2. Merge into the single `<output_theme_name>/` folder.
+
 
     - **Folder structure (of the merged theme): will be formalized** to `<context>/<size>` (convension since CVS/SVN era)
 
     - Size matrix: **only the specified input**-sizes of the icons will be picked.
-                 - **No duplicated input size of the same icon. (ex: `{16>16;16>24;16>32}` will copy only `16` SVG to the `16/`)**
+                 - **The size is kept with the source icon. No duplicated icons**
+                   **For example: `{16>16;16>24;16>32}` will copy only `16` SVG to output's `16/`**
+
+    This is **NOT yet** a XDG-compatible icon theme folder.
     '''
 
 
     FOLDER_04_XDG_SVG_THEME = FOLDER_ROOT / "04_XDG_SVG_THEME"
-    '''04. Convert the (CVS/SVN convension) folder structure into XDG folder structure, then generate index.theme and index.qrc.
+    '''`04` Convert the (CVS/SVN convension) folder structure into XDG folder structure, then generate index.theme and index.qrc.
 
     - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>`, but `<scale>` is ignore (because this is SVG)
 
     - Size matrix: icons will be **arbitrarily copied** from source folders to destination folders, according to the specified input-sizes and output-sizes.
-                 - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16` SVG to the `16/`, `24/`, `32/` three folders)**
+                 - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16` SVG to the `16/`, `24/`, `32/` three output folders)**
+
+    This is already a XDG-compatible icon theme folder.
     '''
 
     FOLDER_05_XDG_PNG_THEME = FOLDER_ROOT / "05_XDG_PNG_THEME"
-    '''05. Convert SVG files to this folder, generate index.theme and index.qrc
+    '''`05` Convert SVG files to this folder, generate index.theme and index.qrc
 
     - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>` (scale == 1) or `<size>x<size>@<scale>/<context>` (scale >= 2)
 
     - Size matrix: icons will be **rasterized** from source folders to destination folders, according to the specified input-sizes and output-sizes.
                  - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will be rasterized `16` SVG to PNG in the `16/`, `24/`, `32/` three folders)**
+
+    This is already a XDG-compatible icon theme folder.
     '''
 
 
