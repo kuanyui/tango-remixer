@@ -404,5 +404,35 @@ class TestMultipleLines(unittest.TestCase):
         self.assertEqual(result[1].src_icon_name, "folder")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
+class TestLineEndings(unittest.TestCase):
+    """Parser should accept different line-ending conventions.
+    `splitlines()` in the parser handles \\n, \\r\\n, and \\r transparently."""
+
+    def test_crlf_windows_line_endings(self) -> None:
+        # Windows-style \r\n must parse the same as \n.
+        result: List[ParsedIncludedIcon] = _parse_multi_lines(
+            "# Section header\r\n"
+            "Tango    document-open\r\n"
+            "Tango    document-save"
+        )
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].src_icon_name, "document-open")
+        self.assertEqual(result[1].src_icon_name, "document-save")
+
+    def test_mixed_line_endings(self) -> None:
+        # Mixed \r\n and \n in the same file (e.g. file edited on both
+        # Windows and Unix) should still parse cleanly.
+        result: List[ParsedIncludedIcon] = _parse_multi_lines(
+            "Tango    document-open\r\n"
+            "Tango    document-save\n"
+            "Tango    user-home\r\n"
+        )
+        self.assertEqual(len(result), 3)
+        self.assertEqual(result[0].src_icon_name, "document-open")
+        self.assertEqual(result[1].src_icon_name, "document-save")
+        self.assertEqual(result[2].src_icon_name, "user-home")
+
+
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])
