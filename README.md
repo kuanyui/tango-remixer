@@ -8,6 +8,17 @@ Remix multiple [Tango-flavoured icon themes](https://en.wikipedia.org/wiki/Tango
 
 This project is to convert it to `.qrc` which can be easily to be used in your Qt project. (only tested on Qt 6, mainly the HiDPI support.)
 
+> **Table of Contents**
+> - [Tango Remixer](#tango-remixer)
+> - [Why](#why)
+> - [Used Submodules / Thirdparties Tarballs](#used-submodules--thirdparties-tarballs)
+> - [Built-in Icon Themes and Licenses](#built-in-icon-themes-and-licenses)
+> - [How to Use in Qt Project?](#how-to-use-in-qt-project)
+> - [Build .svg and .qrc](#build-svg-and-qrc)
+> - [Internal Concepts](#internal-concepts)
+> - [Acknowledgments](#acknowledgments)
+> - [License](#license)
+
 # Why
 
 I personally strongly believe that **flat design + monotone icon since the 2010s is completely a disastrous regression in the field of UI/UX designing**, at least for me who am somewhat dyslexia and rely on colorful and distinguishing icon. The monotone icons in UI **significantly** decrease my reaction speed when interacting with an UI.
@@ -299,7 +310,7 @@ python3 ./build_icons.py --help  # see other options
 
 For how to use in Qt C++ project, see the following descriptions.
 
-# What Are This Project Do?
+# Internal Concepts
 > ## Specifications of XDG Icon Theme
 > - https://specifications.freedesktop.org/icon-theme-spec/latest/
 > - https://specifications.freedesktop.org/icon-naming-spec/icon-naming-spec-latest.html
@@ -375,7 +386,7 @@ QIcon::setThemeName("Humanity");
 setWindowIcon(QIcon::fromTheme("totem"));
 ```
 
-## About Script: What Is This Script Doing?
+## About Script: What On Earth Is This Script Doing?
 ```txt
 {REPO}/thirdparty/humanity_0.4.6/Humanity/apps/24 $ ls -l
 
@@ -534,7 +545,7 @@ As a reference, the final file-system structure looks like:
 
 # Acknowledgments
 - This project's Python scripts relys on LLM slightly (about ~20% of codebase, mainly for scaffold, boilerplate code, Python API), including ChatGPT (Web UI), Gemini (Web UI), Claude (Web UI), but with human fully-reviewed.
-- But tests are completely written by LLM (Claude Code), according to the documentations in code and my instructions. Roughly reviewed by human..
+- But tests are almost written by LLM (Claude Code), according to the documentations in code and my instructions. Roughly reviewed by human.
 
 # License
 
