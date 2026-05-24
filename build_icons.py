@@ -391,7 +391,7 @@ class BUILD_FOLDERS:
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    - Folder structures can be:
+    - Folder structures (of each theme) can be:
         - `<context>/<size>` (convension since CVS/SVN era)
         - `<size>x<size>@<scale>` (XDG standard style)
     '''
@@ -401,14 +401,15 @@ class BUILD_FOLDERS:
     Contains "Tango", "Nome", "BlueNome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
-    - Folder structures can be:
+    - Folder structures (of each theme) can be:
         - `<context>/<size>` (convension since CVS/SVN era)
         - `<size>x<size>@<scale>` (XDG standard style)'''
 
     FOLDER_03_INCLUDED_SVG_ICONS = FOLDER_ROOT / "03_INCLUDED_SVG_ICONS"
-    '''03. Copy included icons (See option `--included-icon-file`) to this folder.
+    '''03. According to the specified **"icon name + icon size"** (See option `--included-icon-file`),
+    aggregate and copy the included icons from multiple themes' folders, and merge into the single `<output_theme_name>/` folder.
 
-    - **Folder structure: will be formalized** to `<context>/<size>` (convension since CVS/SVN era)
+    - **Folder structure (of the merged theme): will be formalized** to `<context>/<size>` (convension since CVS/SVN era)
 
     - Size matrix: **only the specified input**-sizes of the icons will be picked.
                  - **No duplicated input size of the same icon. (ex: `{16>16;16>24;16>32}` will copy only `16` SVG to the `16/`)**
@@ -416,9 +417,9 @@ class BUILD_FOLDERS:
 
 
     FOLDER_04_XDG_SVG_THEME = FOLDER_ROOT / "04_XDG_SVG_THEME"
-    '''04. Copy included icons (See option `--included-icon-file`) to this folder, generate index.theme and index.qrc.
+    '''04. Convert the (CVS/SVN convension) folder structure into XDG folder structure, then generate index.theme and index.qrc.
 
-    - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>`, but <scale> is ignore (because this is SVG)
+    - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>`, but `<scale>` is ignore (because this is SVG)
 
     - Size matrix: icons will be **arbitrarily copied** from source folders to destination folders, according to the specified input-sizes and output-sizes.
                  - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16` SVG to the `16/`, `24/`, `32/` three folders)**
