@@ -89,6 +89,16 @@ class TestResize(unittest.TestCase):
             SizeIo(input="32", output="64"),
         ])
 
+    def test_same_input_multiple_outputs(self) -> None:
+        # One source size driving multiple output sizes is allowed
+        # (only duplicate OUTPUTs are rejected).
+        m: SizeIoMatrix = SizeIoMatrix("16>16;16>24;16>32", line_no=1)
+        self.assertEqual(m.all_data, [
+            SizeIo(input="16", output="16"),
+            SizeIo(input="16", output="24"),
+            SizeIo(input="16", output="32"),
+        ])
+
     def test_scalable_as_input(self) -> None:
         m: SizeIoMatrix = SizeIoMatrix("scalable>48", line_no=1)
         self.assertEqual(m.all_data, [SizeIo(input="scalable", output="48")])
@@ -150,15 +160,9 @@ class TestInvalidSyntax(unittest.TestCase):
         with self.assertRaises(SyntaxError):
             SizeIoMatrix("16;;22", line_no=1)
 
-    def test_duplicate_input_size(self) -> None:
-        # Once the append-in-loop bug is fixed, the second `16>...` should
-        # be rejected as a duplicate input size.
-        with self.assertRaises(SyntaxError):
-            SizeIoMatrix("16>32;16>48", line_no=1)
-
     def test_duplicate_output_size(self) -> None:
-        # Once the append-in-loop bug is fixed, the second `...>32` should
-        # be rejected as a duplicate output size.
+        # Two entries pointing at the same output size is ambiguous (which
+        # input wins?) -> rejected.
         with self.assertRaises(SyntaxError):
             SizeIoMatrix("16>32;24>32", line_no=1)
 

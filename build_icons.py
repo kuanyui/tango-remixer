@@ -789,16 +789,17 @@ class SizeIoMatrix():
             self.parse_full_matrix_expr(size_io_matrix_expr, line_no)
 
     def add_resize_io(self, input_size: IconSizeType, output_size: Optional[IconSizeType] = None):
-        """This supports resize"""
+        """This supports resize.
+        - `{16>16;16>24;16>32}` is acceptable.
+        - `{16>16;24>16}` is invalid. (Ambiguity, what on earth the source size do you want for generating 16x16?)
+        """
         if output_size == 'scalable':
             raise SyntaxError(f"In size conversion matrix definition, you explicitly define `scalable` as output size, this is unreasonable.")
         if output_size == None:
             output_size = input_size
         for other in self.all_data:
-            if other.input == input_size:
-                raise SyntaxError(f"Source size {input_size} cannot be redefined.")
-            elif other.output == output_size:
-                raise SyntaxError(f"Dest size {output_size} cannot be redefined.")
+            if other.output == output_size:
+                raise SyntaxError(f"Output size {output_size} cannot be redefined.")
         self.all_data.append(SizeIo(input=input_size, output=output_size))
 
     def add_by_range(self, size_range_begin: IconSizeType, size_range_end: IconSizeType):
@@ -824,8 +825,12 @@ class SizeIoMatrix():
         16;24-48              # same as `16;24;32;48` or `16>16;24>24;32>32;48>48`
         16>32;32>64
         16;scalable>48
+        16>16;16>24;16>32     # one source size (16) outputs multiple sizes
         -48                   # same as 8-48  (smallest available size up to 48)
         32-                   # same as 32-1024  (32 up to largest available size)
+
+        # Duplicate INPUT sizes are allowed (one source -> many outputs).
+        # Duplicate OUTPUT sizes are rejected (ambiguous which input wins).
         ```
         """
         segs: list[str] = size_io_matrix_expr.split(";")
