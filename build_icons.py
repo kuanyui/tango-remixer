@@ -397,7 +397,14 @@ class BUILD_FOLDERS:
     '''
 
     FOLDER_02_COLORIZED_THEMES_ROOT = FOLDER_ROOT / "02_COLORIZED_THEMES"
-    '''`02` Convert colors in SVG files. Currently it only converts the Humanity theme (orange) to BlueHumanity theme (blue).
+    '''`02` Convert colors in SVG files to produce Blue-* hue-shifted variants.
+    Currently produces:
+      - `Nome`           ->  `BlueNome`           (via `nome_colorizer`)
+      - `Humanity`       ->  `BlueHumanity`       (via `humanity_colorizer`)
+      - `Humanity-Dark`  ->  `BlueHumanity-Dark`  (via `humanity_colorizer`)
+    Tango / GimpDefault / GimpLegacy / InkscapeTango are passed through as-is
+    (no Blue variant). The original input themes are always also copied through.
+
     Contains "Tango", "Nome", "BlueNome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
     (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
 
