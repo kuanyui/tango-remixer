@@ -432,10 +432,10 @@ class BUILD_FOLDERS:
     FOLDER_04_XDG_SVG_THEME = FOLDER_ROOT / "04_XDG_SVG_THEME"
     '''`04` Convert the (CVS/SVN convension) folder structure into XDG folder structure, then generate index.theme and index.qrc.
 
-    - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>`, but `<scale>` is ignore (because this is SVG)
+    - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>` (note: `hicolor` use `<size>x<size>` instead of `<size>`), but `<scale>` is ignore (because this is SVG)
 
     - Size matrix: icons will be **arbitrarily copied** from source folders to destination folders, according to the specified input-sizes and output-sizes.
-                 - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16` SVG to the `16/`, `24/`, `32/` three output folders)**
+                 - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16/` SVG to the `16x16/`, `24x24/`, `32x32/` three output folders)**
 
     This is already a XDG-compatible icon theme folder.
     '''
@@ -446,7 +446,7 @@ class BUILD_FOLDERS:
     - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>` (scale == 1) or `<size>x<size>@<scale>/<context>` (scale >= 2)
 
     - Size matrix: icons will be **rasterized** from source folders to destination folders, according to the specified input-sizes and output-sizes.
-                 - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will be rasterized `16` SVG to PNG in the `16/`, `24/`, `32/` three folders)**
+                 - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will rasterize `16` SVG to PNG into the `16x16/`, `24x24/`, `32x32/` three folders)**
 
     This is already a XDG-compatible icon theme folder.
     '''
