@@ -1301,7 +1301,7 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
     index_theme = IndexThemeCreator()
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         for size_io in pline.size_io_matrix.all_data:   # all definitions of `input -> output
-            src_icon_file = icon_searcher.get_src_icon(pline.src_theme, pline.src_icon_name, size_io.input)   # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
+            src_icon_file = icon_searcher.get_src_icon(OPTIONS.output_theme_name, pline.src_icon_name, size_io.input)  # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
             if not src_icon_file:
                 raise FileNotFoundError(f'''Impossible. Not found icon "{pline.src_icon_name}" in "{BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS}".''')
 
