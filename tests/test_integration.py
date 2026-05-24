@@ -42,6 +42,7 @@ sys.argv = [
 import build_icons  # noqa: E402
 from build_icons import (  # noqa: E402
     BUILD_FOLDERS,
+    ExtraIconTheme,
     IconThemeOptions,
     SvgToPngConverter,
     run_00_copy_icon_themes,
@@ -91,7 +92,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             output_svg_theme_to_dir=self.svg_out,
             output_theme_name="TestTango",
             output_theme_description="Integration test theme",
-            input_svg_sizes=["16", "22", "32"],   # source sizes needed: 16 (all), 22 (dialog-cancel), 32 (system-log-out)
+            input_svg_sizes=["16", "22", "32", "scalable"],
             output_png_sizes=[],                   # no filter; let run_05 emit at all picked sizes
             output_png_sizes_from_scalable=[],
             generate_scales=["1", "2"],
@@ -395,6 +396,61 @@ class TestEndToEndPipeline(unittest.TestCase):
                 "32x32@2/actions/go-down.png",
             },
         )
+
+    def test_full_pipeline_with_extra_icon_theme_from_system_hicolor(self) -> None:
+        """`--extra-icon-theme` against a real external XDG-structured theme.
+        We grab the first SVG in the system hicolor `scalable/apps/` folder
+        and rebuild a minimal external theme around it (just that one icon)
+        so we don't end up copying the entire hicolor tree."""
+        # This project already depends on Inkscape (for SVG -> PNG), so its
+        # icon is guaranteed available on any machine that can run the build.
+        src_svg: Path = Path("/usr/share/icons/hicolor/scalable/apps/org.inkscape.Inkscape.svg")
+        if not src_svg.is_file():
+            self.skipTest(f"system inkscape icon not at {src_svg}")
+        icon_name: str = src_svg.stem  # "org.inkscape.Inkscape"
+
+        # Build a minimal extra theme dir that mirrors XDG hicolor layout
+        # but contains only this one icon.
+        extra_root: Path = self.tmp / "minimal_extra_theme"
+        (extra_root / "scalable" / "apps").mkdir(parents=True)
+        shutil.copy2(src_svg, extra_root / "scalable" / "apps" / src_svg.name)
+
+        # Reconfigure OPTIONS for this test: one icon, one extra theme.
+        extra_id: str = "TestExtraTheme"
+        self._fresh_options.extra_icon_themes = [
+            ExtraIconTheme(id=extra_id, icon_theme_root_folder_path=extra_root),
+        ]
+        self.included_text = f"{extra_id}    apps/{icon_name}    {{scalable>48}}\n"
+        self._fresh_options.included_icon_file.write_text(self.included_text, encoding="utf-8")
+
+        run_00_copy_icon_themes()
+        run_01_no_symlink_themes()
+        run_02_colorize_themes()
+        run_03_copy_included_icons()
+        run_04_convert_svg_to_xdg_hicolor_theme_dir_structure()
+        inkscape_available: bool = SvgToPngConverter.check_inkscape_exists()
+        if inkscape_available:
+            asyncio.run(run_05_convert_svg_to_png())
+        run_extra_copy()
+
+        # Docs section.
+        self._print_major_section(f"--extra-icon-theme test (picked: {icon_name})")
+        self._print_section("input: included_icons.txt")
+        self._print_indented(self.included_text)
+        self._print_section(f"source: {src_svg}")
+        self._print_section(f"SVG out tree ({self.svg_out})")
+        self._print_tree(self.svg_out)
+        if inkscape_available:
+            self._print_section(f"PNG out tree ({self.png_out})")
+            self._print_tree(self.png_out)
+        print()
+
+        # SVG output: the picked icon should appear at 48x48/apps/
+        self._assert_svg(self.svg_out / "48x48" / "apps" / f"{icon_name}.svg")
+        if inkscape_available:
+            png_path: Path = self.png_out / "48x48" / "apps" / f"{icon_name}.png"
+            self._assert_png(png_path)
+            self._assert_png_pixel_size_matches_folder(png_path)
 
 
 if __name__ == "__main__":

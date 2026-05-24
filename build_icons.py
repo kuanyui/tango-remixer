@@ -738,11 +738,15 @@ if OPTIONS.debug:
 
 
 def format_icon_name(icon_name_or_file_name: str | Path, to_type: Literal['noext', 'svg', 'png']) -> str:
-    fn_without_ext: str = ""
-    if (isinstance(icon_name_or_file_name, Path)):
-        fn_without_ext = icon_name_or_file_name.stem
+    # NOTE: Don't use Path.stem: it splits at the last dot, which would wrongly
+    # strip the final segment of reverse-DNS names like `org.inkscape.Inkscape` in XDG `hicolor/`.
+    name: str = str(icon_name_or_file_name)
+    if name.endswith('.svg'):
+        fn_without_ext = name[:-4]
+    elif name.endswith('.png'):
+        fn_without_ext = name[:-4]
     else:
-        fn_without_ext = Path(icon_name_or_file_name).stem
+        fn_without_ext = name
     match to_type:
         case 'noext':
             return fn_without_ext
@@ -1103,14 +1107,15 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
     _patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
     # Quoted from XDG Spec ( https://specifications.freedesktop.org/icon-naming/latest/#guidelines ):
     # "all icon names may only contain lowercase letters, numbers, underscore, dash, or period characters. Spaces, colons, slashes, and backslashes are not allowed"
+    # NOTE: we allow uppercase in icon name to accept real-world AppStream / Flatpak ids (e.g. `org.inkscape.Inkscape`).
     patt_line: re.Pattern[str] = re.compile(r'''
                                             ^
                                             (?P<src_theme_name>[A-Za-z0-9_-]+)
                                             (?:\t+|[ ][ ][ ][ ]+)
-                                            (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>[a-z0-9_.-]+?)(?:\.svg)?)
+                                            (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>[A-Za-z0-9_.-]+?)(?:\.svg)?)
                                             (?:
                                                 (?:\t+|[ ][ ][ ][ ]+)
-                                                (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>[a-z0-9_.-]+?)(?:\.svg)?)
+                                                (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>[A-Za-z0-9_.-]+?)(?:\.svg)?)
                                             )?
                                             (?:
                                                 (?:\t+|[ ][ ][ ][ ]+)
