@@ -1,0 +1,5 @@
+#!/bin/sh
+# Wrapper: cd into the tango-remixer repo root (where the `lsp/` Python
+# package lives), then start the LSP server over stdio. Editors invoke
+# this script via the `command` field of their LSP config.
+cd "$(dirname "$0")" && exec python3 -m lsp "$@"

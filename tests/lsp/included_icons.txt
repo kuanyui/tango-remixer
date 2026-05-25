@@ -1,0 +1,12 @@
+# Sample included_icons.txt for visual LSP smoke test.
+# Open this file in Emacs; .dir-locals.el here should fire up Eglot.
+
+# Basic
+Tango    document-save
+Tango    document-open    document-open-recent
+
+# Size matrix variants
+Tango    folder       {16-48}
+Tango    user-home    {16;32}
+Tango    go-up        {16>48}
+Tango    go-down      {16>16;16>24;16>32}
