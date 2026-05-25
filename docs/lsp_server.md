@@ -1,13 +1,10 @@
 # LSP Server for `included_icons.txt`
 
-An optional Language Server Protocol implementation that provides
-diagnostics and syntax highlighting for `included_icons.txt` files in
-any LSP-capable editor.
+An optional Language Server Protocol implementation that provides diagnostics and syntax highlighting for `included_icons.txt` files in any LSP-capable editor.
 
 ## Install
 
-Prefer your distro's package manager (PEP 668 blocks system-wide `pip` on
-most modern distros):
+Prefer your distro's package manager (PEP 668 blocks system-wide `pip` on most modern distros):
 
 ```sh
 # Debian / Ubuntu
@@ -41,32 +38,70 @@ The server reads/writes LSP messages over stdio. Editors launch it for you.
 
 ### Emacs (Eglot)
 
-Add a `.dir-locals.el` at **your project's** root (the project that uses
-tango-remixer as a submodule). The `when` guard makes sure Eglot only
-fires on `included_icons.txt`, not every text file in your tree:
+> [!IMPORTANT]
+> Syntax highlighting needs **Eglot >= 1.20** (introduced `eglot-semantic-tokens-mode`). Older Eglot still gets diagnostics, just no colors.
+>
+> Check via `M-x list-packages` (find `eglot`). If too old, install the latest from GNU ELPA:
+>
+> ```
+> M-x package-refresh-contents
+> M-x package-install RET eglot RET
+> ```
+>
+> The ELPA copy shadows the bundled one.
 
-Place this `.dir-locals.el` in the SAME directory as your
-`included_icons.txt`. The wrapper path is expanded to an absolute path
-at load time (relative to `included_icons.txt`'s directory), so Eglot's
-working directory at launch doesn't matter:
+Pick one of the two setups below.
+
+#### Option A: per-project `.dir-locals.el` (self-contained, no init.el changes)
+
+Drop a single `.dir-locals.el` next to your `included_icons.txt`. Nothing else to touch -- it defines a one-shot derived mode inline, switches to it, and tells Eglot to attach. The wrapper path is resolved relative to the file's directory at load time, so Eglot's cwd at launch doesn't matter.
 
 ```elisp
 ;; Adjust the relative segment to match where you keep the submodule.
-((text-mode . ((eval . (when (equal (file-name-nondirectory (or buffer-file-name "")) "included_icons.txt")
-    (setq-local eglot-server-programs `((text-mode . (,(expand-file-name "tango-remixer/included-icons-lsp" default-directory)))))
+((nil . ((eval . (when (and buffer-file-name
+                              (equal (file-name-nondirectory buffer-file-name) "included_icons.txt"))
+    (unless (fboundp 'tango-included-icons-mode)
+      (define-derived-mode tango-included-icons-mode text-mode "TangoIcons"))
+    (unless (eq major-mode 'tango-included-icons-mode)
+      (tango-included-icons-mode))
+    (setq-local eglot-server-programs
+                `((tango-included-icons-mode . (,(expand-file-name "tango-remixer/included-icons-lsp" default-directory)))))
     (eglot-ensure))))))
 ```
 
-The wrapper (`included-icons-lsp`) handles `cd`-ing into the
-tango-remixer repo root so `python3 -m lsp` can find the `lsp/` package.
+The wrapper (`included-icons-lsp`) handles `cd`-ing into the tango-remixer repo root so `python3 -m lsp` can find the `lsp/` package.
 
-On first visit Emacs will ask whether to trust the dir-locals; press `!`
-to accept permanently.
+On first visit Emacs will ask whether to trust the dir-locals; press `!` to accept permanently.
+
+#### Option B: global init.el setup (one-time, works across all projects)
+
+Put this in your `init.el` (or `~/.emacs.d/init.el`). The derived mode + auto-mode-alist binding means every `included_icons.txt` you ever open gets the right mode automatically; the eglot-server-programs entry tells Eglot where to find the wrapper; the mode hook starts Eglot on entry.
+
+```elisp
+;; Dedicated mode so Eglot only attaches to this one file, not every
+;; text-mode buffer in the project (see the NOTE below).
+(define-derived-mode tango-included-icons-mode text-mode "TangoIcons"
+  "Major mode for tango-remixer's included_icons.txt config.")
+(add-to-list 'auto-mode-alist '("included_icons\\.txt\\'" . tango-included-icons-mode))
+
+(with-eval-after-load 'eglot
+  ;; Use an absolute path -- adjust to wherever you cloned tango-remixer.
+  ;; If tango-remixer lives inside each project as a submodule, prefer
+  ;; Option A so the path stays relative.
+  (add-to-list 'eglot-server-programs
+               '(tango-included-icons-mode . ("/absolute/path/to/tango-remixer/included-icons-lsp"))))
+
+(add-hook 'tango-included-icons-mode-hook #'eglot-ensure)
+```
+
+Trade-off: simpler config, but you pin a single absolute wrapper path. Use Option A if you have multiple projects each with their own `tango-remixer/` submodule.
+
+> [!NOTE]
+> The dedicated `tango-included-icons-mode` is **not optional** in either option. If you bind Eglot to plain `text-mode`, Eglot's `after-change-major-mode-hook` will auto-attach the running server to every text-mode (or derived) buffer in the same project -- including your magit commit message buffer -- and spam them with bogus diagnostics. The attach check is `provided-mode-derived-p`, which we sidestep by giving `included_icons.txt` a mode that's a *sibling* of `git-commit-mode`, not an ancestor.
 
 ### Neovim (nvim-lspconfig)
 
-Bind a custom filetype to the `included_icons.txt` filename so Neovim
-only loads the LSP for that one file (not every `.txt` you open):
+Bind a custom filetype to the `included_icons.txt` filename so Neovim only loads the LSP for that one file (not every `.txt` you open):
 
 ```lua
 -- Map the filename to its own filetype.
@@ -91,9 +126,7 @@ lspconfig.tango_icons_lsp.setup({})
 
 ### Helix
 
-In `~/.config/helix/languages.toml` (or per-project `.helix/languages.toml`).
-Register a dedicated language matched by the filename only, so other
-text files keep their normal treatment:
+In `~/.config/helix/languages.toml` (or per-project `.helix/languages.toml`). Register a dedicated language matched by the filename only, so other text files keep their normal treatment:
 
 ```toml
 [language-server.tango-icons]
@@ -108,11 +141,9 @@ language-servers = ["tango-icons"]
 
 ### VSCode
 
-No first-class support. You need a generic-LSP-client extension, or to
-write a small wrapper extension yourself. Not documented here.
+No first-class support. You need a generic-LSP-client extension, or to write a small wrapper extension yourself. Not documented here.
 
-## What the server does (current scope)
+## What the server does
 
-Skeleton only: wires up `didOpen` / `didChange` / `didSave`. The actual
-diagnostics / semantic-tokens logic is implemented in `lsp/server.py`'s
-`_validate()` and is being built out incrementally.
+- **Diagnostics**: parses `included_icons.txt` on open / change / save, flags syntax errors and bad size-matrix expressions with line + column ranges.
+- **Semantic tokens**: colors theme name, context, icon name, size matrix, and comments. Needs an LSP client that supports `textDocument/semanticTokens/full` (Eglot >= 1.20; Neovim, Helix).
