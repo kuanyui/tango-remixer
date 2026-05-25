@@ -5,8 +5,9 @@
 Install + editor setup: see `docs/lsp_server.md`.
 Run via stdio: `python -m lsp`.
 
-Skeleton only. Wires up pygls. Reacts to didOpen / didChange / didSave.
-`_validate()` currently returns []. Real linting comes in Phase 2.
+Wires up pygls. Reacts to didOpen / didChange / didSave.
+`_validate()` runs `parse_text` and turns each `ParseError` into an LSP
+`Diagnostic` (line + column range, severity Error).
 """
 
 from __future__ import annotations
@@ -22,8 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lsprotocol import types as lsp  # noqa: E402
 from pygls.lsp.server import LanguageServer  # noqa: E402   # pygls 2.x path
 
-# Imported for future use in `_validate` / semantic-tokens implementation.
-from lib.included_icons_parser import SizeIoMatrix, ParsedIncludedIcon  # noqa: E402, F401
+from lib.included_icons_parser import parse_text  # noqa: E402
 
 
 SERVER_NAME: str = "tango-remixer-included-icons-lsp"
@@ -37,13 +37,23 @@ server = LanguageServer(name=SERVER_NAME, version=SERVER_VERSION)
 # ---------------------------------------------------------------------------
 
 def _validate(text: str) -> List[lsp.Diagnostic]:
-    """Return LSP diagnostics for the given `included_icons.txt` content.
-
-    SKELETON: no real validation yet; returns an empty list. Future passes
-    will parse each line and report syntax errors, unknown themes, invalid
-    size matrix expressions, etc.
-    """
-    return []
+    """Return LSP diagnostics for `included_icons.txt` content.
+    Runs `parse_text` and maps each ParseError to a Diagnostic.
+    `known_themes=None` because the LSP has no access to the user's
+    `--extra-icon-theme` list; theme validation is best left to the build step."""
+    _parsed, errors = parse_text(text, known_themes=None)
+    return [
+        lsp.Diagnostic(
+            range=lsp.Range(
+                start=lsp.Position(line=e.line_no - 1, character=e.col_start),
+                end=lsp.Position(line=e.line_no - 1, character=e.col_end),
+            ),
+            message=e.message,
+            severity=lsp.DiagnosticSeverity.Error,
+            source=SERVER_NAME,
+        )
+        for e in errors
+    ]
 
 
 # ---------------------------------------------------------------------------
