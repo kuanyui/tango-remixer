@@ -935,53 +935,24 @@ class SvgToPngConverter:
                 return False
 
 def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) -> List[ParsedIncludedIcon]:
-    """This function read `included_icons.txt` and returns parsed lines.
+    """Read `included_icons.txt` and return parsed lines. Two stages.
 
-    Notice that the `icon_searcher: IconSearcher` is merely used to:
-    - Validate if an icon file is really existed in the specified theme. (only search by icon name (icon context is optional). **Size is NOT used in searching.**)
-    - Find out the correct context of an icon.
+    1. parse_text() -- pure syntax pass. Errors collected; first one raises.
+    2. icon_searcher -- confirm icon exists, resolve its actual context.
+    """
+    text = file_path.read_text(encoding='utf-8')
+    parsed_lines, errors = parse_text(text, known_themes=get_all_icon_themes_folders())
+    if errors:
+        first = errors[0]
+        raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_file}:{first.line_no}: {first.message}")
 
-    The returned value doesn't contains any file path."""
     fin: List[ParsedIncludedIcon] = []
-    # patt_theme: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_- ]+$')
-    _patt_src_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
-    _patt_dst_icon: re.Pattern[str] = re.compile(r'^(?:([a-z]+?)/)?(.+?)(?:\.svg)?$')
-    _patt_sizes: re.Pattern[str] = re.compile(r'^(?:\{[0-9>,scalable-]+\})?$')
-    _patt_separator: re.Pattern[str] = re.compile(r'\t+|    +')
-    # Quoted from XDG Spec ( https://specifications.freedesktop.org/icon-naming/latest/#guidelines ):
-    # "all icon names may only contain lowercase letters, numbers, underscore, dash, or period characters. Spaces, colons, slashes, and backslashes are not allowed"
-    # NOTE: we allow uppercase in icon name to accept real-world AppStream / Flatpak ids (e.g. `org.inkscape.Inkscape`).
-    patt_line: re.Pattern[str] = re.compile(r'''
-                                            ^
-                                            (?P<src_theme_name>[A-Za-z0-9_-]+)
-                                            (?:\t+|[ ][ ][ ][ ]+)
-                                            (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>[A-Za-z0-9_.-]+?)(?:\.svg)?)
-                                            (?:
-                                                (?:\t+|[ ][ ][ ][ ]+)
-                                                (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>[A-Za-z0-9_.-]+?)(?:\.svg)?)
-                                            )?
-                                            (?:
-                                                (?:\t+|[ ][ ][ ][ ]+)
-                                                (?:\{(?P<sizes_io_expr>[ 0-9>;scalable-]+)\})
-                                            )?
-                                            $
-                                            ''', re.VERBOSE)
-    for line_no, line in enumerate(file_path.read_text(encoding='utf-8').splitlines(), start=1):
-        line = re.sub(r'[ \t]#.*$', '', line)  # remove comment at the EOL
-        line = line.strip()  # trim other remained spaces
-        if line.startswith('#'): continue
-        if len(line) == 0: continue
-        m = patt_line.search(line)
-        if not m:
-            raise RuntimeError(f"[ERROR] {OPTIONS.included_icon_file}:{line_no}: Invalid line format: {line}")
-        src_theme_name = m.group('src_theme_name')
-        if not is_icon_theme_src_folder_name(src_theme_name):
-            raise FileNotFoundError(f'''[ERROR] {OPTIONS.included_icon_file}:{line_no}: Invalid theme: "{src_theme_name}". (Available: {get_all_icon_themes_folders})''')
-        src_context = m.group('src_context')       # Optional. Though this is usually unneeded, because in a valid XDG icon theme, all icon names are expected to be unique across all context. But this strictly validate the source context.
-        src_icon_name = m.group('src_icon_name')   # Required
-        dst_context = m.group('dst_context')       # Optional. Let user explicitly forcibly change the context of an icon.
-        dst_icon_name = m.group('dst_icon_name')   # Optional
-        sizes_io_expr = m.group('sizes_io_expr') or ""   # Optional; normalize None -> "" for SizeIoMatrix. (Python's type system cannot even find such type error. Ridiculous.)
+    for pline in parsed_lines:
+        src_theme_name = pline.src_theme
+        src_icon_name = pline.src_icon_name
+        src_context = pline.src_context or None
+        dst_context = pline.dst_context or None
+        line_no = pline.line_no
         found_icon: IconSrcFileInfo | None = None
         if src_context:
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, src_context)
@@ -991,17 +962,13 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, None)
         if not found_icon:
             raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}"')
-        src_context = found_icon.context
-        if not dst_context:   # If destination context is NOT explicitly specified, make it same as the source context.
-            dst_context = src_context
-        fin.append(ParsedIncludedIcon(
-            src_theme=src_theme_name,
-            src_context=src_context,
-            src_icon_name=src_icon_name,
-            dst_context=dst_context,
-            dst_icon_name=dst_icon_name or src_icon_name,
-            size_io_matrix=SizeIoMatrix(sizes_io_expr, line_no)
-        ))
+        # Overwrite src_context with the searcher's resolved one, and apply
+        # the dst_context-falls-back-to-src rule.
+        resolved_src_context = found_icon.context
+        resolved_dst_context = dst_context if dst_context else resolved_src_context
+        pline.src_context = resolved_src_context
+        pline.dst_context = resolved_dst_context
+        fin.append(pline)
     return fin
 
 

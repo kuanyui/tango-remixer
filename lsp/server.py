@@ -3,15 +3,10 @@
 """LSP server for `included_icons.txt`.
 
 Install + editor setup: see `docs/lsp_server.md`.
+Run via stdio: `python -m lsp`.
 
-Run via stdio (the standard LSP transport):
-    python -m lsp
-
-This file is the skeleton only:
-  - Wires up pygls
-  - Reacts to didOpen / didChange / didSave
-  - Calls `_validate()` to produce diagnostics (currently returns [] -- real
-    parsing / linting logic will be filled in later)
+Skeleton only. Wires up pygls. Reacts to didOpen / didChange / didSave.
+`_validate()` currently returns []. Real linting comes in Phase 2.
 """
 
 from __future__ import annotations

@@ -1,5 +1,5 @@
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, List, Literal, Optional, TypeGuard, get_args
 from warnings import deprecated
 
@@ -32,6 +32,18 @@ def is_icon_context_dir_type(x: str) -> TypeGuard[IconContextType]:
 
 def is_icon_scale_type(x: str) -> TypeGuard[IconScaleType]:
     return x in get_args(IconScaleType)
+
+
+@dataclass
+class ParseError():
+    """One located parse error. Maps directly to an LSP diagnostic range.
+    - `col_*` are 0-based. `col_end` exclusive.
+    - `exc_type` is the canonical Python exception class for callers that want to re-raise (LSP ignores it)."""
+    line_no: int
+    col_start: int
+    col_end: int
+    message: str
+    exc_type: type[Exception] = RuntimeError
 
 
 @dataclass
@@ -160,7 +172,124 @@ class ParsedIncludedIcon():
     """ Input & output sizes.
     Empty list means all. """
     size_io_matrix: SizeIoMatrix
+    # LSP source positions. Optional. Defaults keep old callers working.
+    # `spans` keys: same names as the str fields above (src_theme, ...).
+    # `spans` value: (col_start, col_end). 0-based. Missing key = field not on the line.
+    line_no: int = -1
+    spans: dict[str, tuple[int, int]] = field(default_factory=dict)
 
 @deprecated("Unused currently")
 class ParsedIncludedIconsTxtFile():
     data: List[ParsedIncludedIcon]
+
+
+# =============================================
+# Line-level parser (no I/O, no icon-search)
+# =============================================
+# Single regex used by both `parse_text` (this module) and the build-side
+# `read_included_icons_txt` (build_icons.py) so both stay in sync.
+#
+# Quoted from XDG Spec ( https://specifications.freedesktop.org/icon-naming/latest/#guidelines ):
+# "all icon names may only contain lowercase letters, numbers, underscore, dash, or period characters. Spaces, colons, slashes, and backslashes are not allowed"
+# NOTE: we allow uppercase in icon name to accept real-world AppStream / Flatpak ids (e.g. `org.inkscape.Inkscape`).
+PATT_LINE: re.Pattern[str] = re.compile(r'''
+                                        ^
+                                        (?P<src_theme_name>[A-Za-z0-9_-]+)
+                                        (?:\t+|[ ][ ][ ][ ]+)
+                                        (?P<src>(?:(?P<src_context>[a-z]+?)/)?(?P<src_icon_name>[A-Za-z0-9_.-]+?)(?:\.svg)?)
+                                        (?:
+                                            (?:\t+|[ ][ ][ ][ ]+)
+                                            (?P<dst>(?:(?P<dst_context>[a-z]+?)/)?(?P<dst_icon_name>[A-Za-z0-9_.-]+?)(?:\.svg)?)
+                                        )?
+                                        (?:
+                                            (?:\t+|[ ][ ][ ][ ]+)
+                                            (?:\{(?P<sizes_io_expr>[ 0-9>;scalable-]+)\})
+                                        )?
+                                        $
+                                        ''', re.VERBOSE)
+
+# Map regex group name -> the public field name used in ParsedIncludedIcon.spans
+_GROUP_TO_SPAN_KEY: dict[str, str] = {
+    "src_theme_name": "src_theme",
+    "src_context":    "src_context",
+    "src_icon_name":  "src_icon_name",
+    "dst_context":    "dst_context",
+    "dst_icon_name":  "dst_icon_name",
+    "sizes_io_expr":  "size_io_matrix",
+}
+
+
+def parse_text(text: str, known_themes: Optional[List[str]] = None) -> tuple[List[ParsedIncludedIcon], List[ParseError]]:
+    """Pure syntax pass over `included_icons.txt`-format text.
+
+    No icon-file existence checks. No raises.
+    All errors collected with line + col ranges.
+
+    `known_themes` validates `src_theme_name` if given. None skips it.
+
+    Returns `(parsed_lines, errors)`.
+    Bad line: error only. No parsed entry.
+    Bad matrix / unknown theme: error AND parsed entry (LSP can still highlight).
+    """
+    parsed_lines: List[ParsedIncludedIcon] = []
+    errors: List[ParseError] = []
+    for line_no, raw in enumerate(text.splitlines(), start=1):
+        line = re.sub(r'[ \t]#.*$', '', raw)  # strip EOL comment
+        line = line.strip()
+        if not line or line.startswith('#'):
+            continue
+        m = PATT_LINE.search(line)
+        if not m:
+            errors.append(ParseError(line_no=line_no, col_start=0, col_end=len(line),
+                                     message=f"Invalid line format: {line}",
+                                     exc_type=RuntimeError))
+            continue
+
+        # Theme validation (only if caller passed a list).
+        src_theme_name = m.group('src_theme_name')
+        if known_themes is not None and src_theme_name not in known_themes:
+            errors.append(ParseError(
+                line_no=line_no,
+                col_start=m.start('src_theme_name'),
+                col_end=m.end('src_theme_name'),
+                message=f'Unknown theme "{src_theme_name}". Known: {known_themes}',
+                exc_type=FileNotFoundError,
+            ))
+
+        # Matrix; if SyntaxError, capture but keep going with an empty matrix.
+        sizes_io_expr = m.group('sizes_io_expr') or ""
+        try:
+            size_io_matrix = SizeIoMatrix(sizes_io_expr, line_no)
+        except SyntaxError as e:
+            size_io_matrix = SizeIoMatrix("", line_no)
+            errors.append(ParseError(
+                line_no=line_no,
+                col_start=m.start('sizes_io_expr') if m.group('sizes_io_expr') else 0,
+                col_end=m.end('sizes_io_expr') if m.group('sizes_io_expr') else len(line),
+                message=str(e),
+                exc_type=SyntaxError,
+            ))
+
+        # Spans (only for groups that actually matched).
+        spans: dict[str, tuple[int, int]] = {}
+        for group_name, span_key in _GROUP_TO_SPAN_KEY.items():
+            if m.group(group_name) is not None:
+                spans[span_key] = (m.start(group_name), m.end(group_name))
+
+        # Fallbacks (mirror build_icons.py behavior).
+        src_icon_name = m.group('src_icon_name')
+        dst_icon_name = m.group('dst_icon_name') or src_icon_name
+        src_context = m.group('src_context') or ""
+        dst_context = m.group('dst_context') or src_context
+
+        parsed_lines.append(ParsedIncludedIcon(
+            src_theme=src_theme_name,
+            src_context=src_context,
+            src_icon_name=src_icon_name,
+            dst_context=dst_context,
+            dst_icon_name=dst_icon_name,
+            size_io_matrix=size_io_matrix,
+            line_no=line_no,
+            spans=spans,
+        ))
+    return parsed_lines, errors
