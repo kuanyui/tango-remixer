@@ -18,8 +18,13 @@ try:
     from lsp.server import (
         _build_tokens,
         _encode_tokens_delta,
+        _tokenize_size_matrix,
         _SPAN_KEY_TO_TYPE_IDX,
         _COMMENT_TYPE_IDX,
+        _INPUT_NUMBER_TYPE_IDX,
+        _OUTPUT_NUMBER_TYPE_IDX,
+        _OPERATOR_TYPE_IDX,
+        _KEYWORD_TYPE_IDX,
         TOKEN_TYPES,
     )
     from lsprotocol import types as lsp
@@ -64,8 +69,10 @@ class TestBuildTokens(unittest.TestCase):
         self.assertEqual(d[(0, 26)], _SPAN_KEY_TO_TYPE_IDX["dst_context"])
         # dst icon name "folder-blue"
         self.assertEqual(d[(0, 31)], _SPAN_KEY_TO_TYPE_IDX["dst_icon_name"])
-        # matrix "16-48"
-        self.assertEqual(d[(0, 47)], _SPAN_KEY_TO_TYPE_IDX["size_io_matrix"])
+        # matrix "16-48" splits into: 16 (input num), - (op), 48 (input num).
+        self.assertEqual(d[(0, 47)], _INPUT_NUMBER_TYPE_IDX)   # "16"
+        self.assertEqual(d[(0, 49)], _OPERATOR_TYPE_IDX)       # "-"
+        self.assertEqual(d[(0, 50)], _INPUT_NUMBER_TYPE_IDX)   # "48"
 
     def test_full_line_comment_emits_comment_token(self) -> None:
         tokens = _build_tokens("# this is a comment")
@@ -97,6 +104,79 @@ class TestBuildTokens(unittest.TestCase):
 
 
 @unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
+class TestMatrixTokenization(unittest.TestCase):
+    """Per-piece tokens inside the `{...}` block."""
+
+    def _run(self, expr: str):
+        # base_col=0, line_no=1 keeps positions easy to assert.
+        return [(col, length, type_idx)
+                for (_line, col, length, type_idx)
+                in _tokenize_size_matrix(expr, 0, 1)]
+
+    def test_single_number_is_input(self) -> None:
+        # "16" -> single input number, no other tokens
+        self.assertEqual(self._run("16"), [(0, 2, _INPUT_NUMBER_TYPE_IDX)])
+
+    def test_range_uses_input_for_both_sides(self) -> None:
+        # "16-32" -> 16 (input), - (op), 32 (input)
+        self.assertEqual(self._run("16-32"), [
+            (0, 2, _INPUT_NUMBER_TYPE_IDX),
+            (2, 1, _OPERATOR_TYPE_IDX),
+            (3, 2, _INPUT_NUMBER_TYPE_IDX),
+        ])
+
+    def test_resize_splits_input_and_output(self) -> None:
+        # "16>32" -> 16 (input), > (op), 32 (output property)
+        self.assertEqual(self._run("16>32"), [
+            (0, 2, _INPUT_NUMBER_TYPE_IDX),
+            (2, 1, _OPERATOR_TYPE_IDX),
+            (3, 2, _OUTPUT_NUMBER_TYPE_IDX),
+        ])
+
+    def test_scalable_keyword_then_output(self) -> None:
+        # "scalable>48" -> scalable (keyword), > (op), 48 (output)
+        self.assertEqual(self._run("scalable>48"), [
+            (0, 8, _KEYWORD_TYPE_IDX),
+            (8, 1, _OPERATOR_TYPE_IDX),
+            (9, 2, _OUTPUT_NUMBER_TYPE_IDX),
+        ])
+
+    def test_semicolon_emits_no_token(self) -> None:
+        # "16;32" -> just the two input numbers; no token for ";".
+        # Both are input because ";" resets the expect_output flag.
+        result = self._run("16;32")
+        self.assertEqual(result, [
+            (0, 2, _INPUT_NUMBER_TYPE_IDX),
+            (3, 2, _INPUT_NUMBER_TYPE_IDX),
+        ])
+
+    def test_semicolon_resets_output_state(self) -> None:
+        # "16>32;16-22" -> output state must reset across `;`.
+        self.assertEqual(self._run("16>32;16-22"), [
+            (0, 2, _INPUT_NUMBER_TYPE_IDX),   # 16
+            (2, 1, _OPERATOR_TYPE_IDX),       # >
+            (3, 2, _OUTPUT_NUMBER_TYPE_IDX),  # 32
+            (6, 2, _INPUT_NUMBER_TYPE_IDX),   # 16 (NOT output, reset by ";")
+            (8, 1, _OPERATOR_TYPE_IDX),       # -
+            (9, 2, _INPUT_NUMBER_TYPE_IDX),   # 22
+        ])
+
+    def test_open_range_dash_prefix(self) -> None:
+        # "-32" -> - (op), 32 (input)
+        self.assertEqual(self._run("-32"), [
+            (0, 1, _OPERATOR_TYPE_IDX),
+            (1, 2, _INPUT_NUMBER_TYPE_IDX),
+        ])
+
+    def test_open_range_dash_suffix(self) -> None:
+        # "32-" -> 32 (input), - (op)
+        self.assertEqual(self._run("32-"), [
+            (0, 2, _INPUT_NUMBER_TYPE_IDX),
+            (2, 1, _OPERATOR_TYPE_IDX),
+        ])
+
+
+@unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
 class TestDeltaEncoding(unittest.TestCase):
 
     def test_roundtrip_same_line(self) -> None:
@@ -120,7 +200,7 @@ class TestLegend(unittest.TestCase):
 
     def test_legend_has_all_lsp_standard_types(self) -> None:
         # Sanity check the legend isn't accidentally empty.
-        self.assertEqual(len(TOKEN_TYPES), 5)
+        self.assertEqual(len(TOKEN_TYPES), 8)
         for t in TOKEN_TYPES:
             self.assertIsInstance(t, lsp.SemanticTokenTypes)
 

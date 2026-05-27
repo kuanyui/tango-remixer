@@ -39,8 +39,11 @@ TOKEN_TYPES: List[lsp.SemanticTokenTypes] = [
     lsp.SemanticTokenTypes.Namespace,   # 0  theme name (e.g. "Tango")
     lsp.SemanticTokenTypes.Type,        # 1  context    (e.g. "apps")
     lsp.SemanticTokenTypes.Variable,    # 2  icon name  (e.g. "document-save")
-    lsp.SemanticTokenTypes.Number,      # 3  size matrix block {...}
+    lsp.SemanticTokenTypes.Number,      # 3  input size  (e.g. "16" in "16>32")
     lsp.SemanticTokenTypes.Comment,     # 4  comments  (# ...)
+    lsp.SemanticTokenTypes.Property,    # 5  output size (e.g. "32" in "16>32")
+    lsp.SemanticTokenTypes.Operator,    # 6  `>` and `-`
+    lsp.SemanticTokenTypes.Keyword,     # 7  `scalable`
 ]
 TOKEN_LEGEND: lsp.SemanticTokensLegend = lsp.SemanticTokensLegend(
     token_types=[t.value for t in TOKEN_TYPES],
@@ -48,15 +51,19 @@ TOKEN_LEGEND: lsp.SemanticTokensLegend = lsp.SemanticTokensLegend(
 )
 
 # Map ParsedIncludedIcon.spans key -> index into TOKEN_TYPES.
+# `size_io_matrix` is split into per-piece tokens via _tokenize_size_matrix.
 _SPAN_KEY_TO_TYPE_IDX: dict[str, int] = {
     "src_theme":      0,
     "src_context":    1,
     "src_icon_name":  2,
     "dst_context":    1,
     "dst_icon_name":  2,
-    "size_io_matrix": 3,
 }
 _COMMENT_TYPE_IDX: int = 4
+_INPUT_NUMBER_TYPE_IDX: int = 3
+_OUTPUT_NUMBER_TYPE_IDX: int = 5
+_OPERATOR_TYPE_IDX: int = 6
+_KEYWORD_TYPE_IDX: int = 7
 
 
 # ---------------------------------------------------------------------------
@@ -122,11 +129,49 @@ def on_did_save(ls: LanguageServer, params: lsp.DidSaveTextDocumentParams) -> No
 _COMMENT_FULL_LINE = re.compile(r'^\s*(#.*)$')
 _COMMENT_EOL = re.compile(r'[ \t](#.*)$')
 
+# Lexer for the inside of `{...}`. Recognized pieces only -- whitespace and
+# anything else falls through silently (uncolored).
+_SIZE_PIECE = re.compile(r'(scalable|\d+|>|-|;)')
+
+
+def _tokenize_size_matrix(matrix_text: str, base_col: int, line_no: int) -> List[Tuple[int, int, int, int]]:
+    """Yield per-piece tokens for the inside of `{...}`.
+
+    State machine: a `>` flips `expect_output`; the next number/keyword
+    consumes it. `;` resets state. `-` doesn't switch.
+    `;` and whitespace deliberately get no token (default face)."""
+    out: List[Tuple[int, int, int, int]] = []
+    expect_output = False
+    for m in _SIZE_PIECE.finditer(matrix_text):
+        piece = m.group(1)
+        col = base_col + m.start(1)
+        length = len(piece)
+        line = line_no - 1
+        if piece == ';':
+            expect_output = False
+            continue
+        if piece == '>':
+            out.append((line, col, length, _OPERATOR_TYPE_IDX))
+            expect_output = True
+        elif piece == '-':
+            out.append((line, col, length, _OPERATOR_TYPE_IDX))
+        elif piece == 'scalable':
+            out.append((line, col, length, _KEYWORD_TYPE_IDX))
+            expect_output = False
+        else:  # digits
+            if expect_output:
+                out.append((line, col, length, _OUTPUT_NUMBER_TYPE_IDX))
+                expect_output = False
+            else:
+                out.append((line, col, length, _INPUT_NUMBER_TYPE_IDX))
+    return out
+
 
 def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
     """Collect (line, col, length, type_idx) tokens for the whole document.
     Sorted by position. Lines are 0-based for LSP."""
     parsed_lines, _errors = parse_text(text, known_themes=None)
+    raw_lines = text.splitlines()
     tokens: List[Tuple[int, int, int, int]] = []
 
     for p in parsed_lines:
@@ -134,9 +179,14 @@ def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
             if span_key in p.spans:
                 col_start, col_end = p.spans[span_key]
                 tokens.append((p.line_no - 1, col_start, col_end - col_start, type_idx))
+        # Matrix is tokenized piece by piece (input num / output num / op / keyword).
+        if "size_io_matrix" in p.spans:
+            col_start, col_end = p.spans["size_io_matrix"]
+            matrix_text = raw_lines[p.line_no - 1][col_start:col_end]
+            tokens.extend(_tokenize_size_matrix(matrix_text, col_start, p.line_no))
 
     # Comments are stripped by parse_text before parsing, so scan raw text.
-    for line_idx, raw in enumerate(text.splitlines()):
+    for line_idx, raw in enumerate(raw_lines):
         m = _COMMENT_FULL_LINE.match(raw)
         if m:
             tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX))
