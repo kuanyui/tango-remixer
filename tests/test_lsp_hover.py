@@ -22,11 +22,22 @@ except ImportError:
 @unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
 class TestClassifyPosition(unittest.TestCase):
 
-    def test_src_theme(self) -> None:
-        # cursor inside "Tango" (cols 0-4)
+    def test_src_theme_builtin(self) -> None:
+        # cursor inside "Tango" (built-in)
         self.assertEqual(
             _classify_position("Tango    document-save", 0, 2),
-            ("src_theme", "Tango"),
+            ("src_theme_builtin", "Tango"),
+        )
+
+    def test_src_theme_extra(self) -> None:
+        # cursor inside "MyIcons" (declared via directive above)
+        text = (
+            "# @extra-icon-theme MyIcons /tmp\n"
+            "MyIcons    document-save\n"
+        )
+        self.assertEqual(
+            _classify_position(text, 1, 3),
+            ("src_theme_extra", "MyIcons"),
         )
 
     def test_src_icon_name(self) -> None:
@@ -106,7 +117,8 @@ class TestHoverTemplatesCoverage(unittest.TestCase):
         # Each kind that _classify_position can emit should have a template.
         # We assert this as a static dict subset check.
         emitted_kinds = {
-            "src_theme", "src_context", "src_icon_name", "dst_context", "dst_icon_name",
+            "src_theme_builtin", "src_theme_extra",
+            "src_context", "src_icon_name", "dst_context", "dst_icon_name",
             "matrix_input_num", "matrix_output_num", "matrix_op_gt", "matrix_op_dash",
             "matrix_scalable", "directive_keyword", "directive_name", "directive_path",
             "comment",

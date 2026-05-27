@@ -52,10 +52,14 @@ TOKEN_TYPES: List[lsp.SemanticTokenTypes] = [
     lsp.SemanticTokenTypes.Decorator,   # 8  `@extra-icon-theme` directive keyword
     lsp.SemanticTokenTypes.String,      # 9  directive PATH
 ]
+TOKEN_MODIFIERS: List[lsp.SemanticTokenModifiers] = [
+    lsp.SemanticTokenModifiers.DefaultLibrary,   # 0  bit 0: built-in theme
+]
 TOKEN_LEGEND: lsp.SemanticTokensLegend = lsp.SemanticTokensLegend(
     token_types=[t.value for t in TOKEN_TYPES],
-    token_modifiers=[],
+    token_modifiers=[m.value for m in TOKEN_MODIFIERS],
 )
+_MOD_DEFAULT_LIBRARY: int = 1 << 0
 
 # Map ParsedIncludedIcon.spans key -> index into TOKEN_TYPES.
 # `size_io_matrix` is split into per-piece tokens via _tokenize_size_matrix.
@@ -174,13 +178,16 @@ _COMMENT_EOL = re.compile(r'[ \t](#.*)$')
 _SIZE_PIECE = re.compile(r'(scalable|\d+|>|-|;)')
 
 
-def _tokenize_size_matrix(matrix_text: str, base_col: int, line_no: int) -> List[Tuple[int, int, int, int]]:
+def _tokenize_size_matrix(matrix_text: str, base_col: int, line_no: int) -> List[Tuple[int, int, int, int, int]]:
     """Yield per-piece tokens for the inside of `{...}`.
+
+    Tuple format: `(line, col, length, type_idx, mods)`. `mods` is always 0
+    here (no built-in concept for matrix pieces).
 
     State machine: a `>` flips `expect_output`; the next number/keyword
     consumes it. `;` resets state. `-` doesn't switch.
     `;` and whitespace deliberately get no token (default face)."""
-    out: List[Tuple[int, int, int, int]] = []
+    out: List[Tuple[int, int, int, int, int]] = []
     expect_output = False
     for m in _SIZE_PIECE.finditer(matrix_text):
         piece = m.group(1)
@@ -191,34 +198,40 @@ def _tokenize_size_matrix(matrix_text: str, base_col: int, line_no: int) -> List
             expect_output = False
             continue
         if piece == '>':
-            out.append((line, col, length, _OPERATOR_TYPE_IDX))
+            out.append((line, col, length, _OPERATOR_TYPE_IDX, 0))
             expect_output = True
         elif piece == '-':
-            out.append((line, col, length, _OPERATOR_TYPE_IDX))
+            out.append((line, col, length, _OPERATOR_TYPE_IDX, 0))
         elif piece == 'scalable':
-            out.append((line, col, length, _KEYWORD_TYPE_IDX))
+            out.append((line, col, length, _KEYWORD_TYPE_IDX, 0))
             expect_output = False
         else:  # digits
             if expect_output:
-                out.append((line, col, length, _OUTPUT_NUMBER_TYPE_IDX))
+                out.append((line, col, length, _OUTPUT_NUMBER_TYPE_IDX, 0))
                 expect_output = False
             else:
-                out.append((line, col, length, _INPUT_NUMBER_TYPE_IDX))
+                out.append((line, col, length, _INPUT_NUMBER_TYPE_IDX, 0))
     return out
 
 
-def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
-    """Collect (line, col, length, type_idx) tokens for the whole document.
-    Sorted by position. Lines are 0-based for LSP."""
+def _build_tokens(text: str) -> List[Tuple[int, int, int, int, int]]:
+    """Collect `(line, col, length, type_idx, mods)` tokens. Sorted by position.
+    Lines are 0-based for LSP. `mods` is a bitmask over `TOKEN_MODIFIERS`."""
     parsed_lines, _errors, _directives = parse_text(text, built_in_themes=None)
     raw_lines = text.splitlines()
-    tokens: List[Tuple[int, int, int, int]] = []
+    tokens: List[Tuple[int, int, int, int, int]] = []
 
     for p in parsed_lines:
         for span_key, type_idx in _SPAN_KEY_TO_TYPE_IDX.items():
             if span_key in p.spans:
                 col_start, col_end = p.spans[span_key]
-                tokens.append((p.line_no - 1, col_start, col_end - col_start, type_idx))
+                # Mark built-in theme NAME so editors can color it distinctly.
+                mods = 0
+                if span_key == "src_theme":
+                    value = raw_lines[p.line_no - 1][col_start:col_end]
+                    if value in BUILT_IN_ICON_THEMES:
+                        mods = _MOD_DEFAULT_LIBRARY
+                tokens.append((p.line_no - 1, col_start, col_end - col_start, type_idx, mods))
         # Matrix is tokenized piece by piece (input num / output num / op / keyword).
         if "size_io_matrix" in p.spans:
             col_start, col_end = p.spans["size_io_matrix"]
@@ -236,14 +249,14 @@ def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
         directive_lines.add(line_idx)
         hash_col = raw.find('#')
         if hash_col >= 0:
-            tokens.append((line_idx, hash_col, 1, _COMMENT_TYPE_IDX))
+            tokens.append((line_idx, hash_col, 1, _COMMENT_TYPE_IDX, 0))
         kw_col = raw.find(_DIRECTIVE_KEYWORD)
         if kw_col >= 0:
-            tokens.append((line_idx, kw_col, len(_DIRECTIVE_KEYWORD), _DECORATOR_TYPE_IDX))
+            tokens.append((line_idx, kw_col, len(_DIRECTIVE_KEYWORD), _DECORATOR_TYPE_IDX, 0))
         n_start, n_end = md.start('name'), md.end('name')
-        tokens.append((line_idx, n_start, n_end - n_start, _NAMESPACE_TYPE_IDX))
+        tokens.append((line_idx, n_start, n_end - n_start, _NAMESPACE_TYPE_IDX, 0))
         p_start, p_end = md.start('path'), md.end('path')
-        tokens.append((line_idx, p_start, p_end - p_start, _STRING_TYPE_IDX))
+        tokens.append((line_idx, p_start, p_end - p_start, _STRING_TYPE_IDX, 0))
 
     # Comments. Skip directive lines (already tokenized piece-by-piece above).
     for line_idx, raw in enumerate(raw_lines):
@@ -251,26 +264,26 @@ def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
             continue
         m = _COMMENT_FULL_LINE.match(raw)
         if m:
-            tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX))
+            tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX, 0))
             continue
         m = _COMMENT_EOL.search(raw)
         if m:
-            tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX))
+            tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX, 0))
 
     tokens.sort(key=lambda t: (t[0], t[1]))
     return tokens
 
 
-def _encode_tokens_delta(tokens: List[Tuple[int, int, int, int]]) -> List[int]:
+def _encode_tokens_delta(tokens: List[Tuple[int, int, int, int, int]]) -> List[int]:
     """Encode tokens into LSP's flat int array using delta encoding.
     Each token = [deltaLine, deltaStartChar, length, tokenType, tokenModifiers]."""
     data: List[int] = []
     prev_line = 0
     prev_char = 0
-    for line, char, length, type_idx in tokens:
+    for line, char, length, type_idx, mods in tokens:
         delta_line = line - prev_line
         delta_char = char - prev_char if delta_line == 0 else char
-        data.extend([delta_line, delta_char, length, type_idx, 0])
+        data.extend([delta_line, delta_char, length, type_idx, mods])
         prev_line = line
         prev_char = char
     return data
@@ -299,7 +312,10 @@ def _classify_position(text: str, line: int, character: int) -> Optional[Tuple[s
     """Return `(kind, value)` under the cursor, or None.
 
     `line` / `character` are 0-based LSP coordinates.
-    Kinds map 1:1 to entries in `_HOVER_TEMPLATES`."""
+    Kinds map 1:1 to entries in `_HOVER_TEMPLATES`.
+
+    `src_theme` is split into `src_theme_builtin` vs `src_theme_extra` so the
+    hover message can explain which list the NAME comes from."""
     parsed_lines, _errors, directives = parse_text(text, built_in_themes=None)
     raw_lines = text.splitlines()
     if not (0 <= line < len(raw_lines)):
@@ -345,7 +361,10 @@ def _classify_position(text: str, line: int, character: int) -> Optional[Tuple[s
                 continue
             start, end = p.spans[span_key]
             if start <= character < end:
-                return (span_key, raw[start:end])
+                value = raw[start:end]
+                if span_key == "src_theme":
+                    return ("src_theme_builtin" if value in BUILT_IN_ICON_THEMES else "src_theme_extra", value)
+                return (span_key, value)
         if "size_io_matrix" in p.spans:
             start, end = p.spans["size_io_matrix"]
             if start <= character < end:
@@ -372,7 +391,8 @@ def _classify_position(text: str, line: int, character: int) -> Optional[Tuple[s
 
 
 _HOVER_TEMPLATES: dict[str, str] = {
-    "src_theme":         "**Theme name**: `{value}`\n\nBuilt-in theme, or declared via `# @extra-icon-theme`.",
+    "src_theme_builtin": "**Built-in theme**: `{value}`\n\nOne of the themes bundled with tango-remixer.",
+    "src_theme_extra":   "**Extra theme**: `{value}`\n\nDeclared in this file via `# @extra-icon-theme`, or passed via the `--extra-icon-theme` CLI flag.",
     "src_context":       "**Source icon context**: `{value}`\n\nXDG context (e.g. apps, places, mimetypes). Optional. Usually omitted since XDG icon names are unique within a theme.",
     "src_icon_name":     "**Source icon name**: `{value}`\n\nName of the icon picked from the source theme. No extension.",
     "dst_context":       "**Destination icon context**: `{value}`\n\nContext under which the icon is written in the output theme. Falls back to source context if omitted.",

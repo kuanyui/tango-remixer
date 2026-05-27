@@ -28,7 +28,9 @@ try:
         _NAMESPACE_TYPE_IDX,
         _DECORATOR_TYPE_IDX,
         _STRING_TYPE_IDX,
+        _MOD_DEFAULT_LIBRARY,
         TOKEN_TYPES,
+        TOKEN_MODIFIERS,
     )
     from lsprotocol import types as lsp
     HAS_LSP_DEPS = True
@@ -36,15 +38,15 @@ except ImportError:
     HAS_LSP_DEPS = False
 
 
-def _decode_delta(data: List[int]) -> List[Tuple[int, int, int, int]]:
-    """Inverse of _encode_tokens_delta -- back to (line, col, length, type)."""
-    out: List[Tuple[int, int, int, int]] = []
+def _decode_delta(data: List[int]) -> List[Tuple[int, int, int, int, int]]:
+    """Inverse of _encode_tokens_delta -- back to (line, col, length, type, mods)."""
+    out: List[Tuple[int, int, int, int, int]] = []
     line, char = 0, 0
     for i in range(0, len(data), 5):
-        dl, dc, length, type_idx, _mods = data[i:i + 5]
+        dl, dc, length, type_idx, mods = data[i:i + 5]
         line += dl
         char = char + dc if dl == 0 else dc
-        out.append((line, char, length, type_idx))
+        out.append((line, char, length, type_idx, mods))
     return out
 
 
@@ -52,11 +54,36 @@ def _decode_delta(data: List[int]) -> List[Tuple[int, int, int, int]]:
 class TestBuildTokens(unittest.TestCase):
 
     def test_basic_line_tokens(self) -> None:
-        # `Tango    document-save` -> theme + icon tokens
+        # `Tango    document-save` -> theme (built-in) + icon tokens
         tokens = _build_tokens("Tango    document-save")
-        # (line, col, length, type_idx)
-        self.assertIn((0, 0, 5, _SPAN_KEY_TO_TYPE_IDX["src_theme"]), tokens)
-        self.assertIn((0, 9, 13, _SPAN_KEY_TO_TYPE_IDX["src_icon_name"]), tokens)
+        # (line, col, length, type_idx, mods). Tango is built-in -> defaultLibrary bit.
+        self.assertIn((0, 0, 5, _SPAN_KEY_TO_TYPE_IDX["src_theme"], _MOD_DEFAULT_LIBRARY), tokens)
+        self.assertIn((0, 9, 13, _SPAN_KEY_TO_TYPE_IDX["src_icon_name"], 0), tokens)
+
+    def test_builtin_theme_gets_default_library_modifier(self) -> None:
+        # Sanity: Tango is built-in.
+        tokens = _build_tokens("Tango    document-save")
+        theme_token = next(t for t in tokens if t[1] == 0)
+        self.assertEqual(theme_token[4], _MOD_DEFAULT_LIBRARY)
+
+    def test_extra_theme_no_default_library_modifier(self) -> None:
+        # Declared via directive -> NOT built-in. Should NOT have defaultLibrary bit.
+        text = (
+            "# @extra-icon-theme MyIcons /tmp\n"
+            "MyIcons    document-save\n"
+        )
+        tokens = _build_tokens(text)
+        # The icon line's theme token is on line 1, col 0.
+        theme_token = next(t for t in tokens if t[0] == 1 and t[1] == 0)
+        self.assertEqual(theme_token[4], 0)
+
+    def test_directive_declaration_name_no_modifier(self) -> None:
+        # The NAME on the directive's own line is being declared, not built-in.
+        line = "# @extra-icon-theme MyIcons ../foo"
+        tokens = _build_tokens(line)
+        # MyIcons is at col 20.
+        name_token = next(t for t in tokens if t[1] == 20)
+        self.assertEqual(name_token[4], 0)
 
     def test_full_line_with_context_and_matrix(self) -> None:
         line = "Tango    places/folder    apps/folder-blue    {16-48}"
@@ -80,7 +107,7 @@ class TestBuildTokens(unittest.TestCase):
     def test_full_line_comment_emits_comment_token(self) -> None:
         tokens = _build_tokens("# this is a comment")
         self.assertEqual(len(tokens), 1)
-        line, col, length, type_idx = tokens[0]
+        line, col, length, type_idx, _mods = tokens[0]
         self.assertEqual((line, col, type_idx), (0, 0, _COMMENT_TYPE_IDX))
         self.assertEqual(length, len("# this is a comment"))
 
@@ -90,7 +117,7 @@ class TestBuildTokens(unittest.TestCase):
         # Last token should be the comment.
         comment_token = [t for t in tokens if t[3] == _COMMENT_TYPE_IDX]
         self.assertEqual(len(comment_token), 1)
-        c_line, c_col, c_len, _ = comment_token[0]
+        c_line, c_col, c_len, _, _ = comment_token[0]
         self.assertEqual(c_line, 0)
         # Comment starts at the `#` (the leading space is not part of the token).
         self.assertEqual(line[c_col:c_col + c_len], "# tail comment")
@@ -112,8 +139,9 @@ class TestMatrixTokenization(unittest.TestCase):
 
     def _run(self, expr: str):
         # base_col=0, line_no=1 keeps positions easy to assert.
+        # mods is always 0 for matrix pieces -- omit from comparisons.
         return [(col, length, type_idx)
-                for (_line, col, length, type_idx)
+                for (_line, col, length, type_idx, _mods)
                 in _tokenize_size_matrix(expr, 0, 1)]
 
     def test_single_number_is_input(self) -> None:
@@ -225,19 +253,24 @@ class TestDirectiveTokens(unittest.TestCase):
 class TestDeltaEncoding(unittest.TestCase):
 
     def test_roundtrip_same_line(self) -> None:
-        original = [(0, 0, 5, 0), (0, 9, 13, 2)]
+        original = [(0, 0, 5, 0, 0), (0, 9, 13, 2, 0)]
         decoded = _decode_delta(_encode_tokens_delta(original))
         self.assertEqual(decoded, original)
 
     def test_roundtrip_multi_line(self) -> None:
-        original = [(0, 0, 5, 0), (0, 9, 13, 2), (2, 0, 5, 0), (2, 9, 9, 2)]
+        original = [(0, 0, 5, 0, 0), (0, 9, 13, 2, 0), (2, 0, 5, 0, 0), (2, 9, 9, 2, 0)]
         decoded = _decode_delta(_encode_tokens_delta(original))
         self.assertEqual(decoded, original)
 
     def test_first_token_uses_absolute_positions(self) -> None:
         # When the first token isn't at line 0, deltaLine should equal its line.
-        data = _encode_tokens_delta([(3, 5, 2, 0)])
+        data = _encode_tokens_delta([(3, 5, 2, 0, 0)])
         self.assertEqual(data[:5], [3, 5, 2, 0, 0])
+
+    def test_modifier_bits_passed_through(self) -> None:
+        # 5th element of each quintet should be the modifier mask.
+        data = _encode_tokens_delta([(0, 0, 5, 0, _MOD_DEFAULT_LIBRARY)])
+        self.assertEqual(data[:5], [0, 0, 5, 0, _MOD_DEFAULT_LIBRARY])
 
 
 @unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
@@ -248,6 +281,10 @@ class TestLegend(unittest.TestCase):
         self.assertEqual(len(TOKEN_TYPES), 10)
         for t in TOKEN_TYPES:
             self.assertIsInstance(t, lsp.SemanticTokenTypes)
+
+    def test_legend_modifiers(self) -> None:
+        self.assertEqual(len(TOKEN_MODIFIERS), 1)
+        self.assertEqual(TOKEN_MODIFIERS[0], lsp.SemanticTokenModifiers.DefaultLibrary)
 
 
 if __name__ == "__main__":
