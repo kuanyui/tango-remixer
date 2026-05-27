@@ -75,11 +75,21 @@ class TestClassifyPosition(unittest.TestCase):
         self.assertEqual(_classify_position(line2, 0, 23), ("matrix_scalable", "scalable"))
         self.assertEqual(_classify_position(line2, 0, 29), ("matrix_output_num", "48"))
 
-    def test_matrix_semicolon_returns_none(self) -> None:
-        # `;` is intentionally untokenized -> no hover.
+    def test_matrix_semicolon_falls_back_to_block(self) -> None:
+        # `;` itself has no specific piece -> block-level hover instead.
         line = "Tango    folder    {16;32}"
         # ";" at col 22
-        self.assertIsNone(_classify_position(line, 0, 22))
+        kind, value = _classify_position(line, 0, 22)
+        self.assertEqual(kind, "size_matrix_block")
+        self.assertEqual(value, "{16;32}")
+
+    def test_matrix_brace_falls_back_to_block(self) -> None:
+        # cursor on `{` or `}` -> block-level hover.
+        line = "Tango    folder    {16>32}"
+        # "{" at col 19, "}" at col 25
+        for col in (19, 25):
+            kind, _value = _classify_position(line, 0, col)
+            self.assertEqual(kind, "size_matrix_block")
 
     def test_directive_pieces(self) -> None:
         # cols:  # at 0, @extra-icon-theme at 2 (len 17), MyIcons at 20 (len 7), ../foo at 28
@@ -119,6 +129,7 @@ class TestHoverTemplatesCoverage(unittest.TestCase):
         emitted_kinds = {
             "src_theme_builtin", "src_theme_extra",
             "src_context", "src_icon_name", "dst_context", "dst_icon_name",
+            "size_matrix_block",
             "matrix_input_num", "matrix_output_num", "matrix_op_gt", "matrix_op_dash",
             "matrix_scalable", "directive_keyword", "directive_name", "directive_path",
             "comment",

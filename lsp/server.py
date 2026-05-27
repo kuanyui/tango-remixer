@@ -367,9 +367,14 @@ def _classify_position(text: str, line: int, character: int) -> Optional[Tuple[s
                 return (span_key, value)
         if "size_io_matrix" in p.spans:
             start, end = p.spans["size_io_matrix"]
-            if start <= character < end:
+            # Extend the hover region to include the surrounding `{` and `}` so
+            # hovering anywhere on the block (braces, separators, whitespace)
+            # still shows the overview.
+            brace_start = start - 1 if start > 0 and raw[start - 1] == '{' else start
+            brace_end = end + 1 if end < len(raw) and raw[end] == '}' else end
+            if brace_start <= character < brace_end:
                 matrix_text = raw[start:end]
-                for _l, col, length, type_idx in _tokenize_size_matrix(matrix_text, start, line_no):
+                for _l, col, length, type_idx, _mods in _tokenize_size_matrix(matrix_text, start, line_no):
                     if col <= character < col + length:
                         piece = raw[col:col + length]
                         if type_idx == _OPERATOR_TYPE_IDX:
@@ -377,7 +382,8 @@ def _classify_position(text: str, line: int, character: int) -> Optional[Tuple[s
                         kind = _MATRIX_TYPE_IDX_TO_KIND.get(type_idx)
                         if kind:
                             return (kind, piece)
-                return None  # in matrix but on `;` / whitespace
+                # Fallback: on `{`, `}`, `;`, or whitespace -- block-level hover.
+                return ("size_matrix_block", raw[brace_start:brace_end])
         return None
 
     # Comment.
@@ -397,6 +403,7 @@ _HOVER_TEMPLATES: dict[str, str] = {
     "src_icon_name":     "**Source icon name**: `{value}`\n\nName of the icon picked from the source theme. No extension.",
     "dst_context":       "**Destination icon context**: `{value}`\n\nContext under which the icon is written in the output theme. Falls back to source context if omitted.",
     "dst_icon_name":     "**Destination icon name**: `{value}`\n\nName the icon is written as in the output theme. Falls back to source name if omitted.",
+    "size_matrix_block": "**Size matrix** `{value}`\n\nRestricts which input sizes are picked from the source theme and optionally remaps them to output sizes. Segments are separated by `;`.\n\n- `16` -- single (= `16>16`)\n- `16-32` -- range; picks every available size in `[16..32]`\n- `-N` / `N-` -- open range from min / to max\n- `16>32` -- resize: pick size 16, write at 32\n- `scalable>48` -- rasterize the SVG at 48",
     "matrix_input_num":  "**Input size**: `{value}`\n\nPick this size from the source theme.",
     "matrix_output_num": "**Output size**: `{value}`\n\nWrite the picked source at this size.",
     "matrix_op_gt":      "**Resize operator** `>`\n\n`INPUT>OUTPUT` -- pick the source at INPUT size, write at OUTPUT size.",
