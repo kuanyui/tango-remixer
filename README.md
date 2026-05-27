@@ -150,6 +150,7 @@ git clone --recursive git@github.com:kuanyui/tango-remixer.git
 
   - Example: `{16;22-48;scalable>64}` = single `16`, range `22..48`, plus scalable rasterized to `64`.
   - Note: If you pick `{22-48}`, but `32` is not found in icon theme, the `32` will be just ignored.
+  - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
 
 For example:
 ```py
