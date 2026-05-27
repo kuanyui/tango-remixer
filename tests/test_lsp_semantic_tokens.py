@@ -25,6 +25,9 @@ try:
         _OUTPUT_NUMBER_TYPE_IDX,
         _OPERATOR_TYPE_IDX,
         _KEYWORD_TYPE_IDX,
+        _NAMESPACE_TYPE_IDX,
+        _DECORATOR_TYPE_IDX,
+        _STRING_TYPE_IDX,
         TOKEN_TYPES,
     )
     from lsprotocol import types as lsp
@@ -177,6 +180,48 @@ class TestMatrixTokenization(unittest.TestCase):
 
 
 @unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
+class TestDirectiveTokens(unittest.TestCase):
+    """`# @extra-icon-theme NAME PATH` lines get directive-style coloring."""
+
+    def test_basic_directive_emits_four_token_types(self) -> None:
+        line = "# @extra-icon-theme MyIcons ../foo"
+        # cols: # at 0, @extra-icon-theme at 2, MyIcons at 20, ../foo at 28
+        tokens = _build_tokens(line)
+        d: dict[tuple[int, int], int] = {(t[0], t[1]): t[3] for t in tokens}
+        self.assertEqual(d[(0, 0)], _COMMENT_TYPE_IDX)       # `#`
+        self.assertEqual(d[(0, 2)], _DECORATOR_TYPE_IDX)     # `@extra-icon-theme`
+        self.assertEqual(d[(0, 20)], _NAMESPACE_TYPE_IDX)    # `MyIcons`
+        self.assertEqual(d[(0, 28)], _STRING_TYPE_IDX)       # `../foo`
+
+    def test_directive_not_double_emitted_as_comment(self) -> None:
+        # The whole-line Comment fallback must not also fire on directive lines.
+        line = "# @extra-icon-theme MyIcons ../foo"
+        tokens = _build_tokens(line)
+        # No token should span the whole comment line (start=0, length=full len).
+        whole_line_tokens = [t for t in tokens if t[0] == 0 and t[1] == 0 and t[2] == len(line)]
+        self.assertEqual(whole_line_tokens, [])
+
+    def test_plain_comment_still_one_token(self) -> None:
+        # Non-directive comment lines still get a single whole-line Comment token.
+        line = "# just a regular comment"
+        tokens = _build_tokens(line)
+        comment_tokens = [t for t in tokens if t[3] == _COMMENT_TYPE_IDX]
+        self.assertEqual(len(comment_tokens), 1)
+        self.assertEqual(comment_tokens[0][:3], (0, 0, len(line)))
+
+    def test_directive_with_bad_name_still_colored(self) -> None:
+        # Even though parse_text rejects the directive (bad NAME), the LSP
+        # still re-detects via PATT_DIRECTIVE and colors the pieces.
+        line = "# @extra-icon-theme bad/name ../foo"
+        tokens = _build_tokens(line)
+        types = {t[3] for t in tokens}
+        # Decorator + Namespace (for the bad NAME) + String all present.
+        self.assertIn(_DECORATOR_TYPE_IDX, types)
+        self.assertIn(_NAMESPACE_TYPE_IDX, types)
+        self.assertIn(_STRING_TYPE_IDX, types)
+
+
+@unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
 class TestDeltaEncoding(unittest.TestCase):
 
     def test_roundtrip_same_line(self) -> None:
@@ -200,7 +245,7 @@ class TestLegend(unittest.TestCase):
 
     def test_legend_has_all_lsp_standard_types(self) -> None:
         # Sanity check the legend isn't accidentally empty.
-        self.assertEqual(len(TOKEN_TYPES), 8)
+        self.assertEqual(len(TOKEN_TYPES), 10)
         for t in TOKEN_TYPES:
             self.assertIsInstance(t, lsp.SemanticTokenTypes)
 

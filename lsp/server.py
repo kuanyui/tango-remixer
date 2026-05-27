@@ -27,6 +27,7 @@ from pygls.lsp.server import LanguageServer  # noqa: E402   # pygls 2.x path
 from lib.included_icons_parser import (  # noqa: E402
     parse_text,
     BUILT_IN_ICON_THEMES,
+    PATT_DIRECTIVE,
 )
 from urllib.parse import urlparse, unquote  # noqa: E402
 
@@ -40,14 +41,16 @@ server = LanguageServer(name=SERVER_NAME, version=SERVER_VERSION)
 # Semantic token legend. Editors color tokens by these LSP-standard types.
 # The order is the index used by `tokenType` in the wire format.
 TOKEN_TYPES: List[lsp.SemanticTokenTypes] = [
-    lsp.SemanticTokenTypes.Namespace,   # 0  theme name (e.g. "Tango")
+    lsp.SemanticTokenTypes.Namespace,   # 0  theme name (also: directive NAME)
     lsp.SemanticTokenTypes.Type,        # 1  context    (e.g. "apps")
     lsp.SemanticTokenTypes.Variable,    # 2  icon name  (e.g. "document-save")
     lsp.SemanticTokenTypes.Number,      # 3  input size  (e.g. "16" in "16>32")
-    lsp.SemanticTokenTypes.Comment,     # 4  comments  (# ...)
+    lsp.SemanticTokenTypes.Comment,     # 4  comments + leading `#` on directive
     lsp.SemanticTokenTypes.Property,    # 5  output size (e.g. "32" in "16>32")
     lsp.SemanticTokenTypes.Operator,    # 6  `>` and `-`
     lsp.SemanticTokenTypes.Keyword,     # 7  `scalable`
+    lsp.SemanticTokenTypes.Decorator,   # 8  `@extra-icon-theme` directive keyword
+    lsp.SemanticTokenTypes.String,      # 9  directive PATH
 ]
 TOKEN_LEGEND: lsp.SemanticTokensLegend = lsp.SemanticTokensLegend(
     token_types=[t.value for t in TOKEN_TYPES],
@@ -63,11 +66,16 @@ _SPAN_KEY_TO_TYPE_IDX: dict[str, int] = {
     "dst_context":    1,
     "dst_icon_name":  2,
 }
+_NAMESPACE_TYPE_IDX: int = 0
 _COMMENT_TYPE_IDX: int = 4
 _INPUT_NUMBER_TYPE_IDX: int = 3
 _OUTPUT_NUMBER_TYPE_IDX: int = 5
 _OPERATOR_TYPE_IDX: int = 6
 _KEYWORD_TYPE_IDX: int = 7
+_DECORATOR_TYPE_IDX: int = 8
+_STRING_TYPE_IDX: int = 9
+
+_DIRECTIVE_KEYWORD = "@extra-icon-theme"
 
 
 # ---------------------------------------------------------------------------
@@ -217,8 +225,30 @@ def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
             matrix_text = raw_lines[p.line_no - 1][col_start:col_end]
             tokens.extend(_tokenize_size_matrix(matrix_text, col_start, p.line_no))
 
-    # Comments are stripped by parse_text before parsing, so scan raw text.
+    # Directive lines: highlight `#`, `@extra-icon-theme`, NAME, PATH separately
+    # (like TS's `// @ts-ignore`). Re-scan via PATT_DIRECTIVE so even directives
+    # that fail validation still get the directive-style colors.
+    directive_lines: set[int] = set()
     for line_idx, raw in enumerate(raw_lines):
+        md = PATT_DIRECTIVE.search(raw)
+        if not md:
+            continue
+        directive_lines.add(line_idx)
+        hash_col = raw.find('#')
+        if hash_col >= 0:
+            tokens.append((line_idx, hash_col, 1, _COMMENT_TYPE_IDX))
+        kw_col = raw.find(_DIRECTIVE_KEYWORD)
+        if kw_col >= 0:
+            tokens.append((line_idx, kw_col, len(_DIRECTIVE_KEYWORD), _DECORATOR_TYPE_IDX))
+        n_start, n_end = md.start('name'), md.end('name')
+        tokens.append((line_idx, n_start, n_end - n_start, _NAMESPACE_TYPE_IDX))
+        p_start, p_end = md.start('path'), md.end('path')
+        tokens.append((line_idx, p_start, p_end - p_start, _STRING_TYPE_IDX))
+
+    # Comments. Skip directive lines (already tokenized piece-by-piece above).
+    for line_idx, raw in enumerate(raw_lines):
+        if line_idx in directive_lines:
+            continue
         m = _COMMENT_FULL_LINE.match(raw)
         if m:
             tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX))
