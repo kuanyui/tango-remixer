@@ -56,6 +56,35 @@ class TestValidate(unittest.TestCase):
         # Range should cover the `16>scalable` expression inside the braces.
         self.assertEqual(line[d.range.start.character:d.range.end.character], "16>scalable")
 
+    def test_unknown_theme_now_validated_against_builtin(self) -> None:
+        # _validate passes BUILT_IN_ICON_THEMES, so unknown themes get flagged.
+        diags = _validate("BogusTheme    document-save")
+        self.assertTrue(any("Unknown theme" in d.message for d in diags))
+
+    def test_directive_path_missing_emits_warning(self) -> None:
+        import tempfile
+        import os
+        with tempfile.TemporaryDirectory() as tmp:
+            txt = os.path.join(tmp, "included_icons.txt")
+            with open(txt, "w") as f:
+                f.write("# @extra-icon-theme MyIcons /definitely/not/a/real/path\n")
+            uri = "file://" + txt
+            diags = _validate(open(txt).read(), uri)
+        warnings = [d for d in diags if d.severity == lsp.DiagnosticSeverity.Warning]
+        self.assertEqual(len(warnings), 1)
+        self.assertIn("does not exist", warnings[0].message)
+
+    def test_directive_unlocks_theme_validation(self) -> None:
+        # Directive adds MyIcons -> the icon line referencing MyIcons must pass.
+        text = (
+            "# @extra-icon-theme MyIcons /tmp\n"
+            "MyIcons    document-save\n"
+        )
+        diags = _validate(text)
+        # No "Unknown theme" errors (path-missing warning is OK).
+        errors = [d for d in diags if d.severity == lsp.DiagnosticSeverity.Error]
+        self.assertEqual(errors, [])
+
 
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

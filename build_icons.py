@@ -31,21 +31,6 @@ from warnings import deprecated
 from lib.color_converter import *
 from lib.included_icons_parser import *
 # from lib.download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
-BUILT_IN_ICON_THEMES: Final[List[str]] = [
-    # Vanilla XDG Icon Themes
-    "Tango",
-    "Nome",
-    "Humanity",
-    "Humanity-Dark",
-    # Hue-Adjusted XDG Icon Themes
-    "BlueNome",
-    "BlueHumanity",
-    "BlueHumanity-Dark",
-    # Icon Packs in Thirdparty Apps
-    "GimpDefault",
-    "GimpLegacy",
-    "InkscapeTango",
-]
 
 IconThemeFolderName = str
 """Source folder name of the icon theme pack. """
@@ -457,6 +442,7 @@ class MyHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 
 @dataclass
 class IconThemeOptions:
+    """The all options of the whole build process. Specified via CLI arguments."""
     clean_before_build: bool
     included_icon_file: Path
     output_stamp_file: Path
@@ -493,6 +479,28 @@ class IconThemeOptions:
         for scale in self.generate_scales:
             if not is_icon_scale_type(scale):
                 raise ValueError(f"Invalid scale factor: {scale}. Must be one of {get_args(IconScaleType)}")
+
+        # Merge in `# @extra-icon-theme NAME PATH` directives from the file.
+        # CLI-supplied entries (same NAME) win. Paths are resolved relative to
+        # the included-icon-file's parent dir. Hard-errors on missing path
+        # (build-side strictness; LSP only warns).
+        # Skip if the file isn't there yet (some tests pass a placeholder path
+        # and only write the file later, or never read it at all).
+        if not self.included_icon_file.exists():
+            return
+        text = self.included_icon_file.read_text(encoding='utf-8')
+        _lines, _errors, directives = parse_text(text, built_in_themes=BUILT_IN_ICON_THEMES)
+        base_dir = self.included_icon_file.resolve().parent
+        cli_names = {t.id for t in self.extra_icon_themes}
+        for d in directives:
+            if d.name in cli_names:
+                continue  # CLI override
+            resolved = (base_dir / d.path_raw).resolve()
+            if not resolved.exists():
+                raise FileNotFoundError(
+                    f"[ERROR] {self.included_icon_file}:{d.line_no}: "
+                    f'@extra-icon-theme path does not exist: {resolved}')
+            self.extra_icon_themes.append(ExtraIconTheme(id=d.name, icon_theme_root_folder_path=resolved))
 
     @staticmethod
     def parse_extra_icon_theme(value: str) -> ExtraIconTheme:
@@ -941,7 +949,7 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
     2. icon_searcher -- confirm icon exists, resolve its actual context.
     """
     text = file_path.read_text(encoding='utf-8')
-    parsed_lines, errors = parse_text(text, known_themes=get_all_icon_themes_folders())
+    parsed_lines, errors, _directives = parse_text(text, built_in_themes=get_all_icon_themes_folders())
     if errors:
         first = errors[0]
         raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_file}:{first.line_no}: {first.message}")

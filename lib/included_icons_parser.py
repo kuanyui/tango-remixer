@@ -184,6 +184,55 @@ class ParsedIncludedIconsTxtFile():
 
 
 # =============================================
+# Built-in theme names (shared by build_icons.py and the LSP)
+# =============================================
+BUILT_IN_ICON_THEMES: Final[List[str]] = [
+    # Vanilla XDG Icon Themes
+    "Tango",
+    "Nome",
+    "Humanity",
+    "Humanity-Dark",
+    # Hue-Adjusted XDG Icon Themes
+    "BlueNome",
+    "BlueHumanity",
+    "BlueHumanity-Dark",
+    # Icon Packs in Thirdparty Apps
+    "GimpDefault",
+    "GimpLegacy",
+    "InkscapeTango",
+]
+
+
+# =============================================
+# In-file directive: `# @extra-icon-theme NAME PATH`
+# =============================================
+@dataclass
+class ExtraThemeDirective():
+    """One `# @extra-icon-theme NAME PATH` line.
+    `path_raw` is the raw text (relative or absolute, forward-slash only).
+    `line_no` is 1-based. Spans are 0-based (col_start, col_end)."""
+    name: str
+    path_raw: str
+    line_no: int
+    name_span: tuple[int, int]
+    path_span: tuple[int, int]
+
+# Match `# @extra-icon-theme NAME PATH` with surrounding whitespace.
+# Trailing whitespace is trimmed; PATH may contain inner spaces.
+PATT_DIRECTIVE: re.Pattern[str] = re.compile(r'''
+                                              ^
+                                              \s*\#\s*
+                                              @extra-icon-theme
+                                              \s+
+                                              (?P<name>\S+)
+                                              \s+
+                                              (?P<path>\S(?:.*\S)?)
+                                              \s*
+                                              $
+                                              ''', re.VERBOSE)
+
+
+# =============================================
 # Line-level parser (no I/O, no icon-search)
 # =============================================
 # Single regex used by both `parse_text` (this module) and the build-side
@@ -219,21 +268,79 @@ _GROUP_TO_SPAN_KEY: dict[str, str] = {
 }
 
 
-def parse_text(text: str, known_themes: Optional[List[str]] = None) -> tuple[List[ParsedIncludedIcon], List[ParseError]]:
+_DIRECTIVE_NAME_PATT: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_-]+$')
+
+
+def parse_text(text: str, built_in_themes: Optional[List[str]] = None) -> tuple[List[ParsedIncludedIcon], List[ParseError], List[ExtraThemeDirective]]:
     """Pure syntax pass over `included_icons.txt`-format text.
 
     No icon-file existence checks. No raises.
     All errors collected with line + col ranges.
 
-    `known_themes` validates `src_theme_name` if given. None skips it.
+    `built_in_themes` enables theme-name validation. The final known list is
+    `built_in_themes + [d.name for d in directives]`. None disables it.
 
-    Returns `(parsed_lines, errors)`.
+    Returns `(parsed_lines, errors, directives)`.
     Bad line: error only. No parsed entry.
     Bad matrix / unknown theme: error AND parsed entry (LSP can still highlight).
+    Directive errors (bad NAME, backslash, dup, built-in collision) get spans.
     """
     parsed_lines: List[ParsedIncludedIcon] = []
     errors: List[ParseError] = []
-    for line_no, raw in enumerate(text.splitlines(), start=1):
+    directives: List[ExtraThemeDirective] = []
+    raw_lines = text.splitlines()
+
+    # First pass: collect @extra-icon-theme directives and validate their syntax.
+    for line_no, raw in enumerate(raw_lines, start=1):
+        md = PATT_DIRECTIVE.search(raw)
+        if not md:
+            continue
+        name = md.group('name')
+        path_raw = md.group('path')
+        name_span = (md.start('name'), md.end('name'))
+        path_span = (md.start('path'), md.end('path'))
+
+        if not _DIRECTIVE_NAME_PATT.match(name):
+            errors.append(ParseError(
+                line_no=line_no, col_start=name_span[0], col_end=name_span[1],
+                message=f'Invalid theme NAME "{name}". Allowed: [A-Za-z0-9_-]+',
+                exc_type=ValueError,
+            ))
+            continue
+        if built_in_themes is not None and name in built_in_themes:
+            errors.append(ParseError(
+                line_no=line_no, col_start=name_span[0], col_end=name_span[1],
+                message=f'Theme NAME "{name}" collides with a built-in theme.',
+                exc_type=ValueError,
+            ))
+            continue
+        if any(d.name == name for d in directives):
+            errors.append(ParseError(
+                line_no=line_no, col_start=name_span[0], col_end=name_span[1],
+                message=f'Duplicate @extra-icon-theme NAME "{name}" in this file.',
+                exc_type=ValueError,
+            ))
+            continue
+        if '\\' in path_raw:
+            errors.append(ParseError(
+                line_no=line_no, col_start=path_span[0], col_end=path_span[1],
+                message='Backslash in path. Use forward slash `/` on all OS.',
+                exc_type=ValueError,
+            ))
+            continue
+
+        directives.append(ExtraThemeDirective(
+            name=name, path_raw=path_raw, line_no=line_no,
+            name_span=name_span, path_span=path_span,
+        ))
+
+    # `known_themes` for icon-line validation: built-in + directive names.
+    known_themes: Optional[List[str]] = None
+    if built_in_themes is not None:
+        known_themes = list(built_in_themes) + [d.name for d in directives]
+
+    # Second pass: parse icon lines.
+    for line_no, raw in enumerate(raw_lines, start=1):
         line = re.sub(r'[ \t]#.*$', '', raw)  # strip EOL comment
         line = line.strip()
         if not line or line.startswith('#'):
@@ -245,7 +352,7 @@ def parse_text(text: str, known_themes: Optional[List[str]] = None) -> tuple[Lis
                                      exc_type=RuntimeError))
             continue
 
-        # Theme validation (only if caller passed a list).
+        # Theme validation (only if caller passed built_in_themes).
         src_theme_name = m.group('src_theme_name')
         if known_themes is not None and src_theme_name not in known_themes:
             errors.append(ParseError(
@@ -292,4 +399,4 @@ def parse_text(text: str, known_themes: Optional[List[str]] = None) -> tuple[Lis
             line_no=line_no,
             spans=spans,
         ))
-    return parsed_lines, errors
+    return parsed_lines, errors, directives

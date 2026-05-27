@@ -1,12 +1,45 @@
 # Sample included_icons.txt for visual LSP smoke test.
 # Open this file in Emacs; .dir-locals.el here should fire up Eglot.
 
+# =============================================
+# In-file directive: declare an extra theme
+# =============================================
+# Path is relative to this file. The folder lives at tests/example_extra_theme.
+# @extra-icon-theme MyAppIcons    ../example_extra_theme
+
+# Lines below are intentionally disabled with `##` to keep this file clean.
+# Drop one `#` to enable any line and see the LSP reaction live.
+
+## @extra-icon-theme BrokenTheme   ./does/not/exist
+##   (^ enables this: path-missing Warning underline)
+
+## @extra-icon-theme Tango         ../example_extra_theme
+##   (^ enables this: Error -- NAME collides with built-in)
+
+## @extra-icon-theme bad/name      ../example_extra_theme
+##   (^ enables this: Error -- NAME must match [A-Za-z0-9_-]+)
+
+# =============================================
 # Basic
+# =============================================
 Tango    document-save
 Tango    document-open    document-open-recent
 
-# Size matrix variants
-Tango    folder       {16-48}
-Tango    user-home    {16;32}
-Tango    go-up        {16>48}
-Tango    go-down      {16>16;16>24;16>32}
+# =============================================
+# Size matrix variants (visual check for the per-piece coloring)
+# =============================================
+Tango    folder          {16-48}
+Tango    user-home       {16;32}
+Tango    go-up           {16>48}
+Tango    go-down         {16>16;16>24;16>32}
+Tango    document-new    {scalable>64}
+
+# =============================================
+# Pull from the extra theme declared above
+# =============================================
+MyAppIcons    qkiss
+MyAppIcons    clothes
+MyAppIcons    actions/mouse-cursor-question
+
+## UndeclaredTheme    something
+##   (^ enables this: Error -- "Unknown theme")

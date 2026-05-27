@@ -15,7 +15,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 # Make project root importable so `from lib.included_icons_parser import ...` works
 # when this server is launched directly by an editor.
@@ -24,7 +24,11 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from lsprotocol import types as lsp  # noqa: E402
 from pygls.lsp.server import LanguageServer  # noqa: E402   # pygls 2.x path
 
-from lib.included_icons_parser import parse_text  # noqa: E402
+from lib.included_icons_parser import (  # noqa: E402
+    parse_text,
+    BUILT_IN_ICON_THEMES,
+)
+from urllib.parse import urlparse, unquote  # noqa: E402
 
 
 SERVER_NAME: str = "tango-remixer-included-icons-lsp"
@@ -67,16 +71,26 @@ _KEYWORD_TYPE_IDX: int = 7
 
 
 # ---------------------------------------------------------------------------
-# Validation (placeholder)
+# Validation
 # ---------------------------------------------------------------------------
 
-def _validate(text: str) -> List[lsp.Diagnostic]:
+def _uri_to_path(uri: str) -> Optional[Path]:
+    """Convert a `file://` URI to a local Path. Returns None for other schemes."""
+    parsed = urlparse(uri)
+    if parsed.scheme != "file":
+        return None
+    return Path(unquote(parsed.path))
+
+
+def _validate(text: str, doc_uri: Optional[str] = None) -> List[lsp.Diagnostic]:
     """Return LSP diagnostics for `included_icons.txt` content.
-    Runs `parse_text` and maps each ParseError to a Diagnostic.
-    `known_themes=None` because the LSP has no access to the user's
-    `--extra-icon-theme` list; theme validation is best left to the build step."""
-    _parsed, errors = parse_text(text, known_themes=None)
-    return [
+
+    - Lines: parse_text errors -> Error diagnostics.
+    - Directives: theme NAME validation via BUILT_IN_ICON_THEMES.
+    - Directive PATHs: existence checked relative to the doc's parent dir;
+      missing -> Warning (build-time still hard-errors)."""
+    _lines, errors, directives = parse_text(text, built_in_themes=BUILT_IN_ICON_THEMES)
+    diags: List[lsp.Diagnostic] = [
         lsp.Diagnostic(
             range=lsp.Range(
                 start=lsp.Position(line=e.line_no - 1, character=e.col_start),
@@ -88,6 +102,24 @@ def _validate(text: str) -> List[lsp.Diagnostic]:
         )
         for e in errors
     ]
+
+    # Directive path existence check (LSP-side, warning only).
+    doc_path = _uri_to_path(doc_uri) if doc_uri else None
+    if doc_path is not None:
+        base_dir = doc_path.resolve().parent
+        for d in directives:
+            resolved = (base_dir / d.path_raw).resolve()
+            if not resolved.exists():
+                diags.append(lsp.Diagnostic(
+                    range=lsp.Range(
+                        start=lsp.Position(line=d.line_no - 1, character=d.path_span[0]),
+                        end=lsp.Position(line=d.line_no - 1, character=d.path_span[1]),
+                    ),
+                    message=f"@extra-icon-theme path does not exist: {resolved}",
+                    severity=lsp.DiagnosticSeverity.Warning,
+                    source=SERVER_NAME,
+                ))
+    return diags
 
 
 # ---------------------------------------------------------------------------
@@ -105,19 +137,19 @@ def _publish(ls: LanguageServer, uri: str, diagnostics: List[lsp.Diagnostic]) ->
 @server.feature(lsp.TEXT_DOCUMENT_DID_OPEN)
 def on_did_open(ls: LanguageServer, params: lsp.DidOpenTextDocumentParams) -> None:
     doc = ls.workspace.get_text_document(params.text_document.uri)
-    _publish(ls, doc.uri, _validate(doc.source))
+    _publish(ls, doc.uri, _validate(doc.source, doc.uri))
 
 
 @server.feature(lsp.TEXT_DOCUMENT_DID_CHANGE)
 def on_did_change(ls: LanguageServer, params: lsp.DidChangeTextDocumentParams) -> None:
     doc = ls.workspace.get_text_document(params.text_document.uri)
-    _publish(ls, doc.uri, _validate(doc.source))
+    _publish(ls, doc.uri, _validate(doc.source, doc.uri))
 
 
 @server.feature(lsp.TEXT_DOCUMENT_DID_SAVE)
 def on_did_save(ls: LanguageServer, params: lsp.DidSaveTextDocumentParams) -> None:
     doc = ls.workspace.get_text_document(params.text_document.uri)
-    _publish(ls, doc.uri, _validate(doc.source))
+    _publish(ls, doc.uri, _validate(doc.source, doc.uri))
 
 
 # ---------------------------------------------------------------------------
@@ -170,7 +202,7 @@ def _tokenize_size_matrix(matrix_text: str, base_col: int, line_no: int) -> List
 def _build_tokens(text: str) -> List[Tuple[int, int, int, int]]:
     """Collect (line, col, length, type_idx) tokens for the whole document.
     Sorted by position. Lines are 0-based for LSP."""
-    parsed_lines, _errors = parse_text(text, known_themes=None)
+    parsed_lines, _errors, _directives = parse_text(text, built_in_themes=None)
     raw_lines = text.splitlines()
     tokens: List[Tuple[int, int, int, int]] = []
 

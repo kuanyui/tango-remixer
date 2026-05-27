@@ -203,11 +203,41 @@ Tango    folder    folder-blue    {16;22;48}
 > ```
 > The built SVG and PNG files can be found in `./tango-remixer/dist/`. PNG is recommended because Qt's SVG renderer is not very well... Some icons may unable to be rendered correctly.
 
-> [!TIP]
-> You can also add your personal XDG-compatible SVG icon theme(s) and include them in `included_icons.txt` via `--extra-icon-theme`.
-> ```
-> --extra-icon-theme "MyIcon:path/to/my_icon_theme" --extra-icon-theme "AnotherIcon:path/to/another_icon_theme"
-> ```
+### Add Extra XDG-Compatible SVG Icon Themes
+You can add extra XDG-compatible SVG icon theme(s) two ways:
+
+#### **A. CLI Flag**
+
+Highest priority (over in-file directive). Good for ad-hoc / CI overrides.
+
+**Syntax: `--extra-icon-theme "THEME_NAME:THEME_PATH"`**
+
+```sh
+--extra-icon-theme "MyIcon:./relative/path/to/my_icon_theme"
+--extra-icon-theme "AnotherIcon:../relative/path/to/another_icon_theme"
+--extra-icon-theme "YetAnotherIcon:C:/absolute/path/on/windows/yet_another_icon_theme"
+```
+>
+#### **B. In-File Directive**
+This is the recommended way -- self-describing, also **recognizable by the LSP server**.
+
+**Syntax: `# @extra-icon-theme THEME_NAME THEME_PATH`**
+
+```conf
+# @extra-icon-theme MyIcon       ../appicons
+# @extra-icon-theme AnotherIcon  /opt/themes/another
+# @extra-icon-theme YetAnotherIcon  C:/absolute/path/on/windows/yet_another_icon_theme
+Tango    document-save
+MyIcon   my-custom-thing
+```
+
+> [!IMPORTANT]
+> - Paths are forward-slash only (`/`) on all OS (fuck disastrous Windows paths resolve rule). Backslashes are rejected.
+> - Relative paths resolve based on `included_icons.txt`'s directory (**not** CWD).
+> - `THEME_NAME` must match `[A-Za-z0-9_-]+`. Built-in theme names are reserved. Duplicate `THEME_NAME`s are rejected.
+> - `THEME_PATH` may contain inner whitespace (but not recommended); trailing whitespace is trimmed.
+> - If the same `THEME_NAME` appears in both CLI flag `--extra-icon-theme` and directive `# @extra-icon-theme`, the CLI flag's PATH **fully replaces** the directive's -- the directive's path is ignored entirely (**not** merged or searched as a fallback).
+> - Build fails hard if a directive's path doesn't exist. The LSP only warns (so you can edit without triggering errors).
 
 ## 3. Edit `CMakeLists.txt`, watch the changes of `included_icons.txt` and build the included icons
 ### Way 1: Use an extra "Stamp File" to track fresh / stale state

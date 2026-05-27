@@ -146,4 +146,6 @@ No first-class support. You need a generic-LSP-client extension, or to write a s
 ## What the server does
 
 - **Diagnostics**: parses `included_icons.txt` on open / change / save, flags syntax errors and bad size-matrix expressions with line + column ranges.
-- **Semantic tokens**: colors theme name, context, icon name, size matrix, and comments. Needs an LSP client that supports `textDocument/semanticTokens/full` (Eglot >= 1.20; Neovim, Helix).
+- **Theme validation**: built-in theme NAMES plus any `# @extra-icon-theme NAME PATH` directives in the file are accepted; anything else gets an "Unknown theme" error. The LSP does not read CLI flags, so themes added only via `--extra-icon-theme` won't be recognized -- declare them with the in-file directive (see README).
+- **Directive path check**: a directive whose PATH doesn't resolve gets a Warning (not Error), so editing in-flight doesn't go red.
+- **Semantic tokens**: colors theme name, context, icon name, size matrix pieces (input number / output number / operator / `scalable` keyword), and comments. Needs an LSP client that supports `textDocument/semanticTokens/full` (Eglot >= 1.20; Neovim, Helix).
