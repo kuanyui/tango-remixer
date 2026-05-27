@@ -560,6 +560,27 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-32,48>128}
   - `{16-32,48>128}` means picking `16`, `22`, `24`, `32` and convert them into corresponding sizes of PNG files. Then pick `48` and convert it into `128x128`.
 ---
 
+In-file directive: `# @extra-icon-theme THEME_NAME THEME_PATH`
+
+Declare extra XDG icon themes from inside this file (recommended over `--extra-icon-theme`; the LSP server also reads these).
+
+```
+# @extra-icon-theme MyIcon         ../appicons
+# @extra-icon-theme AnotherIcon    /opt/themes/another
+Tango       document-save
+MyIcon      my-custom-thing
+```
+
+Rules:
+- Paths are forward-slash only (`/`) on all OS. Backslashes are rejected.
+- Relative paths resolve based on `included_icons.txt`'s directory (NOT CWD).
+- `THEME_NAME` must match `[A-Za-z0-9_-]+`. Built-in theme names are reserved. Duplicates are rejected.
+- `THEME_PATH` may contain inner whitespace (not recommended); trailing whitespace is trimmed.
+- If the same `THEME_NAME` appears in both `--extra-icon-theme` and `# @extra-icon-theme`, the CLI flag's PATH fully replaces the directive's. The directive's path is ignored entirely (not merged or searched as a fallback).
+- Build fails hard if a directive's path doesn't exist. The LSP only warns.
+
+---
+
 When this file is older than `--stamp-file`, the build will not be triggered.
 '''
         )
@@ -675,9 +696,12 @@ e.g. if set to `/xdg_icon_themes/` (default value), the icon `Humanity/apps/48/t
 `id` is an unique ID of the icon theme. You can use this `id` in included_icons.txt.
 (NOTE This id must be unique, the following ids are occupied by built-in themes: { ", ".join(BUILT_IN_ICON_THEMES) })
 
-TODO: Currently `theme.index` under the specified path is ignored, only directory structure is handled.
+Multiple values can be specified via repeating using this option.
 
-Multiple values can be specified via repeating using this option."""
+NOTE: Always prefer declaring extra themes inside `included_icons.txt` via the `# @extra-icon-theme` directive (self-describing, also picked up by the LSP server -- see `--included-icon-file --help`) instead of this CLI flag. This CLI flag has higher priority and can be used to override the in-file directive: if the same `id` is declared in both, this CLI flag's path fully replaces the directive's (the directive's path is ignored entirely, not merged or searched as a fallback).
+
+TODO: Currently the `theme.index` file under the specified path is ignored, only directory structure is handled.
+"""
         )
         parser.add_argument(
             '--verbose',
