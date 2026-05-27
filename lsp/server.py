@@ -284,6 +284,128 @@ def on_semantic_tokens_full(ls: LanguageServer, params: lsp.SemanticTokensParams
 
 
 # ---------------------------------------------------------------------------
+# Hover
+# ---------------------------------------------------------------------------
+
+# Matrix piece type_idx -> kind (operators discriminated by literal value).
+_MATRIX_TYPE_IDX_TO_KIND: dict[int, str] = {
+    _INPUT_NUMBER_TYPE_IDX:  "matrix_input_num",
+    _OUTPUT_NUMBER_TYPE_IDX: "matrix_output_num",
+    _KEYWORD_TYPE_IDX:       "matrix_scalable",
+}
+
+
+def _classify_position(text: str, line: int, character: int) -> Optional[Tuple[str, str]]:
+    """Return `(kind, value)` under the cursor, or None.
+
+    `line` / `character` are 0-based LSP coordinates.
+    Kinds map 1:1 to entries in `_HOVER_TEMPLATES`."""
+    parsed_lines, _errors, directives = parse_text(text, built_in_themes=None)
+    raw_lines = text.splitlines()
+    if not (0 <= line < len(raw_lines)):
+        return None
+    raw = raw_lines[line]
+    line_no = line + 1
+
+    def hit_keyword(c: int) -> bool:
+        kw_col = raw.find(_DIRECTIVE_KEYWORD)
+        return kw_col >= 0 and kw_col <= c < kw_col + len(_DIRECTIVE_KEYWORD)
+
+    # Directive line (parsed successfully).
+    for d in directives:
+        if d.line_no != line_no:
+            continue
+        if hit_keyword(character):
+            return ("directive_keyword", _DIRECTIVE_KEYWORD)
+        if d.name_span[0] <= character < d.name_span[1]:
+            return ("directive_name", d.name)
+        if d.path_span[0] <= character < d.path_span[1]:
+            return ("directive_path", d.path_raw)
+        return None
+
+    # Directive-like line that failed validation (still want hover on pieces).
+    md = PATT_DIRECTIVE.search(raw)
+    if md:
+        if hit_keyword(character):
+            return ("directive_keyword", _DIRECTIVE_KEYWORD)
+        n_s, n_e = md.start('name'), md.end('name')
+        if n_s <= character < n_e:
+            return ("directive_name", md.group('name'))
+        p_s, p_e = md.start('path'), md.end('path')
+        if p_s <= character < p_e:
+            return ("directive_path", md.group('path'))
+        return None
+
+    # Icon line.
+    for p in parsed_lines:
+        if p.line_no != line_no:
+            continue
+        for span_key in ("src_theme", "src_context", "src_icon_name", "dst_context", "dst_icon_name"):
+            if span_key not in p.spans:
+                continue
+            start, end = p.spans[span_key]
+            if start <= character < end:
+                return (span_key, raw[start:end])
+        if "size_io_matrix" in p.spans:
+            start, end = p.spans["size_io_matrix"]
+            if start <= character < end:
+                matrix_text = raw[start:end]
+                for _l, col, length, type_idx in _tokenize_size_matrix(matrix_text, start, line_no):
+                    if col <= character < col + length:
+                        piece = raw[col:col + length]
+                        if type_idx == _OPERATOR_TYPE_IDX:
+                            return ("matrix_op_gt" if piece == '>' else "matrix_op_dash", piece)
+                        kind = _MATRIX_TYPE_IDX_TO_KIND.get(type_idx)
+                        if kind:
+                            return (kind, piece)
+                return None  # in matrix but on `;` / whitespace
+        return None
+
+    # Comment.
+    mf = _COMMENT_FULL_LINE.match(raw)
+    if mf and mf.start(1) <= character < mf.end(1):
+        return ("comment", mf.group(1))
+    me = _COMMENT_EOL.search(raw)
+    if me and me.start(1) <= character < me.end(1):
+        return ("comment", me.group(1))
+    return None
+
+
+_HOVER_TEMPLATES: dict[str, str] = {
+    "src_theme":         "**Theme name**: `{value}`\n\nBuilt-in theme, or declared via `# @extra-icon-theme`.",
+    "src_context":       "**Source icon context**: `{value}`\n\nXDG context (e.g. apps, places, mimetypes). Optional. Usually omitted since XDG icon names are unique within a theme.",
+    "src_icon_name":     "**Source icon name**: `{value}`\n\nName of the icon picked from the source theme. No extension.",
+    "dst_context":       "**Destination icon context**: `{value}`\n\nContext under which the icon is written in the output theme. Falls back to source context if omitted.",
+    "dst_icon_name":     "**Destination icon name**: `{value}`\n\nName the icon is written as in the output theme. Falls back to source name if omitted.",
+    "matrix_input_num":  "**Input size**: `{value}`\n\nPick this size from the source theme.",
+    "matrix_output_num": "**Output size**: `{value}`\n\nWrite the picked source at this size.",
+    "matrix_op_gt":      "**Resize operator** `>`\n\n`INPUT>OUTPUT` -- pick the source at INPUT size, write at OUTPUT size.",
+    "matrix_op_dash":    "**Range operator** `-`\n\n`LOW-HIGH` picks every available size in `[LOW..HIGH]`. Open ranges: `-N` from min, `N-` to max.",
+    "matrix_scalable":   "**`scalable`** (SVG source)\n\nUse with `>OUTPUT` to rasterize the SVG at the OUTPUT size.",
+    "directive_keyword": "**`@extra-icon-theme`** directive\n\nDeclare an extra XDG icon theme inline. NAME becomes usable in icon lines below. The LSP also reads this for theme-name validation.",
+    "directive_name":    "**Extra theme NAME**: `{value}`\n\nDeclared by this directive. Use as the first column in icon lines below.",
+    "directive_path":    "**Extra theme PATH**: `{value}`\n\nResolved relative to this file's directory. Forward-slash only.",
+    "comment":           "Comment.",
+}
+
+
+@server.feature(lsp.TEXT_DOCUMENT_HOVER)
+def on_hover(ls: LanguageServer, params: lsp.HoverParams) -> Optional[lsp.Hover]:
+    doc = ls.workspace.get_text_document(params.text_document.uri)
+    classified = _classify_position(doc.source, params.position.line, params.position.character)
+    if not classified:
+        return None
+    kind, value = classified
+    template = _HOVER_TEMPLATES.get(kind)
+    if not template:
+        return None
+    return lsp.Hover(contents=lsp.MarkupContent(
+        kind=lsp.MarkupKind.Markdown,
+        value=template.format(value=value),
+    ))
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
