@@ -575,10 +575,20 @@ Type=Fixed
 As a reference, the final file-system structure looks like:
 
 # Acknowledgments
-- This project's Python scripts relys on LLM slightly (about ~20% of codebase, mainly for scaffold, boilerplate code, Python API), including ChatGPT (Web UI), Gemini (Web UI), Claude (Web UI), but with human fully-reviewed.
-- But tests are almost written by LLM (Claude Code), according to the documentations in code and my instructions. Roughly reviewed by human.
+> [!WARNING]
+> ## Disclosures of LLM Usage
+> This project's Python scripts partially rely on LLM, including:
+> - **Core features**: about ~20% of codebase, mainly for scaffold / boilerplate code, Python API. With human being fully-reviewed:
+>   - ChatGPT (Web UI),
+>   - Gemini (Web UI),
+>   - Claude (Web UI),
+>   - Claude Code (For debug... I've been burnt-out after release publicly; too lazy to debug manually.)
+> - **LSP server** (and its docs): 100% were directly written by LLM agent (Claude Code). ~~I have no interest to spend my life time on this. After all I have no talents of writing code.~~
+> - **Tests**: 99% were directly written by LLM agent (Claude Code), according to the documentations in code and my instructions. Roughly reviewed by human.
+>
+> All the other parts are done by human.
 
-# License
+# License**s**
 
 Source code, include this README, are released under GPLv3.
 

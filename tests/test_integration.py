@@ -397,6 +397,42 @@ class TestEndToEndPipeline(unittest.TestCase):
             },
         )
 
+    def test_lines_without_size_matrix_keep_every_source_size(self) -> None:
+        """A line without `{...}` should keep the SVG files of all found sizes."""
+        included_path: Path = self.tmp / "included_no_matrix.txt"
+        self.included_text = (
+            "Tango    dialog-cancel\n"
+            "Tango    system-log-out    actions/logout\n"   # renamed dst
+        )
+        included_path.write_text(self.included_text, encoding="utf-8")
+        self._fresh_options.included_icon_file = included_path
+
+        run_00_copy_icon_themes()
+        run_01_no_symlink_themes()
+        run_02_colorize_themes()
+        run_03_copy_included_icons()
+        run_04_convert_svg_to_xdg_hicolor_theme_dir_structure()
+
+        svg_theme: Path = BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME / "TestTango"
+        for size in ("16x16", "22x22", "32x32", "48x48"):
+            self._assert_svg(svg_theme / size / "actions" / "dialog-cancel.svg")
+            self._assert_svg(svg_theme / size / "actions" / "logout.svg")
+
+        self.assertEqual(
+            set(self._qrc_file_entries(svg_theme / "index.qrc")),
+            {
+                "index.theme",
+                "16x16/actions/dialog-cancel.svg",
+                "22x22/actions/dialog-cancel.svg",
+                "32x32/actions/dialog-cancel.svg",
+                "48x48/actions/dialog-cancel.svg",
+                "16x16/actions/logout.svg",
+                "22x22/actions/logout.svg",
+                "32x32/actions/logout.svg",
+                "48x48/actions/logout.svg",
+            },
+        )
+
     def test_full_pipeline_with_extra_icon_theme_from_system_hicolor(self) -> None:
         """`--extra-icon-theme` against a real external XDG-structured theme.
         We grab the first SVG in the system hicolor `scalable/apps/` folder
