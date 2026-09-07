@@ -65,7 +65,7 @@ class SizeIoMatrix():
             line_no: Line number in the source file, used for error messages.
         """
         self.all_data: List[SizeIo] = []
-        """all definitions of `input -> output`"""
+        """all definitions of `input -> output` of an icon line."""
         if size_io_matrix_expr:
             self.parse_full_matrix_expr(size_io_matrix_expr, line_no)
 
@@ -169,9 +169,9 @@ class ParsedIncludedIcon():
     src_icon_name: str
     dst_context: str
     dst_icon_name: str
-    """ Input & output sizes.
-    Empty list means all. """
     size_io_matrix: SizeIoMatrix
+    """ Input & output sizes of an icon.
+    Empty list means all. """
     # LSP source positions. Optional. Defaults keep old callers working.
     # `spans` keys: same names as the str fields above (src_theme, ...).
     # `spans` value: (col_start, col_end). 0-based. Missing key = field not on the line.

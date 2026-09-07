@@ -1169,10 +1169,14 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
-        for size_io in pline.size_io_matrix.all_data:   # all definitions of `input -> output
-            src_icon_file = icon_searcher.get_src_icon(OPTIONS.output_theme_name, pline.src_icon_name, size_io.input)  # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
+        dst_icon_name = format_icon_name(pline.dst_icon_name, 'noext')
+        icon_size_io_list = pline.size_io_matrix.all_data     # all definitions of `input -> output of an icon.
+        if not icon_size_io_list:   # No `{...}` specified in this icon line, grab all sizes via `IconFileSearcher`
+            icon_size_io_list = [SizeIo(input=i.size, output=i.size) for i in icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)]
+        for size_io in icon_size_io_list:
+            src_icon_file = icon_searcher.get_src_icon(OPTIONS.output_theme_name, dst_icon_name, size_io.input)  # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
             if not src_icon_file:
-                raise FileNotFoundError(f'''Impossible. Not found icon "{pline.src_icon_name}" in "{BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS}".''')
+                raise FileNotFoundError(f'''Impossible. Not found icon "{dst_icon_name}" in "{BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS}".''')
 
             # copy files
             if src_icon_file.src_file_path_is_symlink:
