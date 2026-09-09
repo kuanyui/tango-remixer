@@ -465,6 +465,44 @@ class TestEndToEndPipeline(unittest.TestCase):
             },
         )
 
+    def test_size_matrix_requesting_only_missing_sizes_raises(self) -> None:
+        """A size matrix asking for sizes the icon does not have fails the build, naming the line, the icon, the existing sizes and the requested sizes."""
+        included_path: Path = self.tmp / "included_size_matrix_error.txt"
+        self.included_text = "Tango    dialog-cancel    {64}\n"
+        included_path.write_text(self.included_text, encoding="utf-8")
+        self._fresh_options.included_icon_file = included_path
+        self._fresh_options.input_svg_sizes = None
+
+        run_00_copy_icon_themes()
+        run_01_no_symlink_themes()
+        run_02_colorize_themes()
+        with self.assertRaises(FileNotFoundError) as cm:
+            run_03_copy_included_icons()
+        message: str = str(cm.exception)
+        self.assertIn(f"{included_path}:1:", message)
+        self.assertIn('Icon "dialog-cancel" of Tango', message)
+        self.assertIn("['16', '22', '32', '48']", message)
+        self.assertIn("['64'] by size matrix", message)
+
+    def test_input_svg_sizes_filtering_out_every_size_raises(self) -> None:
+        """A line without a size matrix fails the build when `--input-svg-sizes` leaves the icon with no size."""
+        included_path: Path = self.tmp / "included_input_svg_sizes_error.txt"
+        self.included_text = "Tango    dialog-cancel\n"
+        included_path.write_text(self.included_text, encoding="utf-8")
+        self._fresh_options.included_icon_file = included_path
+        self._fresh_options.input_svg_sizes = ["64"]
+
+        run_00_copy_icon_themes()
+        run_01_no_symlink_themes()
+        run_02_colorize_themes()
+        with self.assertRaises(FileNotFoundError) as cm:
+            run_03_copy_included_icons()
+        message: str = str(cm.exception)
+        self.assertIn(f"{included_path}:1:", message)
+        self.assertIn('Icon "dialog-cancel" of Tango', message)
+        self.assertIn("['16', '22', '32', '48']", message)
+        self.assertIn("['64'] by --input-svg-sizes", message)
+
     def test_full_pipeline_with_extra_icon_theme_from_system_hicolor(self) -> None:
         """`--extra-icon-theme` against a real external XDG-structured theme.
         We grab the first SVG in the system hicolor `scalable/apps/` folder
