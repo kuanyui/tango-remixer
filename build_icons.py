@@ -883,7 +883,7 @@ class IconFileSearcher():
         if len(final) == 0:
             existing_sizes: List[IconSizeType] = [icon.size for icon in self.filter_src_icons_of_all_sizes(theme_name, icon_name)]
             requested_sizes: List[IconSizeType] = sorted(uniq_sizes, key=key_for_sorting_size(lambda x: x))
-            raise FileNotFoundError(f'Icon "{icon_name}" of {theme_name} provides SVG files in {existing_sizes} only, but you request {requested_sizes}.')
+            raise FileNotFoundError(f'Icon "{icon_name}" of {theme_name} provides SVG files in {existing_sizes} only, but you request {requested_sizes} by size matrix.')
         return final
 
     def get_src_icon(self, theme_name: str, icon_name: str, icon_size: IconSizeType) -> IconSrcFileInfo:
@@ -1144,14 +1144,17 @@ def run_03_copy_included_icons():
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
-            src_icons_to_copy: List[IconSrcFileInfo] = icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
+            try:
+                src_icons_to_copy: List[IconSrcFileInfo] = icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
+            except FileNotFoundError as e:
+                raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: {e}') from None
         else:
             src_icons_to_copy = icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
             if OPTIONS.input_svg_sizes is not None:
                 existing_sizes: List[IconSizeType] = [i.size for i in src_icons_to_copy]
                 src_icons_to_copy = [i for i in src_icons_to_copy if i.size in OPTIONS.input_svg_sizes]
                 if not src_icons_to_copy:
-                    raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: Icon "{pline.src_icon_name}" of {pline.src_theme} provides SVG files in {existing_sizes} only, but you request {OPTIONS.input_svg_sizes}.')
+                    raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: Icon "{pline.src_icon_name}" of {pline.src_theme} provides SVG files in {existing_sizes} only, but you request {OPTIONS.input_svg_sizes} by --input-svg-sizes.')
 
         for src_icon in src_icons_to_copy:
             if src_icon.src_file_path_is_symlink:
