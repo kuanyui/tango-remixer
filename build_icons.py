@@ -1178,7 +1178,10 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
         icon_size_io_list = pline.size_io_matrix.all_data     # all definitions of `input -> output of an icon.
         if not icon_size_io_list:   # No `{...}` specified in this icon line, grab all sizes via `IconFileSearcher`
             icon_size_io_list = [SizeIo(input=i.size, output=i.size) for i in icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)]
+        available_sizes = {i.size for i in icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)}
         for size_io in icon_size_io_list:
+            if size_io.input not in available_sizes:
+                continue   # Ignore the missing sizes (filtered via included_icons.txt in previous step)
             src_icon_file = icon_searcher.get_src_icon(OPTIONS.output_theme_name, dst_icon_name, size_io.input)  # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
             if not src_icon_file:
                 raise FileNotFoundError(f'''Impossible. Not found icon "{dst_icon_name}" in "{BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS}".''')
