@@ -440,5 +440,30 @@ class TestLineEndings(unittest.TestCase):
         self.assertEqual(result[2].src_icon_name, "user-home")
 
 
+@unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
+class TestAllErrorsReported(unittest.TestCase):
+    """With several bad lines, every one is listed on stderr before the first is raised."""
+
+    def test_every_bad_line_is_listed_on_stderr(self) -> None:
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf), self.assertRaises(RuntimeError) as cm:
+            _parse_multi_lines("Tango document-open\nTango    user-home\nTango  go-up")
+        out: str = buf.getvalue()
+        self.assertIn("2 format errors", out)
+        self.assertIn(":1:", out)
+        self.assertIn(":3:", out)
+        self.assertNotIn(":2:", out)
+        self.assertIn("only 1 space", str(cm.exception))
+
+    def test_single_error_is_not_duplicated_on_stderr(self) -> None:
+        import contextlib
+        import io
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf), self.assertRaises(RuntimeError):
+            _parse_multi_lines("Tango document-open")
+        self.assertEqual(buf.getvalue(), "")
+
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

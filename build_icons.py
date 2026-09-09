@@ -10,6 +10,7 @@ https://gist.github.com/peteristhegreat/c0ca6e1a57e5d4b9cd0bb1d7b3be1d6a
 """
 import os
 import re
+import sys
 import asyncio
 import shutil
 from pathlib import Path
@@ -976,6 +977,10 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
     text = file_path.read_text(encoding='utf-8')
     parsed_lines, errors, _directives = parse_text(text, built_in_themes=get_all_icon_themes_folders())
     if errors:
+        if len(errors) > 1:
+            print(f"[ERROR] {len(errors)} format errors in {OPTIONS.included_icon_file}:", file=sys.stderr)
+            for e in errors:
+                print(f"[ERROR] {OPTIONS.included_icon_file}:{e.line_no}:{e.col_start + 1}: {e.message}", file=sys.stderr)
         first = errors[0]
         raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_file}:{first.line_no}:{first.col_start + 1}: {first.message}")
 
