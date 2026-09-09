@@ -541,10 +541,10 @@ This file should be a plain text file, and the format of each line can be any of
 ```
 SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME
 SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t[DST_CONTEXT/]DST_ICON_NAME
-SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16,22,24}
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16;22;24}
 SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-24}
 SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{scalable>24}
-SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-32,48>128}
+SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-32;48>128}
 ```
 
 - Separate fields by tab, or >=4 spaces.
@@ -554,10 +554,10 @@ SRC_THEME_NAME\t[SRC_CONTEXT/]SRC_ICON_NAME\t{16-32,48>128}
 
 - Specify wanted input & output size via `{...}` in the end of line:
   - Not specified means pick all sizes (default).
-  - `{16,22,24}` means picking `16`, `22`, `24` only.
+  - `{16;22;24}` means picking `16`, `22`, `24` only.
   - `{16-24}` means picking sizes of `16` ~ `24`, that is to say, `16`, `22`, `24`.
   - `{scalable>24}` means picking `scalable` of this icon and copy into `24/` SVG folder, and force rasterize it into `24x24` PNG.
-  - `{16-32,48>128}` means picking `16`, `22`, `24`, `32` and convert them into corresponding sizes of PNG files. Then pick `48` and convert it into `128x128`.
+  - `{16-32;48>128}` means picking `16`, `22`, `24`, `32` and convert them into corresponding sizes of PNG files. Then pick `48` and convert it into `128x128`.
   - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
 ---
 
