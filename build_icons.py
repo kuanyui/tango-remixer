@@ -1144,16 +1144,19 @@ def run_03_copy_included_icons():
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
-            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
+            src_icons_to_copy: List[IconSrcFileInfo] = icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
         else:
-            found_src_icons_of_specified_input_sizes = icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
+            src_icons_to_copy = icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
+            if OPTIONS.input_svg_sizes is not None:
+                existing_sizes: List[IconSizeType] = [i.size for i in src_icons_to_copy]
+                src_icons_to_copy = [i for i in src_icons_to_copy if i.size in OPTIONS.input_svg_sizes]
+                if not src_icons_to_copy:
+                    raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: Icon "{pline.src_icon_name}" of {pline.src_theme} provides SVG files in {existing_sizes} only, but you request {OPTIONS.input_svg_sizes}.')
 
-        for src_icon in found_src_icons_of_specified_input_sizes:
+        for src_icon in src_icons_to_copy:
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
-            if (not size_io_specified) and (OPTIONS.input_svg_sizes is not None) and (src_icon.size not in OPTIONS.input_svg_sizes):
-                continue
             # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
             #     continue
 
