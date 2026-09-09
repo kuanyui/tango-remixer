@@ -146,6 +146,12 @@ class TestSeparators(unittest.TestCase):
         self.assertEqual(parsed_line.dst_icon_name, "folder-blue")
 
 
+    def test_three_space_separator_rejected_with_count_in_message(self) -> None:
+        # The classic mistake: column alignment squeezed a separator down to 3 spaces.
+        with self.assertRaises(RuntimeError) as cm:
+            _parse_line("Tango    folder   folder-blue")
+        self.assertIn("only 3 spaces between `folder` and `folder-blue`", str(cm.exception))
+
 @unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
 class TestComments(unittest.TestCase):
     """Comment handling: full-line and end-of-line comments."""

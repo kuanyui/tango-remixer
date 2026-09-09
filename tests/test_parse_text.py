@@ -239,5 +239,50 @@ class TestExtraThemeDirective(unittest.TestCase):
         self.assertEqual(text[d.path_span[0]:d.path_span[1]], "/path")
 
 
+# =============================================
+# Format diagnostics
+# =============================================
+class TestFormatDiagnostics(unittest.TestCase):
+    """A rejected line must say what is wrong and point at where."""
+
+    def _only_error(self, text: str) -> ParseError:
+        parsed, errors, _directives = parse_text(text)
+        self.assertEqual(parsed, [])
+        self.assertEqual(len(errors), 1, errors)
+        self.assertTrue(errors[0].message.startswith("Invalid line format: "), errors[0].message)
+        return errors[0]
+
+    def test_three_spaces_names_the_gap_and_both_neighbours(self) -> None:
+        # The real-world case: `{-32}` squeezed to 3 spaces by column alignment.
+        line = "Nome    package-x-generic    backend-lzh-compatibility   {-32}"
+        err = self._only_error(line)
+        self.assertIn("only 3 spaces between `backend-lzh-compatibility` and `{-32}`", err.message)
+        self.assertIn("4 or more spaces", err.message)
+        self.assertEqual(line[err.col_start:err.col_end], "   ")
+
+    def test_single_space_is_reported_as_one_space(self) -> None:
+        line = "Tango document-open"
+        err = self._only_error(line)
+        self.assertIn("only 1 space between `Tango` and `document-open`", err.message)
+        self.assertEqual((err.col_start, err.col_end), (5, 6))
+
+    def test_short_gap_before_size_expression(self) -> None:
+        line = "Tango    a {16}"
+        err = self._only_error(line)
+        self.assertIn("only 1 space between `a` and `{16}`", err.message)
+        self.assertEqual(line[err.col_start:err.col_end], " ")
+
+    def test_fallback_states_the_rule(self) -> None:
+        line = "garbage-line-no-separator"
+        err = self._only_error(line)
+        self.assertIn("4 or more spaces", err.message)
+        self.assertEqual((err.col_start, err.col_end), (0, len(line)))
+
+    def test_spaces_inside_size_expression_are_still_legal(self) -> None:
+        # Spaces are part of the size-expression grammar; they must not be mistaken for a short separator.
+        parsed, errors, _directives = parse_text("Tango    a    {16>16; 32>32}")
+        self.assertEqual(len(parsed), 1)
+        self.assertFalse(any("Invalid line format" in e.message for e in errors), errors)
+
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])

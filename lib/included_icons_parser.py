@@ -268,7 +268,21 @@ _GROUP_TO_SPAN_KEY: dict[str, str] = {
 }
 
 
-_DIRECTIVE_NAME_PATT: re.Pattern[str] = re.compile(r'^[A-Za-z0-9_-]+$')
+def _diagnose_invalid_line(line: str) -> tuple[int, int, str]:
+    """Explain why PATT_LINE rejected `line`. Returns `(col_start, col_end, reason)`.
+    Only called for rejected lines, so it can never loosen the format."""
+    format_rule: str = "Fields must be separated by a tab or 4 or more spaces."
+    patt_short_gap: re.Pattern[str] = re.compile(r'(?<=\S)[ ]{1,3}(?=\S)')
+
+    brace: int = line.find('{')
+    for gap in patt_short_gap.finditer(line):
+        if brace != -1 and gap.start() > brace:
+            break
+        left: str = line[:gap.start()].split(' ')[-1]
+        right: str = line[gap.end():].split(' ')[0]
+        n: int = gap.end() - gap.start()
+        return gap.start(), gap.end(), f"only {n} space{'s' if n > 1 else ''} between `{left}` and `{right}`. {format_rule}"
+    return 0, len(line), f"`{line}` does not match `THEME    SRC_ICON    [DST_ICON]    [{{SIZES}}]`. {format_rule}"
 
 
 def parse_text(text: str, built_in_themes: Optional[List[str]] = None) -> tuple[List[ParsedIncludedIcon], List[ParseError], List[ExtraThemeDirective]]:
@@ -289,6 +303,7 @@ def parse_text(text: str, built_in_themes: Optional[List[str]] = None) -> tuple[
     errors: List[ParseError] = []
     directives: List[ExtraThemeDirective] = []
     raw_lines = text.splitlines()
+    name_patt: str = r'[A-Za-z0-9_-]+'
 
     # First pass: collect @extra-icon-theme directives and validate their syntax.
     for line_no, raw in enumerate(raw_lines, start=1):
@@ -300,10 +315,10 @@ def parse_text(text: str, built_in_themes: Optional[List[str]] = None) -> tuple[
         name_span = (md.start('name'), md.end('name'))
         path_span = (md.start('path'), md.end('path'))
 
-        if not _DIRECTIVE_NAME_PATT.match(name):
+        if not re.fullmatch(name_patt, name):
             errors.append(ParseError(
                 line_no=line_no, col_start=name_span[0], col_end=name_span[1],
-                message=f'Invalid theme NAME "{name}". Allowed: [A-Za-z0-9_-]+',
+                message=f'Invalid theme NAME "{name}". Allowed: {name_patt}',
                 exc_type=ValueError,
             ))
             continue
@@ -347,8 +362,9 @@ def parse_text(text: str, built_in_themes: Optional[List[str]] = None) -> tuple[
             continue
         m = PATT_LINE.search(line)
         if not m:
-            errors.append(ParseError(line_no=line_no, col_start=0, col_end=len(line),
-                                     message=f"Invalid line format: {line}",
+            col_start, col_end, reason = _diagnose_invalid_line(line)
+            errors.append(ParseError(line_no=line_no, col_start=col_start, col_end=col_end,
+                                     message=f"Invalid line format: {reason}",
                                      exc_type=RuntimeError))
             continue
 

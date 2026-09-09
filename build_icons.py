@@ -977,7 +977,7 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
     parsed_lines, errors, _directives = parse_text(text, built_in_themes=get_all_icon_themes_folders())
     if errors:
         first = errors[0]
-        raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_file}:{first.line_no}: {first.message}")
+        raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_file}:{first.line_no}:{first.col_start + 1}: {first.message}")
 
     fin: List[ParsedIncludedIcon] = []
     for pline in parsed_lines:
