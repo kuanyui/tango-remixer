@@ -470,7 +470,7 @@ class IconThemeOptions:
 
         for size in self.input_svg_sizes or []:
             if not is_icon_size_type(size):
-                raise ValueError(f"Invalid size in --input-svg-sizes: {size}")
+                raise ValueError(f'Invalid size "{size}" in --input-svg-sizes. Available: {", ".join(ALL_AVAILABLE_INPUT_SIZES)}. Example: --input-svg-sizes 16,22,24,32,48,scalable')
 
         for size in self.output_png_sizes:
             if not is_icon_size_type(size):
