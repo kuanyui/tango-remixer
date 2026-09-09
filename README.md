@@ -137,7 +137,7 @@ git clone --recursive git@github.com:kuanyui/tango-remixer.git
 - `DST_CONTEXT` is optional. Default is same with the context of the source icon.
 - `DST_ICON_NAME` is optional, which can be used to rename the outputted icon name.
 - All `*_ICON_NAME` should not contain the extension. All extensions will be ignored.
-- `{SIZE_MATRIX}` is optional. Restricts which input sizes are picked / how they map to output sizes. If omitted, all available source sizes are used. Segments separated by `;`. Each segment is one of:
+- `{SIZE_MATRIX}` is optional. Restricts which input sizes are picked / how they map to output sizes. If omitted, the sizes listed in `--input-svg-sizes` are used, or every found size when that option is not given. Segments separated by `;`. Each segment is one of:
 
   | Segment    | Expression    | Expression Meaning                              | Other Equivalents                              |
   |------------|---------------|-------------------------------------------------|------------------------------------------------|

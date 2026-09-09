@@ -38,7 +38,6 @@ IconThemeFolderName = str
 
 IconSizeNumericType = Literal["8", "16", "22", "24", "32", "36", "48", "64", "72", "96", "128", "192", "256", "384", "512", "1024"]
 
-DEFAULT_INPUT_SIZES: Final[List[IconSizeType]] = ['16', '22', '24', '32', '48', "scalable"]
 DEFAULT_OUTPUT_SIZES: Final[List[IconSizeType]] = []
 DEFAULT_OUTPUT_SIZES_FROM_SCALABLE: Final[List[IconSizeType]] = ['48']
 
@@ -452,7 +451,7 @@ class IconThemeOptions:
     output_svg_theme_to_dir: Path | None
     output_theme_name: str
     output_theme_description: str
-    input_svg_sizes: List[IconSizeType]
+    input_svg_sizes: List[IconSizeType] | None
     output_png_sizes: List[IconSizeType]
     output_png_sizes_from_scalable: List[IconSizeType]
     generate_scales: List[IconScaleType]
@@ -469,7 +468,7 @@ class IconThemeOptions:
         # if not self.themes_scan_path.exists():
         #     raise ValueError(f"Themes scan path does not exist: {self.themes_scan_path}")
 
-        for size in self.input_svg_sizes:
+        for size in self.input_svg_sizes or []:
             if not is_icon_size_type(size):
                 raise ValueError(f"Invalid size in --input-svg-sizes: {size}")
 
@@ -650,8 +649,9 @@ Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its resu
             '--input-svg-sizes', '-iz',
             type=lambda x: [s.strip() for s in x.split(',')],
             required=False,
-            default=DEFAULT_INPUT_SIZES,
+            default=None,
             help=f'''Comma-separated list of icon sizes, to decide what numeric sizes (numeric size folder, ex: `/16/`) should be picked as SVG source files.
+Only applies to lines WITHOUT a {{SIZE_MATRIX}} in included_icons.txt; a line with a size matrix picks its own sizes. If omitted, every found size is picked.
 (Available: { ", ".join(ALL_AVAILABLE_INPUT_SIZES) })'''
         )
         parser.add_argument(
@@ -881,7 +881,9 @@ class IconFileSearcher():
             if icon.theme_src_folder_name == theme_name and icon.icon_name == icon_name and icon.size in uniq_sizes:
                 final.append(icon)
         if len(final) == 0:
-            raise FileNotFoundError(f'Icon "{icon_name}" not found in {theme_name}')
+            existing_sizes: List[IconSizeType] = [icon.size for icon in self.filter_src_icons_of_all_sizes(theme_name, icon_name)]
+            requested_sizes: List[IconSizeType] = sorted(uniq_sizes, key=key_for_sorting_size(lambda x: x))
+            raise FileNotFoundError(f'Icon "{icon_name}" of {theme_name} provides SVG files in {existing_sizes} only, but you request {requested_sizes}.')
         return final
 
     def get_src_icon(self, theme_name: str, icon_name: str, icon_size: IconSizeType) -> IconSrcFileInfo:
@@ -1150,10 +1152,8 @@ def run_03_copy_included_icons():
             if src_icon.src_file_path_is_symlink:
                 print(f'[WARNING] "{src_icon.src_file_path}" is a symlink, auto follows link original file.')
 
-            if (size_io_specified) and (src_icon.size not in OPTIONS.input_svg_sizes):
+            if (not size_io_specified) and (OPTIONS.input_svg_sizes is not None) and (src_icon.size not in OPTIONS.input_svg_sizes):
                 continue
-            else:
-                pass
             # if src_icon.scale not in OPTIONS.generate_scales and src_icon.scale != '1':    # FIXME: source file of scale != 1 is not supported currently
             #     continue
 
