@@ -1138,20 +1138,20 @@ def run_03_copy_included_icons():
     this_theme_folder = BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS / OPTIONS.output_theme_name
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for colorized themes folder.
-    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
+    src_icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
     global PARSED_INCLUDED_ICONS_TXT_LINES
-    PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(icon_searcher, OPTIONS.included_icon_file)
+    PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(src_icon_searcher, OPTIONS.included_icon_file)
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
             try:
-                src_icons_to_copy: List[IconSrcFileInfo] = icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
+                src_icons_to_copy: List[IconSrcFileInfo] = src_icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
             except FileNotFoundError as e:
                 raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: {e}') from None
         else:
-            src_icons_to_copy = icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
+            src_icons_to_copy = src_icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
             if OPTIONS.input_svg_sizes is not None:
-                existing_sizes: List[IconSizeType] = [i.size for i in src_icons_to_copy]
+                existing_sizes: List[IconSizeType] = [src.size for src in src_icons_to_copy]
                 src_icons_to_copy = [i for i in src_icons_to_copy if i.size in OPTIONS.input_svg_sizes]
                 if not src_icons_to_copy:
                     raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: Icon "{pline.src_icon_name}" of {pline.src_theme} provides SVG files in {existing_sizes} only, but you request {OPTIONS.input_svg_sizes} by --input-svg-sizes.')
@@ -1175,7 +1175,7 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
     this_theme_folder = BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME / OPTIONS.output_theme_name
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for previous folder.
-    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
+    src_icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
@@ -1183,12 +1183,12 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
         dst_icon_name = format_icon_name(pline.dst_icon_name, 'noext')
         icon_size_io_list = pline.size_io_matrix.all_data     # all definitions of `input -> output of an icon.
         if not icon_size_io_list:   # No `{...}` specified in this icon line, grab all sizes via `IconFileSearcher`
-            icon_size_io_list = [SizeIo(input=i.size, output=i.size) for i in icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)]
-        available_sizes = {i.size for i in icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)}
+            icon_size_io_list = [SizeIo(input=src.size, output=src.size) for src in src_icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)]
+        available_src_icon_sizes = {src.size for src in src_icon_searcher.filter_src_icons_of_all_sizes(OPTIONS.output_theme_name, dst_icon_name)}
         for size_io in icon_size_io_list:
-            if size_io.input not in available_sizes:
+            if size_io.input not in available_src_icon_sizes:
                 continue   # Ignore the missing sizes (filtered via included_icons.txt in previous step)
-            src_icon_file = icon_searcher.get_src_icon(OPTIONS.output_theme_name, dst_icon_name, size_io.input)  # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
+            src_icon_file = src_icon_searcher.get_src_icon(OPTIONS.output_theme_name, dst_icon_name, size_io.input)  # OPTIMIZE: Very inefficient but unmatured optimization is source of evil so ignore it for now.
             if not src_icon_file:
                 raise FileNotFoundError(f'''Impossible. Not found icon "{dst_icon_name}" in "{BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS}".''')
 
@@ -1218,14 +1218,14 @@ async def run_05_convert_svg_to_png():
     dst_theme_folder.mkdir(parents=True, exist_ok=True)
 
     # Initialize icon searcher for previous folder.
-    icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME)
+    src_icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME)
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
 
     svg2png = SvgToPngConverter()
     deferred: List[Coroutine[None, None, bool]] = []
-    for icon in icon_searcher.all_found_icons:
+    for icon in src_icon_searcher.all_found_icons:
         for scale in OPTIONS.generate_scales:
             # qrc & index.theme
             if icon.size != 'scalable':    # FIXME: source file of scale != 1 is not supported currently
