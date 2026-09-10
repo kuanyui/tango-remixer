@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """LSP server for `included_icons.txt`.
 
-Install + editor setup: see `docs/lsp_server.md`.
+Install + editor setup: see `lsp/README.md`.
 Run via stdio: `python -m lsp`.
 
 Wires up pygls. Reacts to didOpen / didChange / didSave.

@@ -220,7 +220,7 @@ Highest priority (over in-file directive). Good for ad-hoc / CI overrides.
 ```
 >
 #### **B. In-File Directive**
-This is the recommended way -- self-describing, also **recognizable by the LSP server**.
+This is the recommended way -- self-describing, also **recognizable by the LSP server** (see [`lsp/README.md`](lsp/README.md)).
 
 **Syntax: `# @extra-icon-theme THEME_NAME THEME_PATH`**
 
@@ -583,7 +583,7 @@ As a reference, the final file-system structure looks like:
 >   - Gemini (Web UI),
 >   - Claude (Web UI),
 >   - Claude Code (For debug... I've been burnt-out after release publicly; too lazy to debug manually.)
-> - **LSP server** (and its docs): 100% were directly written by LLM agent (Claude Code). ~~I have no interest to spend my life time on this. After all I have no talents of writing code.~~
+> - **LSP server** (its docs, and the Emacs mode in `editors/emacs/`): 100% were directly written by LLM agent (Claude Code). ~~I have no interest to spend my life time on this. After all I have no talents of writing code.~~
 > - **Tests**: 99% were directly written by LLM agent (Claude Code), according to the documentations in code and my instructions. Roughly reviewed by human.
 >
 > All the other parts are done by human.

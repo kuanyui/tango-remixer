@@ -50,54 +50,55 @@ The server reads/writes LSP messages over stdio. Editors launch it for you.
 >
 > The ELPA copy shadows the bundled one.
 
-Pick one of the two setups below.
+Emacs support is one file, [`editors/emacs/tango-included-icons.el`](../editors/emacs/tango-included-icons.el): a dedicated major mode for `included_icons.txt` plus the Eglot wiring. There is nothing to install -- pick one of the two ways to load it.
 
-#### Option A: per-project `.dir-locals.el` (self-contained, no init.el changes)
+#### Option A: per file, inside `included_icons.txt` (recommended)
 
-Drop a single `.dir-locals.el` next to your `included_icons.txt`. Nothing else to touch -- it defines a one-shot derived mode inline, switches to it, and tells Eglot to attach. The wrapper path is resolved relative to the file's directory at load time, so Eglot's cwd at launch doesn't matter.
+Put this on the **first line** of your `included_icons.txt`. The path is relative to the file's own directory; adjust it to where you keep the submodule.
 
-```elisp
-;; Adjust the relative segment to match where you keep the submodule.
-((nil . ((eval . (when (and buffer-file-name
-                              (equal (file-name-nondirectory buffer-file-name) "included_icons.txt"))
-    (unless (fboundp 'tango-included-icons-mode)
-      (define-derived-mode tango-included-icons-mode text-mode "TangoIcons"))
-    (unless (eq major-mode 'tango-included-icons-mode)
-      (tango-included-icons-mode))
-    (setq-local eglot-server-programs
-                `((tango-included-icons-mode . (,(expand-file-name "tango-remixer/included-icons-lsp" default-directory)))))
-    (eglot-ensure))))))
+```
+# -*- eval: (load-file "tango-remixer/editors/emacs/tango-included-icons.el") -*-
 ```
 
-The wrapper (`included-icons-lsp`) handles `cd`-ing into the tango-remixer repo root so `python3 -m lsp` can find the `lsp/` package.
+It combines with the usual mode cookie, which then serves as the fallback when the `eval` is declined:
 
-On first visit Emacs will ask whether to trust the dir-locals; press `!` to accept permanently.
-
-#### Option B: global init.el setup (one-time, works across all projects)
-
-Put this in your `init.el` (or `~/.emacs.d/init.el`). The derived mode + auto-mode-alist binding means every `included_icons.txt` you ever open gets the right mode automatically; the eglot-server-programs entry tells Eglot where to find the wrapper; the mode hook starts Eglot on entry.
-
-```elisp
-;; Dedicated mode so Eglot only attaches to this one file, not every
-;; text-mode buffer in the project (see the NOTE below).
-(define-derived-mode tango-included-icons-mode text-mode "TangoIcons"
-  "Major mode for tango-remixer's included_icons.txt config.")
-(add-to-list 'auto-mode-alist '("included_icons\\.txt\\'" . tango-included-icons-mode))
-
-(with-eval-after-load 'eglot
-  ;; Use an absolute path -- adjust to wherever you cloned tango-remixer.
-  ;; If tango-remixer lives inside each project as a submodule, prefer
-  ;; Option A so the path stays relative.
-  (add-to-list 'eglot-server-programs
-               '(tango-included-icons-mode . ("/absolute/path/to/tango-remixer/included-icons-lsp"))))
-
-(add-hook 'tango-included-icons-mode-hook #'eglot-ensure)
+```
+# -*- mode: conf; eval: (load-file "tango-remixer/editors/emacs/tango-included-icons.el") -*-
 ```
 
-Trade-off: simpler config, but you pin a single absolute wrapper path. Use Option A if you have multiple projects each with their own `tango-remixer/` submodule.
+The same thing as a block at the **end** of the file (Emacs only looks for this block near the end, so keep it last):
 
-> [!NOTE]
-> The dedicated `tango-included-icons-mode` is **not optional** in either option. If you bind Eglot to plain `text-mode`, Eglot's `after-change-major-mode-hook` will auto-attach the running server to every text-mode (or derived) buffer in the same project -- including your magit commit message buffer -- and spam them with bogus diagnostics. The attach check is `provided-mode-derived-p`, which we sidestep by giving `included_icons.txt` a mode that's a *sibling* of `git-commit-mode`, not an ancestor.
+```
+# Local Variables:
+# eval: (load-file "tango-remixer/editors/emacs/tango-included-icons.el")
+# End:
+```
+
+On first visit Emacs asks whether to run that `eval`. **Press `!`**: the form is then saved to your `custom-file` and never asked again, and later changes to the `.el` file don't re-trigger the prompt. Answering `y` works too, but you'll be asked twice per visit (switching major mode makes Emacs re-read the local variables) and again on every visit.
+
+The prompt is not a defect: it is the only thing standing between "opening a file" and "running code shipped in the repository". Nothing here runs without that one-time consent. If your `enable-local-variables` is `:safe`, Emacs silently skips the form instead of asking; allow exactly this form with:
+
+```elisp
+(add-to-list 'safe-local-eval-forms
+             '(load-file "tango-remixer/editors/emacs/tango-included-icons.el"))
+```
+
+#### Option B: global init.el setup
+
+Load the file from your init file with an absolute path. It registers `auto-mode-alist`, so every `included_icons.txt` you open gets the mode and Eglot; the server is located relative to the `.el` file itself.
+
+```elisp
+(load "/absolute/path/to/tango-remixer/editors/emacs/tango-included-icons.el")
+```
+
+Trade-off: pins one checkout. Use Option A when each project carries its own `tango-remixer/` submodule.
+
+A `# -*- mode: conf -*-` cookie on the first line of `included_icons.txt` takes precedence over `auto-mode-alist`, so with Option B either remove the cookie or change it to `# -*- mode: tango-included-icons -*-`.
+
+#### Notes
+
+- The mode starts the server as `python3 lsp/server.py` directly: no wrapper script, no cwd dependency, works on Windows. If pygls lives in a venv, point `tango-included-icons-python` at that interpreter in your init file.
+- Why a dedicated mode instead of `text-mode`: Eglot attaches the running server to every buffer in the same project whose major mode derives from the managed one (`provided-mode-derived-p`). Bound to `text-mode`, it would grab magit's commit message buffer and spam it with bogus diagnostics. `tango-included-icons-mode` derives from `text-mode` but nothing derives from *it*, so only `included_icons.txt` is managed.
 
 ### Neovim (nvim-lspconfig)
 

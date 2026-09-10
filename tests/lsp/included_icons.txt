@@ -1,5 +1,8 @@
+# -*- eval: (load-file "../../editors/emacs/tango-included-icons.el") -*-
 # Sample included_icons.txt for visual LSP smoke test.
-# Open this file in Emacs; .dir-locals.el here should fire up Eglot.
+# Open this file in Emacs: the first line loads the dedicated mode and
+# starts Eglot. Emacs asks once whether to run it; press `!` so it is
+# remembered.
 
 # =============================================
 # In-file directive: declare an extra theme
