@@ -17,25 +17,27 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     # =================
     # places
     # =================
-    IncludedFile(name="folder-documents", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-download", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-music", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-publicshare", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-remote", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-saved-search", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-system", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-video", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-home", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-templates", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-visiting", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-documents", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-download", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-music", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-publicshare", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-remote", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-saved-search", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-system", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-video", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-home", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-templates", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-visiting", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-recent", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-ubuntu", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="gnome-fs-web", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_dim_blue"]),   # folder
+    IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),   # folder
     IncludedFile(name="network-server", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="stock_smart-playlist", colorize_rules=["orange_to_blue"]),
     # IncludedFile(name="user-desktop", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="user-home", colorize_rules=["orange_to_dim_blue"]),   # folder
+    IncludedFile(name="user-home", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),   # folder
     IncludedFile(name="user-trash-full", colorize_rules=["orange_to_dim_green"]),
     IncludedFile(name="user-trash", colorize_rules=["orange_to_dim_green"]),
     IncludedFile(name="x-office-spreadsheet", colorize_rules=["orange_to_green"]),
@@ -60,14 +62,19 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     # =================
     # actions
     # =================
-    IncludedFile(name="document-open", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="folder-new", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="folder-new", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-copy", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-move", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="document-open", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="document-save-as", colorize_rules=["orange_to_green"]),
     IncludedFile(name="document-save", colorize_rules=["orange_to_green"]),
+    IncludedFile(name="document-export", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="system-log-out", colorize_rules=["orange_to_red"]),
-    IncludedFile(name="rotate", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="object-rotate-right", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="rotate", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="object-rotate-right", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="object-flip-horizontal", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="object-flip-vertical", colorize_rules=["orange_to_dim_blue"]),
     # IncludedFile(name="", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="go-up", colorize_rules=["orange_to_green"]),
     IncludedFile(name="go-down", colorize_rules=["orange_to_green"]),
@@ -162,6 +169,13 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                         l += 5
                     else:
                         l -= 5
+            case "red_to_dim_blue":
+                if 0 <= h <= 30:
+                    h += 185
+                    if s > 30:
+                        s -= 35
+                    if l < 50:
+                        l = int(l * 0.8)
             case "orange_to_green":
                 if 15 <= h <= 55:
                     h += 40
@@ -217,4 +231,3 @@ def nome_colorize_svg_content(svg_file_content: str, svg_file_name_without_ext: 
         return svg_file_content
     pattern = r'#[A-Fa-f0-9]{3}(?:[A-Fa-f0-9]{3})?'
     return re.sub(pattern, lambda m: nome_colorize_hex_code_with_rule(m.group(0), included_file.colorize_rules), svg_file_content)
-
