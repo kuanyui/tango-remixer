@@ -20,19 +20,19 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="folder-documents", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-download", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-music", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue", "purple_to_dim_blue"]),
     IncludedFile(name="folder-publicshare", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-remote", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-saved-search", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-system", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-video", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-video", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue", "purple_to_blue"]),
     IncludedFile(name="folder-home", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-templates", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-visiting", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-recent", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="folder-ubuntu", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="gnome-fs-web", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="gnome-fs-web", colorize_rules=["orange_to_blue", "red_to_dim_blue"]),
     IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),   # folder
     IncludedFile(name="network-server", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="stock_smart-playlist", colorize_rules=["orange_to_blue"]),
@@ -41,7 +41,7 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="user-trash-full", colorize_rules=["orange_to_dim_green"]),
     IncludedFile(name="user-trash", colorize_rules=["orange_to_dim_green"]),
     IncludedFile(name="x-office-spreadsheet", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="x-office-document", colorize_rules=["orange_to_green"]),
+    IncludedFile(name="x-office-document", colorize_rules=["orange_to_green", "red_to_green"]),
     IncludedFile(name="ooo-template", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="ooo-impress", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="ooo-web", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
@@ -52,12 +52,20 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="gnome-control-centre", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="preferences-desktop-keyboard-shortcuts", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="preferences-desktop-wallpaper", colorize_rules=["purple_to_blue"]),
-    IncludedFile(name="preferences-desktop-remote-desktop", colorize_rules=["red_to_blue"]),
-    IncludedFile(name="session-properties", colorize_rules=["red_to_blue"]),
     IncludedFile(name="video-x-generic", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="system-file-manager", colorize_rules=["orange_to_blue"]),
     # IncludedFile(name="system-upgrade", colorize_rules=["orange_to_red"]),
-    IncludedFile(name="gnome-panel-workspace-switcher", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="gnome-panel-workspace-switcher", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="preferences-desktop-remote-desktop", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="session-properties", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="vinagre", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="preferences-desktop", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="preferences-system-network", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="user-desktop", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="stock_smart-playlist", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="invest-applet", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="gdm-setup", colorize_rules=["purple_to_blue"]),
+    IncludedFile(name="gksu-root-terminal", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="preferences-desktop-theme", colorize_rules=["orange_to_blue", "red_to_blue", "purple_to_blue"]),
     IncludedFile(name="gdm-setup", colorize_rules=["red_to_blue"]),
     IncludedFile(name="menu-editor", colorize_rules=["red_to_blue"]),
@@ -102,7 +110,7 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     # =================
     # devices
     # =================
-    IncludedFile(name="computer", colorize_rules=["red_to_blue"]),
+    IncludedFile(name="computer", colorize_rules=["purple_to_blue"]),
     # IncludedFile(name="", colorize_rules=[]),
 ]
 
@@ -205,11 +213,11 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                     s -= 10
             case "purple_to_blue":
                 purple = [280, 320]
-                blue   = [220, 260]
+                blue   = [205, 220]
                 if purple[0] <= h <= purple[1]:
                     src_percentage = (h - purple[0]) / (purple[1] - purple[0])
                     dst = blue[0] + (src_percentage * (blue[1] - blue[0]))
-                    h -= 90
+                    h = int(dst)
 
 
     h = h % 360
