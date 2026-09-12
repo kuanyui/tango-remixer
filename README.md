@@ -333,7 +333,8 @@ Now you can get `QIcon` via `QIcon::fromTheme()`. Setup `mainwindow.cpp` like th
 ```
 # Build .svg and .qrc
 ```sh
-make build   # download tarballs & extract, then build .svg and .qrc into dist/
+python3 ./build_icons.py --included-icon-file included_icons.txt   # build .svg and .qrc into dist/
+make viewer  # browse the source icon themes (submodules/, no build needed); listens on all interfaces, open one of the printed URLs
 make clean   # delete dist/
 make clean-tarballs    # delete all thirdparty tarballs (so that you can download again if you encountered fail)
 python3 ./build_icons.py --help  # see other options

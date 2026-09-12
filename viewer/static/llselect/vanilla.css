@@ -1,0 +1,263 @@
+/* llselect - vanilla theme: minimal sensible defaults, no framework. */
+
+.llselect-root {
+  position: relative;
+  display: inline-block;
+  min-width: 14rem;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 0.95rem;
+  color: #222;
+}
+
+/* --- trigger --------------------------------------------------- */
+
+.llselect-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.4rem 0.7rem;
+  border: 1px solid #888;
+  border-radius: 4px;
+  background: #fff;
+  cursor: pointer;
+  user-select: none;
+  line-height: 1.4;
+}
+
+.llselect-trigger:focus,
+.llselect-trigger:focus-visible {
+  outline: 2px solid #4a90e2;
+  outline-offset: 1px;
+}
+
+.llselect-trigger-content {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.llselect-trigger[data-empty='true'] .llselect-trigger-content {
+  color: #888;
+}
+
+.llselect-trigger-arrow {
+  display: inline-flex;
+  align-items: center;
+  color: #666;
+  transition: transform 0.15s;
+}
+
+.llselect-trigger-arrow:empty { display: none; }
+
+.llselect-trigger[data-state='open'] .llselect-trigger-arrow {
+  transform: rotate(180deg);
+}
+
+/* --- popup ----------------------------------------------------- */
+
+.llselect-popup {
+  background: #fff;
+  border: 1px solid #888;
+  border-radius: 4px;
+  z-index: 1000;
+  /* Explicit even though these match the defaults: in top-layer (popover)
+     mode the UA [popover] chrome (padding: 0.25em; color: CanvasText) would
+     otherwise leak in. Author declarations beat UA styles. */
+  color: inherit;
+  padding: 0;
+}
+
+.llselect-popup[data-placement='above'] {
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.llselect-popup[data-placement='below'] {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+/* --- items ----------------------------------------------------- */
+
+.llselect-item {
+  padding: 0.35rem 0.7rem;
+  cursor: pointer;
+  line-height: 1.4;
+}
+
+.llselect-item:hover {
+  background: #eef4ff;
+}
+
+.llselect-item-focused {
+  background: #cce4ff;
+}
+
+.llselect-item[aria-selected='true'] {
+  font-weight: 600;
+  color: #1c4d8f;
+}
+
+/* --- choose-all row (multi, opt-in) ----------------------------- */
+/* The default row content is just the counting text (its numbers carry the
+   tri-state); data-chosen-state is the hook if a theme wants to draw its own
+   indicator, createChooseAllRowContentElFn the way to add a real one. The
+   row also carries the plain item class, so hover / focused styling comes
+   from there. */
+
+.llselect-choose-all-row {
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+
+/* --- groups (Phase 10) ----------------------------------------- */
+/* Header is static by default. The scroll math is offsetParent-independent
+   (keyboard.ts uses rect deltas), so a theme MAY make this `position: sticky;
+   top: 0` for a pinned header. */
+
+.llselect-group-label {
+  padding: 0.3rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #666;
+  background: #f5f5f5;
+}
+
+.llselect-group[data-disabled='true'] .llselect-group-label {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+/* --- filter input (Phase 8) ------------------------------------ */
+
+.llselect-filter-input {
+  flex: none;
+  margin: 0.3rem;
+  padding: 0.3rem 0.5rem;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  font: inherit;
+  outline: none;
+}
+
+.llselect-filter-input:focus {
+  border-color: #4a90e2;
+}
+
+/* --- no-results message ----------------------------------------- */
+
+.llselect-popup-list-no-results {
+  padding: 0.35rem 0.7rem;
+  color: #888;
+}
+
+/* --- disabled (Phase 9) ---------------------------------------- */
+/* aria-disabled + data-disabled, never native `disabled`. Keep pointer
+   events alive (no `pointer-events: none`) so hover/focus tooltips work. */
+
+.llselect-trigger[data-disabled='true'] {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+/* Embedded buttons are inert while the control is disabled: show not-allowed,
+   not the pointer cursor their own rule sets. */
+.llselect-trigger[data-disabled='true'] .llselect-tag-remove-button,
+.llselect-trigger[data-disabled='true'] .llselect-trigger-clear-button {
+  cursor: not-allowed;
+}
+
+.llselect-item-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.llselect-item-disabled:hover {
+  background: none;
+}
+
+/* --- tags (triggerDisplay: 'tags') ----------------------------- */
+/* :has lets the trigger content wrap for chips (it is nowrap+ellipsis for
+   single/count text). */
+
+.llselect-trigger-content:has(.llselect-tags) {
+  white-space: normal;
+  overflow: visible;
+}
+
+.llselect-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.llselect-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  /* Logical: mirrors under dir="rtl" (text side start, x-button side end). */
+  padding-block: 0.05rem;
+  padding-inline: 0.4rem 0.15rem;
+  background: #eee;
+  border: 1px solid #ddd;
+  border-radius: 3px;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.llselect-tag-remove-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.15em;
+  height: 1.15em;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: #777;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.llselect-tag-remove-button:empty::before { content: '\00d7'; font-size: 1.15em; }
+
+.llselect-tag-remove-button:hover {
+  background: #ddd;
+  color: #333;
+}
+
+/* A disabled item's chip: greyed, its x inert (the JS click guard is the real block). */
+.llselect-tag-disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.llselect-tag-disabled .llselect-tag-remove-button {
+  cursor: not-allowed;
+}
+
+/* --- clear button (clearable) ---------------------------------- */
+/* :empty::before draws the x only when createTriggerClearButtonContentElFn gave no icon. */
+
+.llselect-trigger-clear-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 1.2em;
+  height: 1.2em;
+  padding: 0;
+  border: none;
+  border-radius: 2px;
+  background: transparent;
+  color: #888;
+  cursor: pointer;
+  font: inherit;
+  line-height: 1;
+}
+
+.llselect-trigger-clear-button:empty::before { content: '\00d7'; font-size: 1.2em; }
+
+.llselect-trigger-clear-button:hover { color: #333; background: #eee; }
+
+.llselect-trigger[data-empty='true'] .llselect-trigger-clear-button { display: none; }

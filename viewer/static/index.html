@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tango Remixer Icon Viewer</title>
+<!-- @llselect/core 0.0.8 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
+<link rel="stylesheet" href="/static/llselect/vanilla.css">
+<script src="/static/llselect/index.umd.js"></script>
+<style>
+  :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa; }
+  body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63; }
+  body { margin: 0; height: 100vh; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg);
+         display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 440px; }
+  header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
+  header .llselect-root { min-width: 11rem; max-width: 22rem; font-size: 13px; }
+  .opt { display: inline-flex; align-items: center; gap: 6px; }   /* llselect checkbox icon + text in a row */
+  .theme-opt img { flex: none; }
+  .theme-opt img.on-dark { box-sizing: border-box; padding: 2px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
+  .theme-opt small { display: block; color: var(--muted); }
+  body.dark .llselect-trigger, body.dark .llselect-popup { background: var(--bg); color: var(--fg); border-color: var(--line); }
+  body.dark .llselect-item:hover, body.dark .llselect-item-focused, body.dark .llselect-choose-all-row { background: var(--hover); color: var(--fg); }
+  body.dark .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }
+  header input[type=search] { flex: 1; max-width: 320px; padding: 4px 8px; }
+  #status { color: var(--muted); }
+  #status { margin-left: auto; }
+  #list { overflow-y: auto; }
+  .row { display: flex; align-items: center; gap: 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  .row:hover { background: var(--hover); }
+  .row.selected { background: var(--sel); }
+  .meta { width: 360px; flex: none; }
+  .meta > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .meta .where, .meta .aliases { color: var(--muted); font-size: 12px; }
+  .sizes { display: flex; align-items: flex-end; gap: 12px; }
+  .row .license { margin-left: auto; max-width: 200px; text-align: right; color: var(--muted); font-size: 12px; }
+  .sizes figure { margin: 0; text-align: center; }
+  .sizes figcaption { font-size: 10px; color: var(--muted); }
+  .sizes .empty { box-sizing: border-box; border: 1px dashed var(--line); }
+  #detail { border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; }
+  #detail h3 { margin: 0; }
+  #detail > img { display: block; margin: 12px auto; }
+  .file { padding: 6px 0; border-top: 1px solid var(--line); }
+  .file code { display: block; word-break: break-all; color: var(--muted); font-size: 12px; margin: 2px 0 4px; }
+  .note { margin-top: 6px; color: var(--muted); word-break: break-word; }
+  button { font: inherit; padding: 2px 8px; margin-right: 6px; }
+  button img { vertical-align: -3px; margin-right: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <strong>Icon Viewer</strong>
+  <input type="search" id="q" placeholder="Search icon name…" autofocus>
+  <div id="theme"></div>
+  <div id="context"></div>
+  <div id="size"></div>
+  <button id="reset" title="Search, themes, contexts and sizes back to their defaults"><img src="/icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
+  <label><input type="checkbox" id="dark"> Dark background</label>
+  <span id="status">Loading…</span>
+</header>
+<main id="list"></main>
+<aside id="detail"><p style="color:var(--muted)">Click an icon to see its files.</p></aside>
+<script>
+const MAX_ROWS = 500;
+const token = new URLSearchParams(location.search).get('token');
+const $ = id => document.getElementById(id);
+const DEFAULT_SIZES = ['16', '22', '24', '32', '48'];
+// Button icons come from the themes themselves (Tango where it has a 16 px one, else Nome).
+const UI_ICONS = {
+  reveal: 'Nome/apps/16/system-file-manager.svg',
+  dir: 'Tango/16x16/status/folder-open.svg',
+  copy: 'Nome/actions/16/edit-copy.svg',
+  copied: 'Nome/emblems/16/emblem-default.svg',
+  inkscape: 'InkscapeTango/actions/scalable/inkscape-logo.svg',
+};
+let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel;
+
+function el(tag, props, ...children) {
+  const node = Object.assign(document.createElement(tag), props);
+  node.append(...children);
+  return node;
+}
+const buttonContent = (icon, label) => [el('img', { src: `/icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
+function iconButton(icon, label, onclick) {
+  return el('button', { onclick }, ...buttonContent(icon, label));
+}
+
+// A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order.
+// Rows use llselect's own checkbox icon; they re-render on every chosen-state change, so the icon stays in sync.
+// opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row.
+function multiSelect(id, label, items, chosen, opts = {}) {
+  const sel = new llselect.LLSelectMultiple($(id), {
+    ariaLabel: label,
+    chooseAllRow: true,
+    itemToGroupKeyFn: opts.groupOf || null,
+    createTriggerArrowContentElFn: () => llselect.createChevronDownSvgEl(),
+    createItemContentElFn: item => {
+      const box = llselect.createOutlinedCheckboxSvgEl({ state: sel.isChosen(item) ? 'checked' : 'unchecked' });
+      return opts.itemContent ? opts.itemContent(item, box) : el('span', { className: 'opt' }, box, item);
+    },
+    createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
+      llselect.createOutlinedCheckboxSvgEl({ state }), `All (${chosenCount}/${totalCount})`),
+    createTriggerContentElFn: ({ chosenItems, items }) => el('span', {}, `${label}: ` +
+      (chosenItems.length === items.length ? 'all' : chosenItems.length ? items.filter(i => chosenItems.includes(i)).join(', ') : 'none')),
+    onChange: () => render(),
+  });
+  sel.setItems(items);
+  sel.setChosenItems(chosen);
+  return sel;
+}
+// `scalable` folders have no pixel size: show them at 48. Rows cap at 64 so a 256 icon stays a thumbnail.
+const rowPx = size => Math.min(size === 'scalable' ? 48 : Number(size), 64);
+function img(icon, s, px) {
+  return el('img', { src: encodeURI(`/icons/${icon.theme}/${s.path}`), width: px, height: px, loading: 'lazy', title: `${icon.name} ${s.size}` });
+}
+
+function render() {
+  if (!sizeSel) return;   // selects not built yet
+  const q = $('q').value.trim().toLowerCase();
+  const themes = new Set(themeSel.getChosenItems()), contexts = new Set(contextSel.getChosenItems());
+  const sizes = allSizes.filter(s => sizeSel.isChosen(s));   // the columns, in canonical order
+  const hits = icons.filter(i => themes.has(i.theme) && contexts.has(i.context) && i.sizes.some(s => sizes.includes(s.size))
+    && (i.name.includes(q) || i.aliases.some(a => a.includes(q))));
+  $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => {
+    const row = el('div', { className: 'row', onclick: () => showDetail(row, icon) },
+      el('div', { className: 'meta', title: icon.aliases.join('\n') },
+        el('div', { className: 'where' }, `${icon.theme}/${icon.context}`),
+        el('div', {}, icon.name),
+        el('div', { className: 'aliases' }, icon.aliases.join(', ') || '\u00a0')),   // keep 3 lines so rows line up
+      // Every row shows every chosen size column, an empty box where the icon lacks that size, so columns line up.
+      el('div', { className: 'sizes' }, ...sizes.map(size => {
+        const s = icon.sizes.find(x => x.size === size), px = rowPx(size);
+        return el('figure', {}, s ? img(icon, s, px) : el('div', { className: 'empty', style: `width:${px}px;height:${px}px` }),
+          el('figcaption', {}, size));
+      })),
+      el('div', { className: 'license' }, themeInfo[icon.theme].license));
+    return row;
+  }));
+  $('status').textContent = hits.length > MAX_ROWS
+    ? `Showing ${MAX_ROWS} of ${hits.length} icons – narrow the filter`
+    : `${hits.length} icons`;
+}
+
+function showDetail(row, icon) {
+  document.querySelector('.row.selected')?.classList.remove('selected');
+  row.classList.add('selected');
+  $('detail').replaceChildren(
+    el('h3', {}, icon.name),
+    el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
+    el('div', { className: 'note' }, 'included_icons.txt: ', el('code', {}, `${icon.theme}    ${icon.name}`)),
+    el('div', { className: 'note' }, `License: ${themeInfo[icon.theme].license}`),
+    el('div', { className: 'note' }, icon.aliases.length
+      ? `Aliases (symlinks to this file): ${icon.aliases.join(', ')}` : 'No aliases'),
+    img(icon, icon.sizes[icon.sizes.length - 1], 128),
+    ...icon.sizes.map(s => el('div', { className: 'file' },
+      el('strong', {}, s.size),
+      el('code', {}, s.path),
+      iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal')),
+      iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir')),
+      iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape')),
+      iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget)))));
+}
+
+// navigator.clipboard only exists in secure contexts (https or localhost). Viewed over plain
+// http from another machine it is undefined, so fall back to the old execCommand route.
+function copyText(text, button) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+  } else {
+    const ta = el('textarea', { value: text, style: 'position:fixed;opacity:0' });
+    document.body.append(ta);
+    ta.select();
+    document.execCommand('copy');
+    ta.remove();
+  }
+  button.replaceChildren(...buttonContent('copied', 'Copied'));
+  setTimeout(() => button.replaceChildren(...buttonContent('copy', 'Copy full path')), 1000);
+}
+
+async function openPath(theme, path, action) {
+  const res = await fetch('/api/open', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Viewer-Token': token },
+    body: JSON.stringify({ theme, path, action }),
+  });
+  if (!res.ok) alert(`${action} failed (HTTP ${res.status}):\n${await res.text()}`);
+}
+
+fetch('/api/index.json').then(r => r.json()).then(data => {
+  icons = data.icons;
+  themeInfo = Object.fromEntries(data.themes.map(t => [t.name, t]));
+  folders = Object.fromEntries(data.themes.map(t => [t.name, t.folder]));
+  contextIcons = data.contexts;
+  allSizes = [...new Set(icons.flatMap(i => i.sizes.map(s => s.size)))]
+    .sort((a, b) => (a === 'scalable') - (b === 'scalable') || a - b);   // numeric ascending, scalable last
+  const themes = data.themes.map(t => t.name), contexts = [...new Set(icons.map(i => i.context))].sort();
+  themeSel = multiSelect('theme', 'Themes', themes, themes, {
+    groupOf: name => themeInfo[name].group,
+    itemContent: (name, box) => el('span', { className: 'opt theme-opt' }, box,
+      el('img', { src: encodeURI(`/icons/${name}/${themeInfo[name].icon}`), width: 24, height: 24, className: themeInfo[name].on_dark ? 'on-dark' : '' }),
+      el('span', {}, el('div', {}, name), el('small', {}, `${themeInfo[name].license} · ${themeInfo[name].about}`))),
+  });
+  contextSel = multiSelect('context', 'Contexts', contexts, contexts, {
+    itemContent: (name, box) => el('span', { className: 'opt' }, box,
+      el('img', { src: encodeURI(`/icons/${contextIcons[name] || ''}`), width: 16, height: 16 }), name),
+  });
+  sizeSel = multiSelect('size', 'Sizes', allSizes, DEFAULT_SIZES.filter(s => allSizes.includes(s)));
+  render();
+});
+$('q').addEventListener('input', render);
+$('reset').addEventListener('click', () => {
+  $('q').value = '';
+  themeSel.chooseAll();
+  contextSel.chooseAll();
+  sizeSel.setChosenItems(DEFAULT_SIZES.filter(s => allSizes.includes(s)));
+  render();
+});
+$('dark').addEventListener('change', e => document.body.classList.toggle('dark', e.target.checked));
+</script>
+</body>
+</html>
