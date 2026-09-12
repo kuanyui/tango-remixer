@@ -11,6 +11,7 @@ cannot be created (Windows without developer mode).
 """
 
 import http.client
+import importlib
 import ipaddress
 import json
 import os
@@ -199,6 +200,30 @@ class TestViewer(unittest.TestCase):
             self.assertEqual((self.tmp / "token").read_text(), first)
         finally:
             viewer_server._TOKEN_FILE = real_file
+
+    def test_colorizer_is_reloaded_when_its_file_changes(self) -> None:
+        # A stand-in for lib/color_converter.py: the viewer re-imports it on mtime change.
+        src = self.tmp / "fake_color_converter.py"
+        src.write_text("def shift(text, name): return text + '-v1'\n")
+        sys.path.insert(0, str(self.tmp))   # importlib.reload re-finds the module by name through sys.path
+        importlib.invalidate_caches()
+        module = importlib.import_module("fake_color_converter")
+        real = viewer_server._COLOR_CONVERTER, viewer_server._color_converter_module, viewer_server._color_converter_mtime
+        viewer_server._COLOR_CONVERTER, viewer_server._color_converter_module = src, module
+        viewer_server._color_converter_mtime = src.stat().st_mtime
+        try:
+            colorize = viewer_server._live_colorizer("shift")
+            self.assertEqual(colorize("x", "icon"), "x-v1")
+            src.write_text("def shift(text, name): return text + '-v2'\n")
+            os.utime(src, (0, src.stat().st_mtime + 5))   # make sure the mtime differs even on coarse clocks
+            self.assertEqual(colorize("x", "icon"), "x-v2")
+            src.write_text("def shift(text, name): return text + '-v3'\noops(\n")   # broken edit (SyntaxError): keep v2
+            os.utime(src, (0, src.stat().st_mtime + 10))
+            self.assertEqual(colorize("x", "icon"), "x-v2")
+        finally:
+            viewer_server._COLOR_CONVERTER, viewer_server._color_converter_module, viewer_server._color_converter_mtime = real
+            sys.path.remove(str(self.tmp))
+            sys.modules.pop("fake_color_converter", None)
 
     def test_lan_ips_are_ipv4_addresses(self) -> None:
         for ip in viewer_server.lan_ips():

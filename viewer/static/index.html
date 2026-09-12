@@ -70,7 +70,7 @@ function loadState() {
 }
 function saveState() {
   const state = { q: $('q').value, themes: themeSel.getChosenItems(), contexts: contextSel.getChosenItems(),
-    sizes: sizeSel.getChosenItems(), dark: $('dark').checked };
+    sizes: sizeSel.getChosenItems(), dark: $('dark').checked, scroll: $('list').scrollTop, selected: selectedKey };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 // Button icons come from the themes themselves (Tango where it has a 16 px one, else Nome).
@@ -81,7 +81,8 @@ const UI_ICONS = {
   copied: 'Nome/emblems/16/emblem-default.svg',
   inkscape: 'InkscapeTango/actions/scalable/inkscape-logo.svg',
 };
-let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel;
+let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, selectedKey = null;
+const keyOf = icon => `${icon.theme}/${icon.context}/${icon.name}`;
 
 function el(tag, props, ...children) {
   const node = Object.assign(document.createElement(tag), props);
@@ -130,7 +131,8 @@ function render() {
   const hits = icons.filter(i => themes.has(i.theme) && contexts.has(i.context) && i.sizes.some(s => sizes.includes(s.size))
     && (i.name.includes(q) || i.aliases.some(a => a.includes(q))));
   $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => {
-    const row = el('div', { className: 'row', onclick: () => showDetail(row, icon) },
+    const row = el('div', { className: 'row', onclick: () => showDetail(icon, row) },
+      // data-key lets a restored selection find its row again
       el('div', { className: 'meta', title: icon.aliases.join('\n') },
         el('div', { className: 'where' }, `${icon.theme}/${icon.context}`),
         el('div', {}, icon.name),
@@ -142,6 +144,7 @@ function render() {
           el('figcaption', {}, size));
       })),
       el('div', { className: 'license' }, themeInfo[icon.theme].license));
+    row.dataset.key = keyOf(icon);
     return row;
   }));
   $('status').textContent = hits.length > MAX_ROWS
@@ -150,9 +153,11 @@ function render() {
   saveState();
 }
 
-function showDetail(row, icon) {
+// `row` may be missing when the icon is not among the rendered rows (restored selection).
+function showDetail(icon, row) {
+  selectedKey = keyOf(icon);
   document.querySelector('.row.selected')?.classList.remove('selected');
-  row.classList.add('selected');
+  row?.classList.add('selected');
   $('detail').replaceChildren(
     el('h3', {}, icon.name),
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
@@ -168,6 +173,7 @@ function showDetail(row, icon) {
       iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir')),
       iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape')),
       iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget)))));
+  saveState();
 }
 
 // navigator.clipboard only exists in secure contexts (https or localhost). Viewed over plain
@@ -223,8 +229,13 @@ fetch('/api/index.json').then(r => r.json()).then(data => {
   $('dark').checked = !!saved.dark;
   document.body.classList.toggle('dark', !!saved.dark);
   render();
+  const selected = icons.find(i => keyOf(i) === saved.selected);
+  if (selected) showDetail(selected, [...$('list').children].find(r => r.dataset.key === saved.selected));
+  $('list').scrollTop = saved.scroll || 0;   // the list is inside its own scroll box, so the browser does not restore it
 });
 $('q').addEventListener('input', render);
+let scrollTimer;
+$('list').addEventListener('scroll', () => { clearTimeout(scrollTimer); scrollTimer = setTimeout(saveState, 100); });
 $('reset').addEventListener('click', () => {
   $('q').value = '';
   themeSel.chooseAll();

@@ -19,6 +19,7 @@ URLs, and only for files inside a registered theme folder.
 
 from __future__ import annotations
 
+import importlib
 import json
 import mimetypes
 import os
@@ -41,7 +42,7 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 # (same trick as tests/test_read_included_icons_txt.py).
 sys.argv = [sys.argv[0], "--included-icon-file", str(_PROJECT_ROOT / "_dummy_not_used.txt")]
 from build_icons import BUILT_IN_RAW_ICON_THEMES_PATH, key_for_sorting_size, parse_size_folder_name  # noqa: E402
-from lib.color_converter import humanity_colorize_svg_content, nome_colorize_svg_content  # noqa: E402
+import lib.color_converter  # noqa: E402
 from lib.included_icons_parser import is_icon_context_dir_type  # noqa: E402
 
 _STATIC_DIR: Path = Path(__file__).resolve().parent / "static"
@@ -54,6 +55,30 @@ TOKEN_HEADER: str = "X-Viewer-Token"
 
 Colorizer = Callable[[str, str], str]
 """(svg text, icon name without extension) -> svg text"""
+
+_COLOR_CONVERTER: Path = _PROJECT_ROOT / "lib" / "color_converter.py"
+_color_converter_module = lib.color_converter
+_color_converter_mtime: float = _COLOR_CONVERTER.stat().st_mtime
+
+
+def _live_colorizer(name: str) -> Colorizer:
+    """`lib.color_converter.<name>`, re-imported whenever that file changes on disk,
+    so an edit to the hue shift shows up on the next request without a server
+    restart (reload the page). A reload that fails (e.g. a syntax error while
+    editing) is reported once and the previous code stays in use until the
+    next save."""
+    def colorize(svg_text: str, icon_name: str) -> str:
+        global _color_converter_mtime
+        mtime: float = _COLOR_CONVERTER.stat().st_mtime
+        if mtime != _color_converter_mtime:
+            _color_converter_mtime = mtime
+            try:
+                importlib.reload(_color_converter_module)
+                print(f"Reloaded {_COLOR_CONVERTER.name}", flush=True)
+            except Exception as e:
+                print(f"[ERROR] Reloading {_COLOR_CONVERTER.name} failed, keeping the previous code: {e}", file=sys.stderr, flush=True)
+        return getattr(_color_converter_module, name)(svg_text, icon_name)
+    return colorize
 
 
 class SourceTheme(NamedTuple):
@@ -84,11 +109,11 @@ _PANEL_GLYPH: str = "status/24/audio-volume-high-panel.svg"
 _THEME_TABLE: List[Tuple[str, str, Optional[Colorizer], str, str, str, str, bool]] = [
     ("Tango",             "Tango",         None,                          _FULL,  "48x48/places/start-here.svg",          "GPL v2 or GPL v3",        "Freedesktop's reference Tango icon theme", False),
     ("Nome",              "Nome",          None,                          _FULL,  "places/48/folder.svg",                 "LGPL v3 or CC BY-SA 3.0", "GNOME 2/3 icon theme, forked", False),
-    ("BlueNome",          "Nome",          nome_colorize_svg_content,     _FULL,  "places/48/folder.svg",                 "LGPL v3 or CC BY-SA 3.0", f"Nome {_BLUE}", False),
+    ("BlueNome",          "Nome",          _live_colorizer("nome_colorize_svg_content"),     _FULL,  "places/48/folder.svg",                 "LGPL v3 or CC BY-SA 3.0", f"Nome {_BLUE}", False),
     ("Humanity",          "Humanity",      None,                          _FULL,  "places/48/folder.svg",                 _HUMANITY_LICENSE,         "Ubuntu's Humanity icon theme", False),
-    ("BlueHumanity",      "Humanity",      humanity_colorize_svg_content, _FULL,  "places/48/folder.svg",                 _HUMANITY_LICENSE,         f"Humanity {_BLUE}", False),
+    ("BlueHumanity",      "Humanity",      _live_colorizer("humanity_colorize_svg_content"), _FULL,  "places/48/folder.svg",                 _HUMANITY_LICENSE,         f"Humanity {_BLUE}", False),
     ("Humanity-Dark",     "Humanity-Dark", None,                          _FULL,  _PANEL_GLYPH,                           _HUMANITY_LICENSE,         "Humanity's light glyphs for dark panels", True),
-    ("BlueHumanity-Dark", "Humanity-Dark", humanity_colorize_svg_content, _FULL,  _PANEL_GLYPH,                           _HUMANITY_LICENSE,         f"Humanity-Dark {_BLUE}", True),
+    ("BlueHumanity-Dark", "Humanity-Dark", _live_colorizer("humanity_colorize_svg_content"), _FULL,  _PANEL_GLYPH,                           _HUMANITY_LICENSE,         f"Humanity-Dark {_BLUE}", True),
     ("GimpLegacy",        "GimpLegacy",    None,                          _FLOSS, "actions/scalable/gimp-wilber.svg",     "GPL v3+",                 "GIMP's legacy colour icons", False),
     ("GimpDefault",       "GimpDefault",   None,                          _FLOSS, "actions/scalable/gimp-wilber-eek.svg", "CC BY-SA 3.0",            "GIMP's current default icons", False),
     ("InkscapeTango",     "InkscapeTango", None,                          _FLOSS, "actions/scalable/inkscape-logo.svg",   "GPL v2",                  "Inkscape's Tango-style icons, removed upstream in 2025", False),
@@ -295,7 +320,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
             colorize = self.themes[theme_name].colorize
             if colorize:
                 data = colorize(data.decode("utf-8"), target.stem).encode("utf-8")
-            self._send(200, "image/svg+xml", data)
+            self._send(200, "image/svg+xml", data, cache=False)
         else:
             self.send_error(404)
 
@@ -318,10 +343,12 @@ class ViewerHandler(BaseHTTPRequestHandler):
             return
         self._send(200, "text/plain; charset=utf-8", b"ok")
 
-    def _send(self, status: int, content_type: str, body: bytes) -> None:
+    def _send(self, status: int, content_type: str, body: bytes, cache: bool = True) -> None:
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        if not cache:
+            self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(body)
 
