@@ -63,6 +63,16 @@ const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
 const $ = id => document.getElementById(id);
 const DEFAULT_SIZES = ['16', '22', '24', '32', '48'];
+// Filter state + dark toggle live in localStorage (per origin, so the server's fixed port matters).
+const STORAGE_KEY = 'tango-remixer-icon-viewer';
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
+}
+function saveState() {
+  const state = { q: $('q').value, themes: themeSel.getChosenItems(), contexts: contextSel.getChosenItems(),
+    sizes: sizeSel.getChosenItems(), dark: $('dark').checked };
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
 // Button icons come from the themes themselves (Tango where it has a 16 px one, else Nome).
 const UI_ICONS = {
   reveal: 'Nome/apps/16/system-file-manager.svg',
@@ -137,6 +147,7 @@ function render() {
   $('status').textContent = hits.length > MAX_ROWS
     ? `Showing ${MAX_ROWS} of ${hits.length} icons – narrow the filter`
     : `${hits.length} icons`;
+  saveState();
 }
 
 function showDetail(row, icon) {
@@ -203,6 +214,14 @@ fetch('/api/index.json').then(r => r.json()).then(data => {
       el('img', { src: encodeURI(`/icons/${contextIcons[name] || ''}`), width: 16, height: 16 }), name),
   });
   sizeSel = multiSelect('size', 'Sizes', allSizes, DEFAULT_SIZES.filter(s => allSizes.includes(s)));
+  // Restore the last state; names that no longer exist are dropped.
+  const saved = loadState();
+  if (saved.themes) themeSel.setChosenItems(saved.themes.filter(t => themes.includes(t)));
+  if (saved.contexts) contextSel.setChosenItems(saved.contexts.filter(c => contexts.includes(c)));
+  if (saved.sizes) sizeSel.setChosenItems(saved.sizes.filter(s => allSizes.includes(s)));
+  $('q').value = saved.q || '';
+  $('dark').checked = !!saved.dark;
+  document.body.classList.toggle('dark', !!saved.dark);
   render();
 });
 $('q').addEventListener('input', render);
@@ -213,7 +232,7 @@ $('reset').addEventListener('click', () => {
   sizeSel.setChosenItems(DEFAULT_SIZES.filter(s => allSizes.includes(s)));
   render();
 });
-$('dark').addEventListener('change', e => document.body.classList.toggle('dark', e.target.checked));
+$('dark').addEventListener('change', e => { document.body.classList.toggle('dark', e.target.checked); saveState(); });
 </script>
 </body>
 </html>

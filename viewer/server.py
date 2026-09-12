@@ -45,6 +45,10 @@ from lib.color_converter import humanity_colorize_svg_content, nome_colorize_svg
 from lib.included_icons_parser import is_icon_context_dir_type  # noqa: E402
 
 _STATIC_DIR: Path = Path(__file__).resolve().parent / "static"
+_TOKEN_FILE: Path = Path(__file__).resolve().parent / ".token"   # gitignored
+PORT: int = 7373
+"""Fixed so the page keeps the same origin across server restarts: the browser's
+localStorage (filter state) is keyed by scheme + host + port."""
 _INDEX_HTML: Path = _STATIC_DIR / "index.html"
 TOKEN_HEADER: str = "X-Viewer-Token"
 
@@ -325,7 +329,7 @@ class ViewerHandler(BaseHTTPRequestHandler):
         pass  # a page load requests thousands of icons; keep the terminal quiet
 
 
-def make_server(themes: Dict[str, SourceTheme], token: str, index: List[Dict[str, Any]]) -> ThreadingHTTPServer:
+def make_server(themes: Dict[str, SourceTheme], token: str, index: List[Dict[str, Any]], port: int = 0) -> ThreadingHTTPServer:
     index_json: bytes = json.dumps({
         "themes": [{"name": name, "folder": str(t.folder), "group": t.group, "icon": t.icon,
                     "license": t.license, "about": t.about, "on_dark": t.on_dark}
@@ -334,7 +338,15 @@ def make_server(themes: Dict[str, SourceTheme], token: str, index: List[Dict[str
         "icons": index,
     }).encode()
     handler = partial(ViewerHandler, themes=themes, token=token, index_json=index_json)
-    return ThreadingHTTPServer(("0.0.0.0", 0), handler)
+    return ThreadingHTTPServer(("0.0.0.0", port), handler)
+
+
+def launch_token() -> str:
+    """The token for /api/open. Created once and kept in a file, so a tab opened
+    before a server restart keeps working after it (same URL, same token)."""
+    if not _TOKEN_FILE.is_file():
+        _TOKEN_FILE.write_text(secrets.token_urlsafe(16))
+    return _TOKEN_FILE.read_text().strip()
 
 
 def lan_ips() -> List[str]:
@@ -360,10 +372,12 @@ def main() -> None:
     started = time.perf_counter()
     index = build_index(themes)
     print(f"Indexed {len(index)} icons across {len(themes)} themes in {time.perf_counter() - started:.1f}s", flush=True)
-    token: str = secrets.token_urlsafe(16)
-    server = make_server(themes, token, index)
-    port: int = server.server_address[1]
-    urls: List[str] = [f"http://{host}:{port}/?token={token}" for host in ["127.0.0.1"] + lan_ips()]
+    token: str = launch_token()
+    try:
+        server = make_server(themes, token, index, PORT)
+    except OSError as e:
+        sys.exit(f"Cannot listen on port {PORT} ({e.strerror}). Is another viewer still running? Stop it first.")
+    urls: List[str] = [f"http://{host}:{PORT}/?token={token}" for host in ["127.0.0.1"] + lan_ips()]
     print("Icon viewer listening on all interfaces (Ctrl-C to stop). Open one of:\n  " + "\n  ".join(urls), flush=True)
     try:
         server.serve_forever()

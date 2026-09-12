@@ -189,6 +189,17 @@ class TestViewer(unittest.TestCase):
         finally:
             viewer_server.subprocess.run = real_run
 
+    def test_launch_token_is_created_once_and_reused(self) -> None:
+        real_file = viewer_server._TOKEN_FILE
+        viewer_server._TOKEN_FILE = self.tmp / "token"
+        try:
+            first = viewer_server.launch_token()
+            self.assertEqual(len(first), 22)   # 16 random bytes, urlsafe base64
+            self.assertEqual(viewer_server.launch_token(), first)
+            self.assertEqual((self.tmp / "token").read_text(), first)
+        finally:
+            viewer_server._TOKEN_FILE = real_file
+
     def test_lan_ips_are_ipv4_addresses(self) -> None:
         for ip in viewer_server.lan_ips():
             ipaddress.IPv4Address(ip)  # raises on garbage
