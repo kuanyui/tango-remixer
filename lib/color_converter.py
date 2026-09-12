@@ -44,21 +44,23 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="x-office-document", colorize_rules=["orange_to_green"]),
     IncludedFile(name="ooo-template", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="ooo-impress", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="ooo-web", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="ooo-web", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     # =================
     # apps
     # =================
     IncludedFile(name="gconf-editor", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="gnome-control-centre", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="preferences-desktop-wallpaper", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="preferences-desktop-keyboard-shortcuts", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="preferences-desktop-wallpaper", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="preferences-desktop-remote-desktop", colorize_rules=["red_to_blue"]),
     IncludedFile(name="session-properties", colorize_rules=["red_to_blue"]),
-    IncludedFile(name="video-x-generic", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="video-x-generic", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="system-file-manager", colorize_rules=["orange_to_blue"]),
     # IncludedFile(name="system-upgrade", colorize_rules=["orange_to_red"]),
     IncludedFile(name="gnome-panel-workspace-switcher", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="preferences-desktop-theme", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="preferences-desktop-theme", colorize_rules=["orange_to_blue", "red_to_blue", "purple_to_blue"]),
     IncludedFile(name="gdm-setup", colorize_rules=["red_to_blue"]),
+    IncludedFile(name="menu-editor", colorize_rules=["red_to_blue"]),
     # =================
     # actions
     # =================
@@ -70,29 +72,30 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="document-save", colorize_rules=["orange_to_green"]),
     IncludedFile(name="document-export", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="system-log-out", colorize_rules=["orange_to_red"]),
-    IncludedFile(name="rotate", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="object-rotate-right", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="object-flip-horizontal", colorize_rules=["orange_to_dim_blue"]),
-    IncludedFile(name="object-flip-vertical", colorize_rules=["orange_to_dim_blue"]),
+    IncludedFile(name="rotate", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="object-rotate-right", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="object-flip-horizontal", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="object-flip-vertical", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="edit-select-all", colorize_rules=["orange_to_blue"]),
     # IncludedFile(name="", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="go-up", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-down", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-previous", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-next", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-top", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-bottom", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-first", colorize_rules=["orange_to_green"]),
-    IncludedFile(name="go-last", colorize_rules=["orange_to_green"]),
-    # IncludedFile(name="", colorize_rules=["orange_to_green"]),
+    IncludedFile(name="go-up", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-down", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-previous", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-next", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-top", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-bottom", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-first", colorize_rules=["orange_to_green", "red_to_green"]),
+    IncludedFile(name="go-last", colorize_rules=["orange_to_green", "red_to_green"]),
+    # IncludedFile(name="", colorize_rules=["orange_to_green", "red_to_green"]),
     # =================
     # categories
     # =================
-    IncludedFile(name="applications-accessories", colorize_rules=[]),
+    IncludedFile(name="applications-accessories", colorize_rules=["orange_to_green"]),
     IncludedFile(name="applications-graphics", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="applications-internet", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="preferences-desktop", colorize_rules=["orange_to_dim_green"]),
-    IncludedFile(name="applications-multimedia", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="applications-multimedia", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     # IncludedFile(name="", colorize_rules=[]),
     # IncludedFile(name="", colorize_rules=[]),
     # IncludedFile(name="", colorize_rules=[]),
@@ -160,6 +163,11 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                         l += 10
                     else:
                         l -= 5
+            case "red_to_blue":
+                if 0 <= h <= 30:
+                    h += 185
+                    s -= 35
+                    l += 20
             case "orange_to_dim_blue":
                 if 15 <= h <= 55:
                     h += 180
@@ -181,6 +189,11 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                     h += 40
                     s -= 30
                     l -= 0
+            case "red_to_green":
+                if 0 <= h < 15:
+                    h += 60
+                    s -= 30
+                    l -= 0
             case "orange_to_dim_green":
                 if 15 <= h <= 55:
                     h += 40
@@ -190,11 +203,15 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                 if 15 <= h <= 55:
                     h -= 15
                     s -= 10
-            case "red_to_blue":
-                if 0 <= h <= 30:
-                    h += 185
-                    s -= 35
-                    l += 20
+            case "purple_to_blue":
+                purple = [280, 320]
+                blue   = [220, 260]
+                if purple[0] <= h <= purple[1]:
+                    src_percentage = (h - purple[0]) / (purple[1] - purple[0])
+                    dst = blue[0] + (src_percentage * (blue[1] - blue[0]))
+                    h -= 90
+
+
     h = h % 360
     s = max(0, s)
     s = min(100, s)
