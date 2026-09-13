@@ -44,6 +44,7 @@
   .note { margin-top: 6px; color: var(--muted); word-break: break-word; }
   .included { margin-top: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
   .included code { display: block; white-space: pre; overflow-x: auto; margin: 6px 0; font-size: 12px; }
+  .included label { margin-right: 10px; white-space: nowrap; }
   button { font: inherit; padding: 2px 8px; margin-right: 6px; }
   button img { vertical-align: -3px; margin-right: 4px; }
 </style>
@@ -97,13 +98,36 @@ function iconButton(icon, label, onclick, title) {
   return el('button', { onclick, title }, ...buttonContent(icon, label));
 }
 
-// A line for included_icons.txt, in the column layout the project's own file uses (theme @0, source @18;
-// the parser needs a tab or 4+ spaces between fields). The context is only written when the same name
-// exists in another context of that theme. Always the real file name: aliases are not usable there.
-function includedLine(icon) {
+// A line for included_icons.txt, in the column layout the project's own file uses (theme @0, source @18,
+// size matrix @64; the parser needs a tab or 4+ spaces between fields). The context is only written when
+// the same name exists in another context of that theme. Always the real file name: aliases are not usable there.
+function includedLine(icon, matrix) {
   const ambiguous = icons.some(i => i.theme === icon.theme && i.name === icon.name && i.context !== icon.context);
   const src = ambiguous ? `${icon.context}/${icon.name}` : icon.name;
-  return (icon.theme.length + 4 > 18 ? icon.theme + '    ' : icon.theme.padEnd(18)) + src;
+  const pad = (text, width) => text.length + 4 > width ? text + '    ' : text.padEnd(width);
+  return pad(icon.theme, 18) + pad(src, 46) + matrix;
+}
+
+// The shortest size matrix that selects exactly `checked` out of the icon's `available` sizes (both in size
+// order). Checked sizes that are neighbours among the available ones become a range, open-ended where the run
+// touches the smallest or largest available size: [16,22,24,32] of [16,22,24,32,48] -> `{-32}`.
+// `scalable` has no pixel size of its own, so the parser only accepts it with an output size: one
+// `scalable>N` per entry of `scalableTargets`. A range claims every output size inside it (even sizes the
+// icon has no file for), which would collide with `scalable>N`, so with targets the files are listed singly.
+// Empty string when nothing is selected.
+function sizeMatrix(available, checked, scalableTargets) {
+  const nums = available.filter(s => s !== 'scalable'), segs = [];
+  let run = [];
+  const flush = () => {
+    if (run.length === 1) segs.push(run[0]);
+    else if (run.length) segs.push((run[0] === nums[0] ? '' : run[0]) + '-' + (run[run.length - 1] === nums[nums.length - 1] && run[0] !== nums[0] ? '' : run[run.length - 1]));
+    run = [];
+  };
+  const useRanges = !(checked.includes('scalable') && scalableTargets.length);
+  for (const size of nums) { checked.includes(size) ? run.push(size) : flush(); if (!useRanges) flush(); }
+  flush();
+  if (checked.includes('scalable')) segs.push(...scalableTargets.map(t => `scalable>${t}`));
+  return segs.length ? `{${segs.join(';')}}` : '';
 }
 
 // A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order.
@@ -165,6 +189,36 @@ function render() {
   saveState();
 }
 
+// The included_icons.txt box: size checkboxes (start from the Sizes filter), the resulting line, Copy line.
+// An icon with a `scalable` file gets a second row: the pixel sizes to produce from it, by default the
+// filter's sizes that the icon does not have as a file of its own.
+const SCALABLE_TARGETS = ['16', '22', '24', '32', '48', '64', '128', '256'];
+function includedBox(icon) {
+  const available = icon.sizes.map(s => s.size), chosen = new Set(available.filter(s => sizeSel.isChosen(s)));
+  const targets = new Set(SCALABLE_TARGETS.filter(t => sizeSel.isChosen(t) && !available.includes(t)));
+  const line = el('code', {});
+  const copy = iconButton('copy', 'Copy line', e => copyText(line.textContent, e.currentTarget),
+    'Copy this line. Pasted into included_icons.txt it includes exactly the checked sizes of this icon.');
+  const check = (set, size, label) => el('label', {}, el('input', { type: 'checkbox', checked: set.has(size), value: size,
+    onchange: e => { e.target.checked ? set.add(size) : set.delete(size); refresh(); } }), ' ' + label);
+  const targetBoxes = available.includes('scalable') ? SCALABLE_TARGETS.map(t => check(targets, t, t)) : [];
+  function refresh() {
+    // A size that is checked as a real file is not also produced from `scalable`.
+    for (const box of targetBoxes) box.firstChild.disabled = !chosen.has('scalable') || chosen.has(box.firstChild.value);
+    const matrix = sizeMatrix(available, available.filter(s => chosen.has(s)), SCALABLE_TARGETS.filter(t => targets.has(t) && !chosen.has(t)));
+    line.textContent = matrix ? includedLine(icon, matrix) : 'Check at least one size.';
+    copy.disabled = !matrix;
+  }
+  refresh();
+  return [
+    el('strong', { title: 'A line for the included_icons.txt that build_icons.py reads: THEME, SOURCE ICON and a size matrix, separated by 4+ spaces or a tab.' }, 'included_icons.txt'),
+    el('div', { className: 'note', title: 'Files to include. They start from the Sizes filter above. The matrix is written in its shortest form, e.g. {-32} when every available size up to 32 is checked.' },
+      ...available.map(size => check(chosen, size, size))),
+    ...(targetBoxes.length ? [el('div', { className: 'note', title: 'Pixel sizes to produce from the scalable file (written as scalable>N). A size already checked above as a real file is skipped.' },
+      'scalable → ', ...targetBoxes)] : []),
+    line, copy];
+}
+
 // `row` may be missing when the icon is not among the rendered rows (restored selection).
 function showDetail(icon, row) {
   selectedKey = keyOf(icon);
@@ -174,11 +228,7 @@ function showDetail(icon, row) {
     el('h3', {}, icon.name),
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
     el('div', { className: 'note' }, `License: ${themeInfo[icon.theme].license}`),
-    el('div', { className: 'included' },
-      el('strong', { title: 'A line for the included_icons.txt that build_icons.py reads: THEME and SOURCE ICON, separated by 4+ spaces or a tab.' }, 'included_icons.txt'),
-      el('code', {}, includedLine(icon)),
-      iconButton('copy', 'Copy line', e => copyText(includedLine(icon), e.currentTarget),
-        'Copy this line. Pasted into included_icons.txt it includes every available size of this icon.')),
+    el('div', { className: 'included' }, ...includedBox(icon)),
     el('div', { className: 'note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
       icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
     img(icon, icon.sizes[icon.sizes.length - 1], 128),
