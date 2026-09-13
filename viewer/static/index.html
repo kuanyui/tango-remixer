@@ -38,7 +38,8 @@
   #detail { border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; }
   #detail h3 { margin: 0; }
   #detail > img { display: block; margin: 12px auto; }
-  .file { padding: 6px 0; border-top: 1px solid var(--line); }
+  .file { padding: 6px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
+  .file .thumb { flex: none; width: 64px; display: flex; justify-content: center; }   /* same sizes as the list rows */
   .file code { display: block; word-break: break-all; color: var(--muted); font-size: 12px; margin: 2px 0 4px; }
   .note { margin-top: 6px; color: var(--muted); word-break: break-word; }
   button { font: inherit; padding: 2px 8px; margin-right: 6px; }
@@ -62,7 +63,7 @@
 const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
 const $ = id => document.getElementById(id);
-const DEFAULT_SIZES = ['16', '22', '24', '32', '48'];
+const DEFAULT_SIZES = ['16', '22', '24', '32', '48', 'scalable'];   // scalable: the FLOSS application themes have nothing else
 // Filter state + dark toggle live in localStorage (per origin, so the server's fixed port matters).
 const STORAGE_KEY = 'tango-remixer-icon-viewer';
 function loadState() {
@@ -167,12 +168,14 @@ function showDetail(icon, row) {
       ? `Aliases (symlinks to this file): ${icon.aliases.join(', ')}` : 'No aliases'),
     img(icon, icon.sizes[icon.sizes.length - 1], 128),
     ...icon.sizes.map(s => el('div', { className: 'file' },
-      el('strong', {}, s.size),
-      el('code', {}, s.path),
-      iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal')),
-      iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir')),
-      iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape')),
-      iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget)))));
+      el('div', { className: 'thumb' }, img(icon, s, rowPx(s.size))),
+      el('div', {},
+        el('strong', {}, s.size),
+        el('code', {}, s.path),
+        iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal')),
+        iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir')),
+        iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape')),
+        iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget))))));
   saveState();
 }
 
