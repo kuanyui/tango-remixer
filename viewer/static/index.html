@@ -17,7 +17,13 @@
   header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   header .llselect-root { min-width: 11rem; max-width: 22rem; font-size: 13px; }
   .opt { display: inline-flex; align-items: center; gap: 6px; }   /* llselect checkbox icon + text in a row */
-  .opt > svg, .opt > img { flex: none; }   /* fixed-size icons: never let a long label squeeze them */
+  .opt > .check, .opt > img { flex: none; }   /* fixed-size parts: never let a long label squeeze them */
+  /* Check mark drawn by CSS for the filter rows (decorative: llselect carries the real state in aria-selected).
+     data-state: unchecked | checked | indeterminate. Shares its look with the native checkboxes. */
+  .check { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 2px;
+           background: var(--ctl-bg) no-repeat center / 12px 12px; }
+  .check[data-state=checked] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.4l2.6 2.7 5-6' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+  .check[data-state=indeterminate] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6h7' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
   .theme-opt img.on-dark { box-sizing: border-box; padding: 2px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
   .theme-opt small { display: block; color: var(--muted); }
   /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
@@ -73,21 +79,23 @@
     #detail { grid-column: 3; grid-row: 1; }
     /* Sidebar: search, Reset, Dark and the status stay put; below them the height is split in two halves,
        Themes on top, Contexts and Sizes side by side underneath, each half scrolling on its own. */
-    header { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 8px 12px;
+    header { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: start;
+             padding: 10px; gap: 10px;   /* one spacing everywhere: window edge to block, block to block, both directions */
              grid-template-rows: auto auto auto auto minmax(0, 1fr) minmax(0, 1fr); overflow: hidden;
              border-bottom: none; border-right: 1px solid var(--line); }
     header > strong { grid-area: 1 / 1 / 2 / 3; }
     header input[type=search] { grid-area: 2 / 1 / 3 / 3; max-width: none; }
     #reset { grid-area: 3 / 1; justify-self: start; }
-    header > label { grid-area: 3 / 2; }
+    header > label { grid-area: 3 / 2; align-self: center; }
     #status { grid-area: 4 / 1 / 5 / 3; margin-left: 0; }
     #theme-box { grid-area: 5 / 1 / 6 / 3; }
     #context-box { grid-area: 6 / 1; }
     #size-box { grid-area: 6 / 2; }
-    #theme-box, #context-box, #size-box { align-self: stretch; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); }
+    #theme-box, #context-box, #size-box { align-self: stretch; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); padding: 6px; }
     header .llselect-root { display: none; }
     .expanded { display: block; }
-    .exp-title { position: sticky; top: 0; margin: 0; padding: 6px 0 4px; background: var(--bg); }
+    /* The title spans the whole box (negative margins undo the box padding) and stays put while the rows scroll. */
+    .exp-title { position: sticky; top: -6px; margin: -6px -6px 4px; padding: 6px; background: var(--bg); }
   }
   button img { vertical-align: -3px; margin-right: 4px; }
 </style>
@@ -102,7 +110,7 @@
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
   <div id="size-box"><div id="size"></div><div class="expanded" id="size-list"></div></div>
   <button id="reset" title="Search, themes, contexts and sizes back to their defaults"><img src="/icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
-  <label><input type="checkbox" id="dark"> Dark background</label>
+  <label><input type="checkbox" id="dark"> <img src="/icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"> Dark background</label>
   <span id="status">Loading…</span>
 </header>
 <main id="list"></main>
@@ -176,10 +184,11 @@ function sizeMatrix(available, checked, scalableTargets) {
 }
 
 // A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order.
-// Rows use llselect's own checkbox icon; they re-render on every chosen-state change, so the icon stays in sync.
+// Rows carry a CSS-drawn check mark (`.check`); they re-render on every chosen-state change, so it stays in sync.
 // opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row.
 function multiSelect(id, label, items, chosen, opts = {}) {
-  const checkbox = state => llselect.createOutlinedCheckboxSvgEl({ state });
+  const STATES = { none: 'unchecked', some: 'indeterminate', all: 'checked' };   // llselect's choose-all vocabulary
+  const checkbox = state => { const c = el('span', { className: 'check' }); c.dataset.state = STATES[state] || state; return c; };
   const content = item => {
     const box = checkbox(sel.isChosen(item) ? 'checked' : 'unchecked');
     return opts.itemContent ? opts.itemContent(item, box) : el('span', { className: 'opt' }, box, item);
@@ -191,7 +200,7 @@ function multiSelect(id, label, items, chosen, opts = {}) {
     createTriggerArrowContentElFn: () => llselect.createChevronDownSvgEl(),
     createItemContentElFn: item => content(item),
     createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
-      llselect.createOutlinedCheckboxSvgEl({ state }), `All (${chosenCount}/${totalCount})`),
+      checkbox(state), `All (${chosenCount}/${totalCount})`),
     createTriggerContentElFn: ({ chosenItems, items }) => el('span', {}, `${label}: ` +
       (chosenItems.length === items.length ? 'all' : chosenItems.length ? items.filter(i => chosenItems.includes(i)).join(', ') : 'none')),
     onChange: () => render(),
@@ -211,7 +220,7 @@ function multiSelect(id, label, items, chosen, opts = {}) {
   sel.refreshExpanded = () => {
     const n = sel.getChosenItems().length;
     allRow.replaceChildren(el('span', { className: 'opt' }, checkbox(n === 0 ? 'none' : n === items.length ? 'all' : 'some'), `All (${n}/${items.length})`));
-    items.forEach((item, k) => rows[k].querySelector('svg').replaceWith(checkbox(sel.isChosen(item) ? 'checked' : 'unchecked')));
+    items.forEach((item, k) => { rows[k].querySelector('.check').dataset.state = sel.isChosen(item) ? 'checked' : 'unchecked'; });
   };
   return sel;
 }

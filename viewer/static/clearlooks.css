@@ -10,7 +10,8 @@
   --cl-btn: linear-gradient(#fefefd, #f1f0ef 45%, #dedcd9);
   --cl-btn-hover: linear-gradient(#ffffff, #f8f7f6 45%, #e9e7e4);
   --cl-btn-active: linear-gradient(#cdcbc7, #dcdad7);
-  --cl-sel-grad: linear-gradient(#95b7e1, #789fd1); --cl-sel-fg: #ffffff; --cl-sel-border: #5f86b8;
+  --cl-sel-grad: linear-gradient(#abc8eb 0%, #90b4e0 49%, #7ca4d6 51%, #88aedb 100%); --cl-sel-fg: #ffffff; --cl-sel-border: #5f86b8;
+  --cl-sel-shine: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.10);   /* top highlight line, bottom edge */
   --cl-trough: #d6d4d0;
 }
 body.dark {   /* a "Darklooks"-style counterpart for the Dark background toggle */
@@ -30,7 +31,7 @@ header { background: linear-gradient(var(--cl-shine), var(--bg) 8%, var(--hover)
 @media (min-width: 1600px) {
   header { background: var(--bg); border-right: 1px solid var(--cl-frame); box-shadow: inset -1px 0 0 var(--cl-shine); }
   #theme-box, #context-box, #size-box { background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px;
-                                        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); padding: 0 4px 4px; }
+                                        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }
   .exp-title { background: var(--cl-base); }
 }
 
@@ -54,19 +55,28 @@ input[type=search] {
 }
 input[type=search]:focus-visible { outline: none; border-color: var(--cl-sel-border); box-shadow: inset 0 0 0 1px var(--sel), inset 0 1px 2px rgba(0, 0, 0, 0.18); }
 
-/* --- check buttons --------------------------------------------------------- */
-input[type=checkbox] {
-  appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0 2px 0 0; vertical-align: -2px;
+/* --- check buttons: native checkboxes and the filter rows' .check share one drawing --- */
+input[type=checkbox] { appearance: none; -webkit-appearance: none; width: 14px; height: 14px; margin: 0 2px 0 0; vertical-align: -2px; }
+input[type=checkbox], .check {
   border: 1px solid var(--ctl-border); border-radius: 2px; background: linear-gradient(var(--cl-base), var(--ctl-hover));
   box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.12);
 }
-input[type=checkbox]:checked {
+input[type=checkbox]:checked, .check[data-state=checked] {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.4l2.6 2.7 5-6' fill='none' stroke='%232e3436' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
                     linear-gradient(var(--cl-base), var(--ctl-hover));
   background-repeat: no-repeat; background-position: center; background-size: 12px 12px, auto;
 }
-body.dark input[type=checkbox]:checked {
+body.dark input[type=checkbox]:checked, body.dark .check[data-state=checked] {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.4l2.6 2.7 5-6' fill='none' stroke='%23e8e6e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"),
+                    linear-gradient(var(--cl-base), var(--ctl-hover));
+}
+.check[data-state=indeterminate] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6h7' fill='none' stroke='%232e3436' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"),
+                    linear-gradient(var(--cl-base), var(--ctl-hover));
+  background-repeat: no-repeat; background-position: center; background-size: 12px 12px, auto;
+}
+body.dark .check[data-state=indeterminate] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6h7' fill='none' stroke='%23e8e6e2' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"),
                     linear-gradient(var(--cl-base), var(--ctl-hover));
 }
 input[type=checkbox]:disabled { opacity: 0.5; }
@@ -77,7 +87,7 @@ input[type=checkbox]:focus-visible { outline: 1px dotted var(--fg); outline-offs
 .row { border-bottom: none; }
 .row:nth-child(even) { background: var(--cl-row-alt); }
 .row:hover { background: var(--hover); }
-.row.selected, .row.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
+.row.selected, .row.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); box-shadow: var(--cl-sel-shine); }
 .row.selected .where, .row.selected .aliases, .row.selected .license, .row.selected figcaption { color: rgba(255, 255, 255, 0.88); }
 .sizes .empty { border-color: var(--line); }
 
@@ -95,18 +105,22 @@ code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation 
 .llselect-popup { background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); }
 .llselect-item[aria-selected='true'] { background: transparent; color: var(--fg); }   /* the check mark says it; blue is for the pointer */
 .llselect-item:hover, .llselect-item-focused,
-.llselect-item[aria-selected='true']:hover, .llselect-item-focused[aria-selected='true'] { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
+.llselect-item[aria-selected='true']:hover, .llselect-item-focused[aria-selected='true'] {
+  background: var(--cl-sel-grad); color: var(--cl-sel-fg); border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--cl-sel-border), inset 0 2px 0 rgba(255, 255, 255, 0.40);   /* GTK menu items had a rounded, bordered highlight */
+}
 .llselect-item:hover small, .llselect-item-focused small { color: rgba(255, 255, 255, 0.88); }
 .llselect-choose-all-row, .llselect-group-label, .exp-group { background: var(--hover); color: var(--fg); font-weight: 600;
                                                                border-top: 1px solid var(--cl-shine); border-bottom: 1px solid var(--line); }
 .exp-group { padding: 2px 4px; }
-.exp-row:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
+.exp-row:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); box-shadow: inset 0 0 0 1px var(--cl-sel-border), inset 0 2px 0 rgba(255, 255, 255, 0.40); }
 .exp-row:hover small { color: rgba(255, 255, 255, 0.88); }
 
 /* --- scrollbars: blue Clearlooks sliders in a sunken trough ----------------------- */
 * { scrollbar-color: var(--sel) var(--cl-trough); }
 ::-webkit-scrollbar { width: 14px; height: 14px; }
 ::-webkit-scrollbar-track { background: var(--cl-trough); box-shadow: inset 1px 0 2px rgba(0, 0, 0, 0.25); }
-::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #a9c5e8, #7da3d3); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(#a9c5e8, #7da3d3); }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #bad1ee, #8fb1dc); }
+::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #b6cfee 0%, #94b7e2 49%, #7ea6d7 51%, #8bb0dc 100%); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(#b6cfee 0%, #94b7e2 49%, #7ea6d7 51%, #8bb0dc 100%); }
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #c4d9f2 0%, #a2c1e7 49%, #8cb1dd 51%, #99bae1 100%); }
+::-webkit-scrollbar-thumb:horizontal:hover { background: linear-gradient(#c4d9f2 0%, #a2c1e7 49%, #8cb1dd 51%, #99bae1 100%); }
