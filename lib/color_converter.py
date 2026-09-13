@@ -17,23 +17,23 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     # =================
     # places
     # =================
-    IncludedFile(name="folder-documents", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-download", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-music", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-pictures", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue", "purple_to_dim_blue"]),
-    IncludedFile(name="folder-publicshare", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-remote", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-saved-search", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-system", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-video", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue", "purple_to_blue"]),
-    IncludedFile(name="folder-home", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-templates", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-visiting", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-recent", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-ubuntu", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-documents", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-download", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-music", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-pictures", colorize_rules=["humanity_folder_to_blue", "purple_to_blue"]),
+    IncludedFile(name="folder-publicshare", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-remote", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-saved-search", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-system", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-video", colorize_rules=["humanity_folder_to_blue", "purple_to_blue"]),
+    IncludedFile(name="folder-home", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-templates", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-visiting", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-recent", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-ubuntu", colorize_rules=["humanity_folder_to_blue"]),
     IncludedFile(name="gnome-fs-web", colorize_rules=["orange_to_blue", "red_to_dim_blue"]),
-    IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),   # folder
+    IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["humanity_folder_to_blue"]),   # folder
     IncludedFile(name="network-server", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="stock_smart-playlist", colorize_rules=["purple_to_blue"]),
     # IncludedFile(name="user-desktop", colorize_rules=["orange_to_blue"]),
@@ -67,20 +67,20 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="gksu-root-terminal", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="preferences-desktop-theme", colorize_rules=["orange_to_blue", "red_to_blue", "purple_to_blue"]),
     IncludedFile(name="gdm-setup", colorize_rules=["red_to_blue"]),
-    IncludedFile(name="menu-editor", colorize_rules=["red_to_blue"]),
+    IncludedFile(name="menu-editor", colorize_rules=["red_to_blue", "orange_to_blue"]),
     # =================
     # actions
     # =================
-    IncludedFile(name="folder-new", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-copy", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="folder-move", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="document-open", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="folder-new", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-copy", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="folder-move", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="document-open", colorize_rules=["humanity_folder_to_blue"]),
     IncludedFile(name="document-save-as", colorize_rules=["orange_to_green"]),
     IncludedFile(name="document-save", colorize_rules=["orange_to_green"]),
     IncludedFile(name="document-export", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="system-log-out", colorize_rules=["orange_to_red"]),
-    IncludedFile(name="stock_folder_properties", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
-    IncludedFile(name="archive-insert-directory", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="stock_folder_properties", colorize_rules=["humanity_folder_to_blue"]),
+    IncludedFile(name="archive-insert-directory", colorize_rules=["humanity_folder_to_blue"]),
     IncludedFile(name="rotate", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="object-rotate-right", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
@@ -167,6 +167,15 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
     h, s, l = color_hex_to_hsl(hex_color)
     for rule in rules:
         match rule:
+            case "humanity_folder_to_blue":
+                if s >= 55 and (h >= 0 and h <= 55):   # s >= 55 is to exclude package-x-generic
+                    h = remap_hue(h, [15, 55], [200, 210])
+                    if s > 30:
+                        s -= 30
+                    if l > 50:
+                        l += 5
+                    else:
+                        l -= 5
             case "orange_to_blue":
                 if 15 <= h <= 55:
                     h += 170
@@ -217,7 +226,8 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                     h -= 15
                     s -= 10
             case "purple_to_blue":
-                h = remap_hue(h, [280, 320], [200, 205])
+                if 280 <= h and h <= 320:
+                    h = remap_hue(h, [280, 320], [200, 205])
 
 
     h = h % 360
