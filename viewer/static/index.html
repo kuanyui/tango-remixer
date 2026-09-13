@@ -7,27 +7,43 @@
 <link rel="stylesheet" href="/static/llselect/vanilla.css">
 <script src="/static/llselect/index.umd.js"></script>
 <style>
-  :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa; }
-  body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63; }
+  :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa;
+          --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; }
+  body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63;
+              --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654;
+              color-scheme: dark; }   /* checkboxes and scrollbars follow */
   body { margin: 0; height: 100vh; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg);
          display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 440px; }
   header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   header .llselect-root { min-width: 11rem; max-width: 22rem; font-size: 13px; }
   .opt { display: inline-flex; align-items: center; gap: 6px; }   /* llselect checkbox icon + text in a row */
-  .theme-opt img { flex: none; }
+  .opt > svg, .opt > img { flex: none; }   /* fixed-size icons: never let a long label squeeze them */
   .theme-opt img.on-dark { box-sizing: border-box; padding: 2px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
   .theme-opt small { display: block; color: var(--muted); }
-  body.dark .llselect-trigger, body.dark .llselect-popup { background: var(--bg); color: var(--fg); border-color: var(--line); }
-  body.dark .llselect-item:hover, body.dark .llselect-item-focused, body.dark .llselect-choose-all-row { background: var(--hover); color: var(--fg); }
-  body.dark .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }
-  header input[type=search] { flex: 1; max-width: 320px; padding: 4px 8px; }
+  /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
+  .llselect-root { color: var(--fg); }
+  .llselect-trigger, .llselect-popup { background: var(--ctl-bg); color: var(--fg); border-color: var(--ctl-border); }
+  .llselect-item:hover, .llselect-item-focused { background: var(--ctl-hover); color: var(--fg); }
+  .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }
+  .llselect-choose-all-row, .llselect-group-label { background: var(--hover); color: var(--muted); }
+  button, input[type=search] { font: inherit; line-height: 1.4; padding: 0.4rem 0.7rem; color: var(--fg); background: var(--ctl-bg);
+                               border: 1px solid var(--ctl-border); border-radius: 4px; }
+  button { cursor: pointer; user-select: none; }
+  button:hover:not(:disabled) { background: var(--ctl-hover); }
+  button:active:not(:disabled) { background: var(--sel); }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button:focus-visible, input[type=search]:focus-visible, .llselect-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  input[type=search]::placeholder { color: var(--muted); }
+  input[type=checkbox] { accent-color: var(--accent); }
+  #detail button { padding: 0.2rem 0.5rem; margin: 0 6px 4px 0; }   /* many of them per icon: compact */
+  header input[type=search] { flex: 1; max-width: 320px; }
   #status { color: var(--muted); }
   #status { margin-left: auto; }
   #list { overflow-y: auto; }
   .row { display: flex; align-items: center; gap: 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .row:hover { background: var(--hover); }
   .row.selected { background: var(--sel); }
-  .meta { width: 360px; flex: none; }
+  .meta { width: 252px; flex: none; }
   .meta > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .meta .where, .meta .aliases { color: var(--muted); font-size: 12px; }
   .sizes { display: flex; align-items: flex-end; gap: 12px; }
@@ -45,7 +61,34 @@
   .included { margin-top: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
   .included code { display: block; white-space: pre; overflow-x: auto; margin: 6px 0; font-size: 12px; }
   .included label { margin-right: 10px; white-space: nowrap; }
-  button { font: inherit; padding: 2px 8px; margin-right: 6px; }
+  /* Expanded filter lists: hidden in the top bar, shown when the header is a sidebar (wide windows). */
+  .expanded { display: none; }
+  .exp-title { font-weight: 600; margin: 8px 0 4px; }
+  .exp-group { margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .exp-row { padding: 3px 4px; border-radius: 3px; cursor: pointer; }
+  .exp-row:hover { background: var(--hover); }
+  @media (min-width: 1600px) {
+    body { grid-template-rows: 1fr; grid-template-columns: 330px 1fr 440px; }
+    #list { grid-column: 2; grid-row: 1; }
+    #detail { grid-column: 3; grid-row: 1; }
+    /* Sidebar: search, Reset, Dark and the status stay put; below them the height is split in two halves,
+       Themes on top, Contexts and Sizes side by side underneath, each half scrolling on its own. */
+    header { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: start; gap: 8px 12px;
+             grid-template-rows: auto auto auto auto minmax(0, 1fr) minmax(0, 1fr); overflow: hidden;
+             border-bottom: none; border-right: 1px solid var(--line); }
+    header > strong { grid-area: 1 / 1 / 2 / 3; }
+    header input[type=search] { grid-area: 2 / 1 / 3 / 3; max-width: none; }
+    #reset { grid-area: 3 / 1; justify-self: start; }
+    header > label { grid-area: 3 / 2; }
+    #status { grid-area: 4 / 1 / 5 / 3; margin-left: 0; }
+    #theme-box { grid-area: 5 / 1 / 6 / 3; }
+    #context-box { grid-area: 6 / 1; }
+    #size-box { grid-area: 6 / 2; }
+    #theme-box, #context-box, #size-box { align-self: stretch; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); }
+    header .llselect-root { display: none; }
+    .expanded { display: block; }
+    .exp-title { position: sticky; top: 0; margin: 0; padding: 6px 0 4px; background: var(--bg); }
+  }
   button img { vertical-align: -3px; margin-right: 4px; }
 </style>
 </head>
@@ -53,9 +96,9 @@
 <header>
   <strong>Icon Viewer</strong>
   <input type="search" id="q" placeholder="Search icon name…" autofocus>
-  <div id="theme"></div>
-  <div id="context"></div>
-  <div id="size"></div>
+  <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
+  <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
+  <div id="size-box"><div id="size"></div><div class="expanded" id="size-list"></div></div>
   <button id="reset" title="Search, themes, contexts and sizes back to their defaults"><img src="/icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
   <label><input type="checkbox" id="dark"> Dark background</label>
   <span id="status">Loading…</span>
@@ -134,15 +177,17 @@ function sizeMatrix(available, checked, scalableTargets) {
 // Rows use llselect's own checkbox icon; they re-render on every chosen-state change, so the icon stays in sync.
 // opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row.
 function multiSelect(id, label, items, chosen, opts = {}) {
+  const checkbox = state => llselect.createOutlinedCheckboxSvgEl({ state });
+  const content = item => {
+    const box = checkbox(sel.isChosen(item) ? 'checked' : 'unchecked');
+    return opts.itemContent ? opts.itemContent(item, box) : el('span', { className: 'opt' }, box, item);
+  };
   const sel = new llselect.LLSelectMultiple($(id), {
     ariaLabel: label,
     chooseAllRow: true,
     itemToGroupKeyFn: opts.groupOf || null,
     createTriggerArrowContentElFn: () => llselect.createChevronDownSvgEl(),
-    createItemContentElFn: item => {
-      const box = llselect.createOutlinedCheckboxSvgEl({ state: sel.isChosen(item) ? 'checked' : 'unchecked' });
-      return opts.itemContent ? opts.itemContent(item, box) : el('span', { className: 'opt' }, box, item);
-    },
+    createItemContentElFn: item => content(item),
     createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
       llselect.createOutlinedCheckboxSvgEl({ state }), `All (${chosenCount}/${totalCount})`),
     createTriggerContentElFn: ({ chosenItems, items }) => el('span', {}, `${label}: ` +
@@ -151,6 +196,21 @@ function multiSelect(id, label, items, chosen, opts = {}) {
   });
   sel.setItems(items);
   sel.setChosenItems(chosen);
+  // The same rows, always visible, for the wide-window sidebar (llselect itself is popup-only). Rows are built
+  // once; a refresh only swaps the checkbox icons, so the row images are not fetched again.
+  const allRow = el('div', { className: 'exp-row', onclick: () => sel.toggleAll() });
+  const rows = items.map(item => el('div', { className: 'exp-row', onclick: () => sel.toggleItem(item) }, content(item)));
+  const children = [el('div', { className: 'exp-title' }, label), allRow];
+  items.forEach((item, k) => {
+    if (opts.groupOf && (k === 0 || opts.groupOf(item) !== opts.groupOf(items[k - 1]))) children.push(el('div', { className: 'exp-group' }, opts.groupOf(item)));
+    children.push(rows[k]);
+  });
+  $(id + '-list').replaceChildren(...children);
+  sel.refreshExpanded = () => {
+    const n = sel.getChosenItems().length;
+    allRow.replaceChildren(el('span', { className: 'opt' }, checkbox(n === 0 ? 'none' : n === items.length ? 'all' : 'some'), `All (${n}/${items.length})`));
+    items.forEach((item, k) => rows[k].querySelector('svg').replaceWith(checkbox(sel.isChosen(item) ? 'checked' : 'unchecked')));
+  };
   return sel;
 }
 // `scalable` folders have no pixel size: show them at 48. Rows cap at 64 so a 256 icon stays a thumbnail.
@@ -186,6 +246,7 @@ function render() {
   $('status').textContent = hits.length > MAX_ROWS
     ? `Showing ${MAX_ROWS} of ${hits.length} icons – narrow the filter`
     : `${hits.length} icons`;
+  for (const sel of [themeSel, contextSel, sizeSel]) sel.refreshExpanded();
   saveState();
 }
 
