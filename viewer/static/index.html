@@ -28,6 +28,10 @@
   .theme-opt small { display: block; color: var(--muted); }
   /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
   .llselect-root { color: var(--fg); }
+  /* Dropdown arrow: a solid triangle in the text colour (the vanilla theme pins the arrow to #666, which
+     disappears on the dark background). */
+  .llselect-trigger-arrow { color: var(--fg); }
+  .arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
   .llselect-trigger, .llselect-popup { background: var(--ctl-bg); color: var(--fg); border-color: var(--ctl-border); }
   .llselect-item:hover, .llselect-item-focused { background: var(--ctl-hover); color: var(--fg); }
   .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }
@@ -45,6 +49,7 @@
   header input[type=search] { flex: 1; max-width: 320px; }
   #status { color: var(--muted); }
   #status { margin-left: auto; }
+  header > label { white-space: nowrap; }
   #list { overflow-y: auto; }
   .row { display: flex; align-items: center; gap: 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .row:hover { background: var(--hover); }
@@ -57,7 +62,12 @@
   .sizes figure { margin: 0; text-align: center; }
   .sizes figcaption { font-size: 10px; color: var(--muted); }
   .sizes .empty { box-sizing: border-box; border: 1px dashed var(--line); }
-  #detail { border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; }
+  /* Detail pane: everything above stays put, the per-size list takes the rest of the height and scrolls on its
+     own. If the window is too short for that (list below its min-height), the pane itself scrolls instead. */
+  #detail { border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; }
+  #detail > * { flex: none; }
+  #detail > .files { flex: 1 1 0; min-height: 170px; overflow-y: auto; }
+  .aliases-note { max-height: 4.4em; overflow-y: auto; }   /* some icons have dozens of aliases */
   #detail h3 { margin: 0; }
   #detail > img { display: block; margin: 12px auto; }
   .file { padding: 6px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
@@ -85,8 +95,10 @@
              border-bottom: none; border-right: 1px solid var(--line); }
     header > strong { grid-area: 1 / 1 / 2 / 3; }
     header input[type=search] { grid-area: 2 / 1 / 3 / 3; max-width: none; }
-    #reset { grid-area: 3 / 1; justify-self: start; }
-    header > label { grid-area: 3 / 2; align-self: center; }
+    /* Reset and the Dark toggle share one full-width row, pushed to opposite ends: half a column is too
+       narrow for the toggle's icon and text. */
+    #reset { grid-area: 3 / 1 / 4 / 3; justify-self: start; }
+    header > label { grid-area: 3 / 1 / 4 / 3; justify-self: end; align-self: center; }
     #status { grid-area: 4 / 1 / 5 / 3; margin-left: 0; }
     #theme-box { grid-area: 5 / 1 / 6 / 3; }
     #context-box { grid-area: 6 / 1; }
@@ -197,7 +209,7 @@ function multiSelect(id, label, items, chosen, opts = {}) {
     ariaLabel: label,
     chooseAllRow: true,
     itemToGroupKeyFn: opts.groupOf || null,
-    createTriggerArrowContentElFn: () => llselect.createChevronDownSvgEl(),
+    createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),   // drawn by CSS, follows the theme colours
     createItemContentElFn: item => content(item),
     createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
       checkbox(state), `All (${chosenCount}/${totalCount})`),
@@ -301,10 +313,10 @@ function showDetail(icon, row) {
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
     el('div', { className: 'note' }, `License: ${themeInfo[icon.theme].license}`),
     el('div', { className: 'included' }, ...includedBox(icon)),
-    el('div', { className: 'note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
+    el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
       icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
     img(icon, icon.sizes[icon.sizes.length - 1], 128),
-    ...icon.sizes.map(s => el('div', { className: 'file' },
+    el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file' },
       el('div', { className: 'thumb' }, img(icon, s, rowPx(s.size))),
       el('div', {},
         el('strong', {}, s.size),
@@ -316,7 +328,7 @@ function showDetail(icon, row) {
         iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape'),
           'Open this source SVG in Inkscape, on the machine running the viewer.'),
         iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget),
-          'Copy the absolute path of this source SVG on the machine running the viewer.')))));
+          'Copy the absolute path of this source SVG on the machine running the viewer.'))))));
   saveState();
 }
 

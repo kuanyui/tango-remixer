@@ -5,22 +5,28 @@
 
 :root {
   --bg: #edeceb; --fg: #1a1a1a; --line: #c9c6c1; --muted: #6b6965; --hover: #e3e1de; --sel: #86abd9;
-  --ctl-bg: #ffffff; --ctl-border: #9d9a94; --ctl-hover: #f7f6f5; --accent: #86abd9;
+  --ctl-bg: #ffffff; --ctl-border: #8b8986; --ctl-hover: #f7f6f5; --accent: #86abd9;
   --cl-base: #ffffff; --cl-row-alt: #f4f3f2; --cl-frame: #aaa69f; --cl-shine: #ffffff;
-  --cl-btn: linear-gradient(#fefefd, #f1f0ef 45%, #dedcd9);
-  --cl-btn-hover: linear-gradient(#ffffff, #f8f7f6 45%, #e9e7e4);
-  --cl-btn-active: linear-gradient(#cdcbc7, #dcdad7);
-  --cl-sel-grad: linear-gradient(#abc8eb 0%, #90b4e0 49%, #7ca4d6 51%, #88aedb 100%); --cl-sel-fg: #ffffff; --cl-sel-border: #5f86b8;
-  --cl-sel-shine: inset 0 1px 0 rgba(255, 255, 255, 0.45), inset 0 -1px 0 rgba(0, 0, 0, 0.10);   /* top highlight line, bottom edge */
+  /* The Gummy gradient from clearlooks_draw_gummy.c: fill x1.08 at the top, x1.02 just above the middle,
+     the plain fill right below it (a barely visible cut), x0.94 at the bottom. Fills: bg, bg x1.02, bg x0.90. */
+  --cl-btn: linear-gradient(#ffffff 0%, #f1f1f0 50%, #edeceb 50%, #dfdedc 100%);
+  --cl-btn-hover: linear-gradient(#ffffff 0%, #f6f6f5 50%, #f1f1f0 50%, #e3e3e1 100%);
+  --cl-btn-active: linear-gradient(#e6e5e4 0%, #dad8d6 50%, #d6d4d2 50%, #cac7c5 100%);
+  /* Top-left inner highlight, plus the engine's one-pixel halo: bg x0.97 all round, bg x0.93 on the right and
+     bottom edge only (the first shadow is a 1 px offset copy without spread, so it shows on those two sides). */
+  --cl-btn-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.6), 1px 1px 0 0 #dddbda, 0 0 0 1px #e6e5e4;
+  --cl-sel-grad: linear-gradient(#99bae2 0%, #8bafdb 50%, #86abd9 50%, #79a0d1 100%); --cl-sel-fg: #ffffff;   /* selected rows: Gummy gradient on the selection colour, no border */
+  --cl-menu-grad: linear-gradient(#a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%); --cl-sel-border: #4b6e99;   /* menu items: on spot[1] = sel x1.05, border spot[2] = sel x0.65 */
   --cl-trough: #d6d4d0;
 }
 body.dark {   /* a "Darklooks"-style counterpart for the Dark background toggle */
   --bg: #3f3e3a; --fg: #e8e6e2; --line: #2a2926; --muted: #aeaba5; --hover: #4a4945; --sel: #86abd9;
   --ctl-bg: #2f2e2b; --ctl-border: #1f1e1c; --ctl-hover: #3a3936;
   --cl-base: #2f2e2b; --cl-row-alt: #353431; --cl-frame: #1f1e1c; --cl-shine: #55534e;
-  --cl-btn: linear-gradient(#5d5b56, #4f4d49 45%, #43413d);
-  --cl-btn-hover: linear-gradient(#686661, #595752 45%, #4b4945);
-  --cl-btn-active: linear-gradient(#35342f, #403e3a);
+  --cl-btn: linear-gradient(#5c5a54 0%, #57554f 50%, #55534e 50%, #504e4a 100%);
+  --cl-btn-hover: linear-gradient(#64615a 0%, #5e5c56 50%, #5c5a54 50%, #56544f 100%);
+  --cl-btn-active: linear-gradient(#4e4c48 0%, #494744 50%, #484643 50%, #44423f 100%);
+  --cl-btn-shadow: inset 1px 1px 0 rgba(255, 255, 255, 0.10), 1px 1px 0 0 #32312f, 0 0 0 1px #3a3936;
   --cl-trough: #2a2926;
 }
 
@@ -38,15 +44,24 @@ header { background: linear-gradient(var(--cl-shine), var(--bg) 8%, var(--hover)
 /* --- buttons and combo boxes ------------------------------------------- */
 button, .llselect-trigger {
   background: var(--cl-btn); color: var(--fg); border: 1px solid var(--ctl-border); border-radius: 3px;
-  box-shadow: inset 0 1px 0 var(--cl-shine), 0 1px 0 rgba(255, 255, 255, 0.35);
+  box-shadow: var(--cl-btn-shadow);
 }
 button:hover:not(:disabled), .llselect-trigger:hover { background: var(--cl-btn-hover); }
 button:active:not(:disabled), .llselect-trigger[data-state='open'] {
-  background: var(--cl-btn-active); box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.3);
+  background: var(--cl-btn-active); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17);   /* 3 px shadow along the top and left edges */
 }
 button:disabled { opacity: 0.55; }
-/* GTK2 drew a dotted focus rectangle inside the widget */
-button:focus-visible, .llselect-trigger:focus-visible { outline: 1px dotted var(--fg); outline-offset: -4px; }
+/* GtkComboBox: an etched separator before the arrow, and the arrow does not flip when the list is open */
+.llselect-trigger-arrow { align-self: stretch; margin: -0.4rem 0 -0.4rem 2px; padding-left: 9px;
+                          border-left: 1px solid var(--ctl-border); box-shadow: inset 1px 0 0 var(--cl-shine); opacity: 0.85; }
+.llselect-trigger[data-state='open'] .llselect-trigger-arrow { transform: none; }
+
+/* Gummy focus: no dotted rectangle any more, but a border in the selection colour x0.65 and a 12 % tint of it */
+button:focus-visible, .llselect-trigger:focus-visible {
+  outline: none; border-color: var(--cl-sel-border);
+  background-image: linear-gradient(rgba(134, 171, 217, 0.12), rgba(134, 171, 217, 0.12)), var(--cl-btn);
+  box-shadow: inset 0 0 0 1px rgba(134, 171, 217, 0.6), var(--cl-btn-shadow);
+}
 
 /* --- entries ------------------------------------------------------------- */
 input[type=search] {
@@ -87,7 +102,7 @@ input[type=checkbox]:focus-visible { outline: 1px dotted var(--fg); outline-offs
 .row { border-bottom: none; }
 .row:nth-child(even) { background: var(--cl-row-alt); }
 .row:hover { background: var(--hover); }
-.row.selected, .row.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); box-shadow: var(--cl-sel-shine); }
+.row.selected, .row.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
 .row.selected .where, .row.selected .aliases, .row.selected .license, .row.selected figcaption { color: rgba(255, 255, 255, 0.88); }
 .sizes .empty { border-color: var(--line); }
 
@@ -97,8 +112,12 @@ input[type=checkbox]:focus-visible { outline: 1px dotted var(--fg); outline-offs
                 box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }
 .included { background: var(--bg); border: 1px solid var(--cl-frame); border-radius: 4px; box-shadow: inset 0 1px 0 var(--cl-shine), 0 1px 0 var(--cl-shine); }
 .included code { background: var(--cl-base); border: 1px solid var(--line); border-radius: 3px; padding: 4px 6px; }
-.file { border-top: 1px solid var(--line); box-shadow: inset 0 1px 0 var(--cl-shine); }   /* etched separator */
-.file .thumb img { background: var(--cl-base); }
+/* The per-size rows are one list, so they get one sunken white frame with alternating rows (a tree view),
+   instead of a white patch behind every thumbnail. */
+.files { margin-top: 10px; background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px;
+         box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }   /* scrolls (overflow-y: auto comes from index.html) */
+.files .file { border-top: none; padding: 8px; }
+.files .file:nth-child(even) { background: var(--cl-row-alt); }
 code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", monospace; }
 
 /* --- combo box popup: a GTK menu ------------------------------------------------ */
@@ -106,21 +125,21 @@ code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation 
 .llselect-item[aria-selected='true'] { background: transparent; color: var(--fg); }   /* the check mark says it; blue is for the pointer */
 .llselect-item:hover, .llselect-item-focused,
 .llselect-item[aria-selected='true']:hover, .llselect-item-focused[aria-selected='true'] {
-  background: var(--cl-sel-grad); color: var(--cl-sel-fg); border-radius: 3px;
-  box-shadow: inset 0 0 0 1px var(--cl-sel-border), inset 0 2px 0 rgba(255, 255, 255, 0.40);   /* GTK menu items had a rounded, bordered highlight */
+  background: var(--cl-menu-grad); color: var(--cl-sel-fg); border-radius: 3px;
+  box-shadow: inset 0 0 0 1px var(--cl-sel-border);   /* Gummy menu item: rounded, bordered, same gradient on spot[1] */
 }
 .llselect-item:hover small, .llselect-item-focused small { color: rgba(255, 255, 255, 0.88); }
 .llselect-choose-all-row, .llselect-group-label, .exp-group { background: var(--hover); color: var(--fg); font-weight: 600;
                                                                border-top: 1px solid var(--cl-shine); border-bottom: 1px solid var(--line); }
 .exp-group { padding: 2px 4px; }
-.exp-row:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); box-shadow: inset 0 0 0 1px var(--cl-sel-border), inset 0 2px 0 rgba(255, 255, 255, 0.40); }
+.exp-row:hover { background: var(--cl-menu-grad); color: var(--cl-sel-fg); box-shadow: inset 0 0 0 1px var(--cl-sel-border); }
 .exp-row:hover small { color: rgba(255, 255, 255, 0.88); }
 
 /* --- scrollbars: blue Clearlooks sliders in a sunken trough ----------------------- */
 * { scrollbar-color: var(--sel) var(--cl-trough); }
 ::-webkit-scrollbar { width: 14px; height: 14px; }
 ::-webkit-scrollbar-track { background: var(--cl-trough); box-shadow: inset 1px 0 2px rgba(0, 0, 0, 0.25); }
-::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #b6cfee 0%, #94b7e2 49%, #7ea6d7 51%, #8bb0dc 100%); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(#b6cfee 0%, #94b7e2 49%, #7ea6d7 51%, #8bb0dc 100%); }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #c4d9f2 0%, #a2c1e7 49%, #8cb1dd 51%, #99bae1 100%); }
-::-webkit-scrollbar-thumb:horizontal:hover { background: linear-gradient(#c4d9f2 0%, #a2c1e7 49%, #8cb1dd 51%, #99bae1 100%); }
+::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(#a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%); }
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #b8d0ef 0%, #a7c4e8 50%, #a1c0e6 50%, #91b4df 100%); }
+::-webkit-scrollbar-thumb:horizontal:hover { background: linear-gradient(#b8d0ef 0%, #a7c4e8 50%, #a1c0e6 50%, #91b4df 100%); }
