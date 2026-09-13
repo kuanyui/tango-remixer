@@ -1,6 +1,6 @@
 import colorsys
 from dataclasses import dataclass
-from typing import List, Literal, Generic, TypeVar
+from typing import List, Literal, Generic, Tuple, TypeVar
 import re
 
 HumanityColorizeRule = Literal["orange_to_blue", "orange_to_dim_blue", "orange_to_green", "orange_to_dim_green", "orange_to_red", "red_to_blue", ]
@@ -35,7 +35,7 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="gnome-fs-web", colorize_rules=["orange_to_blue", "red_to_dim_blue"]),
     IncludedFile(name="gnome-fs-directory-accept", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),   # folder
     IncludedFile(name="network-server", colorize_rules=["orange_to_blue"]),
-    IncludedFile(name="stock_smart-playlist", colorize_rules=["orange_to_blue"]),
+    IncludedFile(name="stock_smart-playlist", colorize_rules=["purple_to_blue"]),
     # IncludedFile(name="user-desktop", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="user-home", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),   # folder
     IncludedFile(name="user-trash-full", colorize_rules=["orange_to_dim_green"]),
@@ -62,7 +62,6 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="preferences-desktop", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="preferences-system-network", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="user-desktop", colorize_rules=["purple_to_blue"]),
-    IncludedFile(name="stock_smart-playlist", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="invest-applet", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="gdm-setup", colorize_rules=["purple_to_blue"]),
     IncludedFile(name="gksu-root-terminal", colorize_rules=["purple_to_blue"]),
@@ -80,6 +79,8 @@ INCLUDED_HUMANITY_FILES: List[IncludedFile[HumanityColorizeRule]] = [
     IncludedFile(name="document-save", colorize_rules=["orange_to_green"]),
     IncludedFile(name="document-export", colorize_rules=["orange_to_blue"]),
     IncludedFile(name="system-log-out", colorize_rules=["orange_to_red"]),
+    IncludedFile(name="stock_folder_properties", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
+    IncludedFile(name="archive-insert-directory", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="rotate", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="object-rotate-left", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
     IncludedFile(name="object-rotate-right", colorize_rules=["orange_to_dim_blue", "red_to_dim_blue"]),
@@ -158,6 +159,10 @@ def color_hsl_to_hex(hsl_color: List[int]) -> str:
     r, g, b = colorsys.hls_to_rgb(h / 360, l / 100, s / 100)
     return f"#{int(r*255):02x}{int(g*255):02x}{int(b*255):02x}"
 
+def remap_hue(src_hue: int, src_range: Tuple[int, int], dst_range: Tuple[int, int]) -> float:
+    percent = (src_hue - src_range[0]) / (src_range[1] - src_range[0])
+    return int(dst_range[0] + percent * (dst_range[1] - dst_range[0]))
+
 def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityColorizeRule]) -> str:
     h, s, l = color_hex_to_hsl(hex_color)
     for rule in rules:
@@ -178,7 +183,7 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                     l += 20
             case "orange_to_dim_blue":
                 if 15 <= h <= 55:
-                    h += 180
+                    h = remap_hue(h, [15, 55], [200, 210])
                     if s > 30:
                         s -= 30
                     if l > 50:
@@ -212,12 +217,7 @@ def humanity_colorize_hex_code_with_rule(hex_color: str, rules: List[HumanityCol
                     h -= 15
                     s -= 10
             case "purple_to_blue":
-                purple = [280, 320]
-                blue   = [205, 220]
-                if purple[0] <= h <= purple[1]:
-                    src_percentage = (h - purple[0]) / (purple[1] - purple[0])
-                    dst = blue[0] + (src_percentage * (blue[1] - blue[0]))
-                    h = int(dst)
+                h = remap_hue(h, [280, 320], [200, 205])
 
 
     h = h % 360
