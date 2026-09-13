@@ -42,6 +42,8 @@
   .file .thumb { flex: none; width: 64px; display: flex; justify-content: center; }   /* same sizes as the list rows */
   .file code { display: block; word-break: break-all; color: var(--muted); font-size: 12px; margin: 2px 0 4px; }
   .note { margin-top: 6px; color: var(--muted); word-break: break-word; }
+  .included { margin-top: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
+  .included code { display: block; white-space: pre; overflow-x: auto; margin: 6px 0; font-size: 12px; }
   button { font: inherit; padding: 2px 8px; margin-right: 6px; }
   button img { vertical-align: -3px; margin-right: 4px; }
 </style>
@@ -91,8 +93,17 @@ function el(tag, props, ...children) {
   return node;
 }
 const buttonContent = (icon, label) => [el('img', { src: `/icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
-function iconButton(icon, label, onclick) {
-  return el('button', { onclick }, ...buttonContent(icon, label));
+function iconButton(icon, label, onclick, title) {
+  return el('button', { onclick, title }, ...buttonContent(icon, label));
+}
+
+// A line for included_icons.txt, in the column layout the project's own file uses (theme @0, source @18;
+// the parser needs a tab or 4+ spaces between fields). The context is only written when the same name
+// exists in another context of that theme. Always the real file name: aliases are not usable there.
+function includedLine(icon) {
+  const ambiguous = icons.some(i => i.theme === icon.theme && i.name === icon.name && i.context !== icon.context);
+  const src = ambiguous ? `${icon.context}/${icon.name}` : icon.name;
+  return (icon.theme.length + 4 > 18 ? icon.theme + '    ' : icon.theme.padEnd(18)) + src;
 }
 
 // A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order.
@@ -162,20 +173,28 @@ function showDetail(icon, row) {
   $('detail').replaceChildren(
     el('h3', {}, icon.name),
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
-    el('div', { className: 'note' }, 'included_icons.txt: ', el('code', {}, `${icon.theme}    ${icon.name}`)),
     el('div', { className: 'note' }, `License: ${themeInfo[icon.theme].license}`),
-    el('div', { className: 'note' }, icon.aliases.length
-      ? `Aliases (symlinks to this file): ${icon.aliases.join(', ')}` : 'No aliases'),
+    el('div', { className: 'included' },
+      el('strong', { title: 'A line for the included_icons.txt that build_icons.py reads: THEME and SOURCE ICON, separated by 4+ spaces or a tab.' }, 'included_icons.txt'),
+      el('code', {}, includedLine(icon)),
+      iconButton('copy', 'Copy line', e => copyText(includedLine(icon), e.currentTarget),
+        'Copy this line. Pasted into included_icons.txt it includes every available size of this icon.')),
+    el('div', { className: 'note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
+      icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
     img(icon, icon.sizes[icon.sizes.length - 1], 128),
     ...icon.sizes.map(s => el('div', { className: 'file' },
       el('div', { className: 'thumb' }, img(icon, s, rowPx(s.size))),
       el('div', {},
         el('strong', {}, s.size),
         el('code', {}, s.path),
-        iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal')),
-        iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir')),
-        iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape')),
-        iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget))))));
+        iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal'),
+          'Select this source file in the file manager of the machine running the viewer.'),
+        iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir'),
+          'Open the folder containing this source file, on the machine running the viewer.'),
+        iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape'),
+          'Open this source SVG in Inkscape, on the machine running the viewer.'),
+        iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget),
+          'Copy the absolute path of this source SVG on the machine running the viewer.')))));
   saveState();
 }
 
@@ -191,8 +210,9 @@ function copyText(text, button) {
     document.execCommand('copy');
     ta.remove();
   }
+  const original = [...button.childNodes];
   button.replaceChildren(...buttonContent('copied', 'Copied'));
-  setTimeout(() => button.replaceChildren(...buttonContent('copy', 'Copy full path')), 1000);
+  setTimeout(() => button.replaceChildren(...original), 1000);
 }
 
 async function openPath(theme, path, action) {
