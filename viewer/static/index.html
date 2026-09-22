@@ -421,6 +421,7 @@ function render() {
     $('zoom-in').disabled = k >= steps.length - 1;
   }
   $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => grid ? gridCell(icon, showAt, api) : listRow(icon, sizes)));
+  [...$('list').children].find(n => n.dataset.key === selectedKey)?.classList.add('selected');   // keep the highlight across re-renders
   $('status').textContent = hits.length > MAX_ROWS
     ? `Showing ${MAX_ROWS} of ${hits.length} icons – narrow the filter`
     : `${hits.length} icons`;
