@@ -661,7 +661,7 @@ for (const [label, items] of MENUS) {
   title.addEventListener('mouseenter', () => { if (openTitle && openTitle !== title) openMenu(title, items); });
   $('menubar').append(title);
 }
-document.addEventListener('mousedown', e => { if (openTitle && !e.target.closest('#menubar')) closeMenu(); });
+document.addEventListener('mousedown', e => { if (openTitle && !e.target.closest('.menu, .menu-title')) closeMenu(); });   // titles toggle themselves
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') closeMenu();
   if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); focusSearch(); }   // Edit > Find
