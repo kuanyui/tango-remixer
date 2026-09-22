@@ -8,12 +8,53 @@
 <script src="/static/llselect/index.umd.js"></script>
 <style>
   :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa;
-          --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; }
+          --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; --desktop: #76848f; }
   body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63;
-              --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654;
+              --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654; --desktop: #23282e;
               color-scheme: dark; }   /* checkboxes and scrollbars follow */
-  body { margin: 0; height: 100vh; font: 13px/1.4 system-ui, sans-serif; background: var(--bg); color: var(--fg);
-         display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 440px; }
+  /* The page is drawn as one application window on a desktop: title bar, menu bar, client area (toolbar, icon
+     list, detail pane), status bar. The Maximize button drops the desktop margin. */
+  body { margin: 0; height: 100vh; box-sizing: border-box; padding: 16px; font: 13px/1.4 system-ui, sans-serif; background: var(--desktop); color: var(--fg); }
+  body.maximized { padding: 0; }
+  .window { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto auto 1fr auto; background: var(--bg); border: 1px solid var(--ctl-border); }
+  .client { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 440px; min-height: 0; }
+  /* Title bar: window icon, centred title, minimize / maximize / close. The button glyphs are inline SVG: each
+     `.o` shape is a dark outline behind the `.i` shape (invisible here, coloured by the Clearlooks sheet). */
+  .titlebar { display: flex; align-items: center; gap: 4px; height: 23px; padding: 0 4px 0 5px; background: var(--hover);
+              border-bottom: 1px solid var(--line); font-weight: bold; user-select: none; }
+  .wm-icon { flex: none; }
+  .wm-title { flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wm-buttons { display: flex; gap: 2px; }
+  button.wm-button { width: 19px; height: 19px; padding: 0; border: 1px solid var(--ctl-border); border-radius: 3px; background: var(--ctl-bg); color: var(--fg); }
+  .wm-button svg { display: block; width: 9px; height: 9px; margin: auto; overflow: visible; }
+  .wm-button .o { fill: none; stroke: var(--wm-glyph-outline, transparent); }
+  .wm-button .i { fill: none; stroke: currentColor; }
+  .wm-button .filled { fill: currentColor; stroke: none; }
+  #wm-maximize .restore, body.maximized #wm-maximize .maximize { display: none; }   /* one glyph per state */
+  body.maximized #wm-maximize .restore { display: inline; }
+  /* Menu bar; the menus themselves are built by script when they open. */
+  .menubar { display: flex; position: relative; padding: 0 2px; border-bottom: 1px solid var(--line); user-select: none; }
+  .menu-title { padding: 2px 7px; margin: 1px 0; line-height: 17px; border-radius: 3px; cursor: default; }
+  .menu-title.open { background: var(--sel); }
+  .menu { position: absolute; top: 100%; z-index: 20; min-width: 12rem; padding: 3px; background: var(--ctl-bg); border: 1px solid var(--ctl-border);
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); }
+  .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 3px; white-space: nowrap; cursor: default; }
+  .menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark */
+  .menu-item .accel { margin-left: auto; padding-left: 24px; }
+  .menu-item:hover:not(.disabled) { background: var(--sel); }
+  .menu-item.disabled { color: var(--muted); }
+  .menu-sep { border-top: 1px solid var(--line); margin: 3px 0; }
+  /* Status bar: the row count (or the regexp error) and a resize grip (drawn by the Clearlooks sheet). */
+  .statusbar { display: flex; align-items: center; min-height: 22px; padding: 2px 6px; border-top: 1px solid var(--line); }
+  .grip { flex: none; width: 18px; height: 18px; margin-left: auto; align-self: flex-end; }
+  /* About dialog: a small window of its own, with the same title bar. */
+  dialog { padding: 0; border: 1px solid var(--ctl-border); background: var(--bg); color: var(--fg); }
+  dialog::backdrop { background: transparent; }
+  .about { padding: 12px 24px 16px; text-align: center; }
+  .about img { display: block; margin: 0 auto 8px; }
+  .about h2 { margin: 0 0 6px; font-size: 18px; }
+  .about p { margin: 0 0 6px; }
+  .about .buttons { text-align: right; margin-top: 16px; }
   header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   header .llselect-root { min-width: 11rem; max-width: 22rem; font-size: 13px; }
   .opt { display: inline-flex; align-items: center; gap: 6px; }   /* llselect checkbox icon + text in a row */
@@ -47,8 +88,6 @@
   input[type=checkbox] { accent-color: var(--accent); }
   #detail button { padding: 0.2rem 0.5rem; margin: 0 6px 4px 0; }   /* many of them per icon: compact */
   header input[type=search] { flex: 1; max-width: 320px; }
-  #status { color: var(--muted); }
-  #status { margin-left: auto; }
   header > label { white-space: nowrap; }
   #list { overflow-y: auto; }
   .row { display: flex; align-items: center; gap: 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
@@ -84,25 +123,24 @@
   .exp-row { padding: 3px 4px; border-radius: 3px; cursor: pointer; }
   .exp-row:hover { background: var(--hover); }
   @media (min-width: 1600px) {
-    body { grid-template-rows: 1fr; grid-template-columns: 330px 1fr 440px; }
+    .client { grid-template-rows: 1fr; grid-template-columns: 330px 1fr 440px; }
     #list { grid-column: 2; grid-row: 1; }
     #detail { grid-column: 3; grid-row: 1; }
-    /* Sidebar: search, Reset, Dark and the status stay put; below them the height is split in two halves,
+    /* Sidebar: search, Reset and Dark stay put; below them the height is split in two halves,
        Themes on top, Contexts and Sizes side by side underneath, each half scrolling on its own. */
     header { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: start;
              padding: 10px; gap: 10px;   /* one spacing everywhere: window edge to block, block to block, both directions */
-             grid-template-rows: auto auto auto auto minmax(0, 1fr) minmax(0, 1fr); overflow: hidden;
+             grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr); overflow: hidden;
              border-bottom: none; border-right: 1px solid var(--line); }
-    header > strong { grid-area: 1 / 1 / 2 / 3; }
-    header input[type=search] { grid-area: 2 / 1 / 3 / 3; max-width: none; }
+    header input[type=search] { grid-area: 1 / 1 / 2 / 3; max-width: none; padding-right: 3.2rem; }   /* room for the regexp toggle */
+    #re-toggle { grid-area: 1 / 1 / 2 / 3; justify-self: end; align-self: center; margin-right: 8px; }   /* inside the search box's right end */
     /* Reset and the Dark toggle share one full-width row, pushed to opposite ends: half a column is too
        narrow for the toggle's icon and text. */
-    #reset { grid-area: 3 / 1 / 4 / 3; justify-self: start; }
-    header > label { grid-area: 3 / 1 / 4 / 3; justify-self: end; align-self: center; }
-    #status { grid-area: 4 / 1 / 5 / 3; margin-left: 0; }
-    #theme-box { grid-area: 5 / 1 / 6 / 3; }
-    #context-box { grid-area: 6 / 1; }
-    #size-box { grid-area: 6 / 2; }
+    #reset { grid-area: 2 / 1 / 3 / 3; justify-self: start; }
+    #dark-toggle { grid-area: 2 / 1 / 3 / 3; justify-self: end; align-self: center; }
+    #theme-box { grid-area: 3 / 1 / 4 / 3; }
+    #context-box { grid-area: 4 / 1; }
+    #size-box { grid-area: 4 / 2; }
     #theme-box, #context-box, #size-box { align-self: stretch; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); padding: 6px; }
     header .llselect-root { display: none; }
     .expanded { display: block; }
@@ -117,19 +155,42 @@
 <link rel="stylesheet" href="/static/clearlooks.css">
 </head>
 <body>
+<div class="window">
+<div class="titlebar">
+  <img class="wm-icon" src="/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">
+  <span class="wm-title">Tango Remixer Icon Viewer</span>
+  <span class="wm-buttons">
+    <button type="button" class="wm-button" id="wm-minimize" title="Minimize (a browser tab has nothing to minimize)"><svg viewBox="0 0 9 9"><rect class="o" x="0.5" y="5.5" width="8" height="3"/><rect class="i filled" x="1" y="6" width="7" height="2"/></svg></button>
+    <button type="button" class="wm-button" id="wm-maximize" title="Maximize"><svg viewBox="0 0 9 9"><g class="maximize"><rect class="o" x="0.5" y="0.5" width="8" height="8"/><rect class="o" x="2.5" y="3.5" width="4" height="3"/><rect class="i" x="1.5" y="1.5" width="6" height="6"/><path class="i" d="M2 2.5h5"/></g><g class="restore"><rect class="o" x="1.5" y="1.5" width="6" height="6"/><rect class="o" x="3.5" y="4.5" width="2" height="2"/><rect class="i" x="2.5" y="2.5" width="4" height="4"/><path class="i" d="M3 3.5h3"/></g></svg></button>
+    <button type="button" class="wm-button" id="wm-close" title="Close (only drawn: the tab stays open)"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button>
+  </span>
+</div>
+<nav class="menubar" id="menubar"></nav>
+<div class="client">
 <header>
-  <strong>Icon Viewer</strong>
   <input type="search" id="q" placeholder="Search icon name…" autofocus>
   <label id="re-toggle" title="Read the search box as a regular expression, case-insensitive. Example: ^(system-run|security-)"><input type="checkbox" id="re"> <code>.*</code></label>
   <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
   <div id="size-box"><div id="size"></div><div class="expanded" id="size-list"></div></div>
   <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="/icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
-  <label><input type="checkbox" id="dark"> <img src="/icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"> Dark background</label>
-  <span id="status">Loading…</span>
+  <label id="dark-toggle"><input type="checkbox" id="dark"> <img src="/icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"> Dark background</label>
 </header>
 <main id="list"></main>
 <aside id="detail"><p style="color:var(--muted)">Click an icon to see its files.</p></aside>
+</div>
+<div class="statusbar"><span id="status">Loading…</span><span class="grip"></span></div>
+</div>
+<dialog id="about" aria-labelledby="about-name">
+  <div class="titlebar"><span class="wm-title">About Tango Remixer Icon Viewer</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="about">
+    <img src="/icons/Nome/apps/48/preferences-desktop-theme.svg" width="48" height="48" alt="">
+    <h2 id="about-name">Tango Remixer Icon Viewer</h2>
+    <p>Browse the source icon themes and copy lines for <code>included_icons.txt</code>.</p>
+    <a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">github.com/kuanyui/tango-remixer</a>
+    <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+  </div>
+</dialog>
 <script>
 const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
@@ -143,7 +204,7 @@ function loadState() {
 function saveState() {
   const state = { q: $('q').value, re: $('re').checked, themes: themeSel.getChosenItems(),
     contexts: contextSel.getChosenItems(), sizes: sizeSel.getChosenItems(), dark: $('dark').checked,
-    scroll: $('list').scrollTop, selected: selectedKey };
+    maximized: document.body.classList.contains('maximized'), scroll: $('list').scrollTop, selected: selectedKey };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 // Button icons come from the themes themselves (Tango where it has a 16 px one, else Nome).
@@ -429,6 +490,83 @@ $('reset').addEventListener('click', () => {
   render();
 });
 $('dark').addEventListener('change', e => { document.body.classList.toggle('dark', e.target.checked); saveState(); });
+
+// --- Window frame ---------------------------------------------------------------------------------------
+// Maximize drops the desktop margin around the window (kept across reloads with the rest of the state).
+// Minimize and Close are only drawn. File > Quit asks the browser to close the tab, which it only does for a
+// tab that was opened straight from the URL the server printed (no other history entries); otherwise the
+// status bar says so.
+document.body.classList.toggle('maximized', !!loadState().maximized);   // before the first paint
+function syncMaximize() { $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize'; }
+syncMaximize();
+$('wm-maximize').addEventListener('click', () => { document.body.classList.toggle('maximized'); syncMaximize(); saveState(); });
+function quit() {
+  window.close();
+  setTimeout(() => { $('status').textContent = 'The browser did not let the page close this tab. Close it yourself.'; }, 200);
+}
+
+// --- Menu bar -------------------------------------------------------------------------------------------
+// GNOME 2 layout: File, Edit, View, Help; `_` marks the underlined letter, as in GTK. A menu is rebuilt each
+// time it opens, so its check items and disabled items always show the current state. Click opens a menu;
+// while one is open, pointing at another title switches to it; Escape or a click elsewhere closes it.
+const focusSearch = () => { $('q').focus(); $('q').select(); };
+const copyLineButton = () => $('detail').querySelector('.included button');   // the detail pane's Copy line
+const MENUS = [
+  ['_File', () => [
+    { label: '_Quit', icon: 'Nome/actions/16/application-exit.svg', run: quit }]],
+  ['_Edit', () => [
+    { label: '_Find', accel: 'Ctrl+F', icon: 'Nome/actions/16/edit-find.svg', run: focusSearch },
+    { label: '_Copy Line for included_icons.txt', icon: 'Nome/actions/16/edit-copy.svg',
+      disabled: !copyLineButton() || copyLineButton().disabled, run: () => copyLineButton().click() },
+    null,
+    { label: '_Reset Filters', icon: 'Tango/16x16/actions/edit-undo.svg', run: () => $('reset').click() }]],
+  ['_View', () => [
+    { label: '_Dark Background', check: $('dark').checked, run: () => $('dark').click() },
+    { label: 'Regular _Expression Search', check: $('re').checked, run: () => $('re').click() },
+    null,
+    { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
+  ['_Help', () => [
+    { label: '_About', icon: 'Nome/actions/16/help-about.svg', run: () => $('about').showModal() }]],
+];
+function mnemonic(label) {   // '_File' -> 'F' underlined, then 'ile'
+  const k = label.indexOf('_');
+  return k < 0 ? [label] : [label.slice(0, k), el('u', {}, label[k + 1]), label.slice(k + 2)];
+}
+let openTitle = null;
+function openMenu(title, items) {
+  closeMenu();
+  const menu = el('div', { className: 'menu' }, ...items().map(item => {
+    if (!item) return el('div', { className: 'menu-sep' });
+    const slot = el('span', { className: 'slot' });
+    if ('check' in item) { const box = el('span', { className: 'check' }); box.dataset.state = item.check ? 'checked' : 'unchecked'; slot.append(box); }
+    else if (item.icon) slot.append(el('img', { src: `/icons/${item.icon}`, width: 16, height: 16, alt: '' }));
+    const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
+    if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
+    if (!item.disabled) row.addEventListener('click', () => { closeMenu(); item.run(); });
+    return row;
+  }));
+  menu.style.left = title.offsetLeft + 'px';
+  title.classList.add('open');
+  $('menubar').append(menu);
+  openTitle = title;
+}
+function closeMenu() {
+  if (!openTitle) return;
+  openTitle.classList.remove('open');
+  $('menubar').querySelector('.menu').remove();
+  openTitle = null;
+}
+for (const [label, items] of MENUS) {
+  const title = el('div', { className: 'menu-title' }, ...mnemonic(label));
+  title.addEventListener('mousedown', e => { e.preventDefault(); openTitle === title ? closeMenu() : openMenu(title, items); });
+  title.addEventListener('mouseenter', () => { if (openTitle && openTitle !== title) openMenu(title, items); });
+  $('menubar').append(title);
+}
+document.addEventListener('mousedown', e => { if (openTitle && !e.target.closest('#menubar')) closeMenu(); });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeMenu();
+  if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); focusSearch(); }   // Edit > Find
+});
 </script>
 </body>
 </html>
