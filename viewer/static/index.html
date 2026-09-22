@@ -47,6 +47,19 @@
   /* Status bar: the row count (or the regexp error) and a resize grip (drawn by the Clearlooks sheet). */
   .statusbar { display: flex; align-items: center; min-height: 22px; padding: 2px 6px; border-top: 1px solid var(--line); }
   .grip { flex: none; width: 18px; height: 18px; margin-left: auto; align-self: flex-end; }
+  /* The one tooltip of the page (script shows it for every `title` and for the detail pane's thumbnails). */
+  .tooltip { position: fixed; z-index: 30; display: flex; gap: 12px; max-width: 480px; padding: 5px 7px; font-size: 12px; line-height: 1.35;
+             white-space: pre-line; background: var(--ctl-bg); color: var(--fg); border: 1px solid var(--ctl-border); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+             pointer-events: none; }
+  .tooltip[hidden] { display: none; }
+  .tip-img { flex: none; padding: 8px; background: #fff; border: 1px solid var(--line); }
+  .tip-img.on-dark { background: #3c3b37; }   /* panel glyphs are light */
+  .tip-img img { display: block; }
+  .tip-text { min-width: 0; }
+  .tip-text > div { margin-bottom: 2px; overflow-wrap: anywhere; }
+  .tip-head { font-weight: 600; }
+  .tip-path, .tip-none { color: var(--muted); }
+  .tip-path { font-family: monospace; }
   /* About dialog: a small window of its own, with the same title bar. */
   dialog { padding: 0; border: 1px solid var(--ctl-border); background: var(--bg); color: var(--fg); }
   dialog::backdrop { background: transparent; }
@@ -400,7 +413,7 @@ function showDetail(icon, row) {
     el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
       icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
     el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file' },
-      el('div', { className: 'thumb' }, img(icon, s, rowPx(s.size))),
+      fileThumb(icon, s),
       el('div', {},
         el('strong', {}, s.size),
         el('code', {}, s.path),
@@ -414,6 +427,94 @@ function showDetail(icon, row) {
           'Copy the absolute path of this source SVG on the machine running the viewer.'))))));
   saveState();
 }
+
+// --- Tooltips ------------------------------------------------------------------------------------------
+// One tooltip element for the whole page, styled by CSS, shown without delay. Every `title` in the page is
+// shown through it instead of by the browser: on first hover the attribute moves to data-title, so the
+// browser's own tooltip never appears (code that sets a new title later is picked up the same way). The
+// detail pane's thumbnails show a card instead: the file at 128 px with its license and its RDF metadata
+// (the block Inkscape writes: title, creator, date, keywords, ...), the way GNOME 2's image viewer described
+// its thumbnails. The license is the file's own SPDX-License-Identifier comment when it has one, else the
+// theme's. The SVG text is fetched once per file (the server sends the source file, colorized for Blue*).
+const DC = 'http://purl.org/dc/elements/1.1/', RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
+const CC = ['http://creativecommons.org/ns#', 'http://web.resource.org/cc/'];   // today's and 2005's cc namespace
+const metaCache = new Map();
+function fileMeta(url) {
+  if (!metaCache.has(url)) metaCache.set(url, fetch(url).then(r => r.text()).then(parseMeta));
+  return metaCache.get(url);
+}
+function parseMeta(text) {
+  const meta = { spdx: (/SPDX-License-Identifier:\s*([^\r\n]*?)\s*(?:-->|$)/m.exec(text) || [])[1] || null, fields: null };
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
+  const work = CC.flatMap(ns => [...doc.getElementsByTagNameNS(ns, 'Work')])[0];
+  if (!work) return meta;
+  const kids = name => [...work.children].filter(e => e.namespaceURI === DC && e.localName === name);
+  const textOf = e => e.textContent.trim();
+  const plain = name => kids(name).map(textOf).filter(Boolean).join(', ');
+  const agents = name => kids(name).map(e => textOf(e.getElementsByTagNameNS(DC, 'title')[0] || e)).filter(Boolean).join(', ');   // dc:x/cc:Agent/dc:title
+  const license = [...work.children].find(e => CC.includes(e.namespaceURI) && e.localName === 'license');
+  meta.fields = [
+    ['Title', plain('title')], ['Creator', agents('creator')], ['Contributors', agents('contributor')], ['Publisher', agents('publisher')],
+    ['Date', plain('date')], ['Description', plain('description')],
+    ['Keywords', kids('subject').flatMap(e => [...e.getElementsByTagNameNS(RDF, 'li')]).map(textOf).filter(Boolean).join(', ')],
+    ['Rights', agents('rights')], ['Source', plain('source')],
+    ['License URL', license ? license.getAttributeNS(RDF, 'resource') || textOf(license) : ''],
+  ].filter(([, value]) => value);
+  return meta;
+}
+const tip = el('div', { className: 'tooltip', hidden: true });
+document.body.append(tip);
+const fileOf = new WeakMap();   // detail pane thumbnail -> { icon, s }
+let tipTarget = null;
+function fileThumb(icon, s) {
+  const image = img(icon, s, rowPx(s.size));
+  image.removeAttribute('title');   // the card says it all
+  const thumb = el('div', { className: 'thumb' }, image);
+  fileOf.set(thumb, { icon, s });
+  return thumb;
+}
+function placeTip(x, y) {   // top-left corner, kept on screen
+  tip.style.left = Math.max(4, Math.min(x, innerWidth - tip.offsetWidth - 4)) + 'px';
+  tip.style.top = Math.max(4, Math.min(y, innerHeight - tip.offsetHeight - 4)) + 'px';
+}
+function showTextTip(target, text, e) {
+  tip.replaceChildren(text);
+  tip.hidden = false;
+  // GTK puts a tooltip under the pointer, centred on it; above the pointer when it would not fit below
+  const below = e.clientY + 20;
+  placeTip(e.clientX - tip.offsetWidth / 2, below + tip.offsetHeight <= innerHeight - 4 ? below : e.clientY - tip.offsetHeight - 8);
+}
+async function showFileTip(thumb) {
+  const { icon, s } = fileOf.get(thumb), url = encodeURI(`/icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
+  const meta = await fileMeta(url);
+  if (tipTarget !== thumb) return;   // the pointer moved on while the file was loading
+  const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), value);
+  tip.replaceChildren(
+    el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: url, width: 128, height: 128, alt: '' })),
+    el('div', { className: 'tip-text' },
+      el('div', { className: 'tip-head' }, `${icon.name}, ${s.size === 'scalable' ? 'scalable' : s.size + ' px'} file shown at 128 px`),
+      el('div', { className: 'tip-path' }, s.path),
+      line('License', meta.spdx ? `${meta.spdx} (SPDX-License-Identifier in the file)` : `${theme.license} (the theme's: no SPDX-License-Identifier in the file)`),
+      ...(meta.fields ? meta.fields.map(([label, value]) => line(label, value)) : [el('div', { className: 'tip-none' }, 'No RDF metadata in the file.')])));
+  tip.hidden = false;
+  // Left of the thumbnail when there is room (the pane sits at the right edge), else right of it
+  const r = thumb.getBoundingClientRect();
+  placeTip(r.left - tip.offsetWidth - 8 >= 0 ? r.left - tip.offsetWidth - 8 : r.right + 8, r.top);
+}
+function hideTip() { tipTarget = null; tip.hidden = true; }
+document.addEventListener('mouseover', e => {
+  const target = e.target.closest('[title], [data-title], .thumb');
+  if (!target || target === tipTarget) return;
+  hideTip();
+  tipTarget = target;
+  if (fileOf.has(target)) { showFileTip(target); return; }
+  if (target.hasAttribute('title')) { target.dataset.title = target.getAttribute('title'); target.removeAttribute('title'); }
+  if (target.dataset.title) showTextTip(target, target.dataset.title, e);
+});
+document.addEventListener('mouseout', e => { if (tipTarget && !tipTarget.contains(e.relatedTarget)) hideTip(); });
+document.addEventListener('mousedown', hideTip);
+document.addEventListener('keydown', hideTip);
+document.addEventListener('scroll', () => { if (!tip.hidden) hideTip(); }, true);   // any scrolling box; a card still loading is left alone
 
 // navigator.clipboard only exists in secure contexts (https or localhost). Viewed over plain
 // http from another machine it is undefined, so fall back to the old execCommand route.

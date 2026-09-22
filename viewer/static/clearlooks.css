@@ -191,6 +191,11 @@ input[type=checkbox]:focus-visible { outline: 1px dotted var(--fg); outline-offs
 .files .file:nth-child(even) { background: var(--cl-row-alt); }
 code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", monospace; }
 
+/* --- tooltips: the gtkrc's tooltip_bg_color #F5F5B5 with black text, border bg x0.6 (clearlooks_draw_tooltip); no shadow (no compositor) --- */
+.tooltip { background: #f5f5b5; color: #000000; border-color: #93937c; box-shadow: none; }
+.tip-img { border-color: var(--cl-frame); }
+.tip-path, .tip-none { color: #55553a; }
+
 /* --- combo box popup: a GTK menu ------------------------------------------------ */
 .llselect-popup { background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px; box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); }
 .llselect-item[aria-selected='true'] { background: transparent; color: var(--fg); }   /* the check mark says it; blue is for the pointer */
