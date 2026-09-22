@@ -128,7 +128,7 @@
   .file code { display: block; word-break: break-all; color: var(--muted); font-size: 12px; margin: 2px 0 4px; }
   .note { margin-top: 6px; color: var(--muted); word-break: break-word; }
   .included { margin-top: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
-  .included code { display: block; white-space: pre; overflow-x: auto; margin: 6px 0; font-size: 12px; }
+  .included code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; font-size: 12px; }   /* long lines wrap: the size matrix at the end stays visible */
   .included label { margin-right: 10px; white-space: nowrap; }
   /* Expanded filter lists: hidden in the top bar, shown when the header is a sidebar (wide windows). */
   .expanded { display: none; }
@@ -389,7 +389,9 @@ function includedBox(icon) {
     // A size that is checked as a real file is not also produced from `scalable`.
     for (const box of targetBoxes) box.firstChild.disabled = !chosen.has('scalable') || chosen.has(box.firstChild.value);
     const matrix = sizeMatrix(available, available.filter(s => chosen.has(s)), SCALABLE_TARGETS.filter(t => targets.has(t) && !chosen.has(t)));
-    line.textContent = matrix ? includedLine(icon, matrix) : 'Check at least one size.';
+    // Shown wrapped when long; the break points sit after the `;` of the matrix, not inside a size (wbr adds
+    // nothing to the copied text).
+    line.replaceChildren(...(matrix ? includedLine(icon, matrix) : 'Check at least one size.').split(/(?<=;)/).flatMap((part, k) => k ? [el('wbr'), part] : [part]));
     copy.disabled = !matrix;
   }
   refresh();
