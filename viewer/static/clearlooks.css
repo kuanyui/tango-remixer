@@ -103,6 +103,7 @@ body:has(dialog[open]) .window > .titlebar button.wm-button { background: var(--
 
 /* --- status bar: an etched line along the top, the resize grip in the corner --------------------------------- */
 .statusbar { border-top: 1px solid var(--cl-shade3); box-shadow: inset 0 1px 0 var(--cl-status-hi); }
+.statusbar .llselect-trigger-arrow { margin-top: -2px; margin-bottom: -2px; }   /* the compact trigger has 2 px of padding */
 .grip { background: var(--cl-grip) no-repeat; }
 
 /* --- toolbar / sidebar ------------------------------------------------ */
@@ -170,8 +171,16 @@ body.dark .check[data-state=indeterminate] {
 input[type=checkbox]:disabled { opacity: 0.5; }
 input[type=checkbox]:focus-visible { outline: 1px dotted var(--fg); outline-offset: 1px; }
 
+/* --- radio marks (View menu): a circle with a dot, drawn like the check boxes --- */
+.radio { border: 1px solid var(--ctl-border); background: linear-gradient(var(--cl-base), var(--ctl-hover)); box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.12); }
+.radio[data-state=checked] { background: radial-gradient(circle, var(--fg) 3px, transparent 3.5px), linear-gradient(var(--cl-base), var(--ctl-hover)); }
+/* --- the List / Grid switch: the current view is a pressed toggle button --- */
+button.pressed, button.pressed:hover:not(:disabled) { background: var(--cl-btn-active); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
+
 /* --- the icon list: a GTK tree view ----------------------------------------- */
 #list { background: var(--cl-base); }
+.cell.selected, .cell.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
+.cell.selected .cell-info { color: rgba(255, 255, 255, 0.88); }
 .row { border-bottom: none; }
 .row:nth-child(even) { background: var(--cl-row-alt); }
 .row:hover { background: var(--hover); }

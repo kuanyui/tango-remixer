@@ -8,9 +8,9 @@
 <script src="/static/llselect/index.umd.js"></script>
 <style>
   :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa;
-          --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; --desktop: #76848f; }
+          --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; --desktop: #76848f; --fallback: #c01c28; }
   body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63;
-              --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654; --desktop: #23282e;
+              --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654; --desktop: #23282e; --fallback: #f47067;
               color-scheme: dark; }   /* checkboxes and scrollbars follow */
   /* The page is drawn as one application window on a desktop: title bar, menu bar, client area (toolbar, icon
      list, detail pane), status bar. The Maximize button drops the desktop margin. */
@@ -46,7 +46,7 @@
   .menu-sep { border-top: 1px solid var(--line); margin: 3px 0; }
   /* Status bar: the row count (or the regexp error) and a resize grip (drawn by the Clearlooks sheet). */
   .statusbar { display: flex; align-items: center; min-height: 22px; padding: 2px 6px; border-top: 1px solid var(--line); }
-  .grip { flex: none; width: 18px; height: 18px; margin-left: auto; align-self: flex-end; }
+  .grip { flex: none; width: 18px; height: 18px; margin-left: 8px; align-self: flex-end; }
   /* The one tooltip of the page (script shows it for every `title` and for the detail pane's thumbnails). */
   .tooltip { position: fixed; z-index: 30; display: flex; gap: 12px; max-width: 480px; padding: 5px 7px; font-size: 12px; line-height: 1.35;
              white-space: pre-line; background: var(--ctl-bg); color: var(--fg); border: 1px solid var(--ctl-border); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
@@ -80,6 +80,9 @@
            background: var(--ctl-bg) no-repeat center / 12px 12px; }
   .check[data-state=checked] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.4l2.6 2.7 5-6' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
   .check[data-state=indeterminate] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6h7' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+  /* Radio mark of the View menu's List / Grid items: a circle, a dot when chosen. */
+  .radio { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 50%; background: var(--ctl-bg); }
+  .radio[data-state=checked] { background: radial-gradient(circle, var(--fg) 3px, transparent 3.5px), var(--ctl-bg); }
   .theme-opt img.on-dark { box-sizing: border-box; padding: 2px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
   .theme-opt small { display: block; color: var(--muted); }
   /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
@@ -105,6 +108,32 @@
   header input[type=search] { flex: 1; max-width: 320px; }
   header > label { white-space: nowrap; }
   #list { overflow-y: auto; }
+  /* Grid view: one cell per icon, drawn at the Show-at size with the file the chosen API would pick (pickFile).
+     A pick smaller than the cell sits centred in it, the way Qt draws a PNG it will not enlarge. */
+  #list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cell, 120px), 1fr)); gap: 4px; padding: 8px; align-content: start; }
+  .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 8px 4px; border-radius: 3px; text-align: center; cursor: pointer; }
+  .cell:hover { background: var(--hover); }
+  .cell.selected { background: var(--sel); }
+  .cell-img { display: flex; align-items: center; justify-content: center; }
+  .cell-name, .cell-info { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cell-info { font-size: 11px; color: var(--muted); }
+  .cell-info .fallback { color: var(--fallback); }   /* the folder a fallback comes from */
+  /* View controls, at the right end of the status bar: List | Grid (two joined buttons, the current one
+     pressed) and, for the grid, a zoom stepper through the sizes the themes have plus the API chooser. */
+  .view-controls { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .view-switch { display: inline-flex; white-space: nowrap; }
+  .view-switch button:first-child { border-radius: 3px 0 0 3px; }
+  .view-switch button:last-child { border-radius: 0 3px 3px 0; margin-left: -1px; }
+  button.pressed, button.pressed:hover:not(:disabled) { background: var(--sel); }
+  #grid-opts { display: none; align-items: center; gap: 8px; }
+  body.grid #grid-opts { display: flex; }
+  .zoom { display: inline-flex; align-items: center; gap: 2px; }
+  .zoom button img { display: block; margin: 0; }
+  .statusbar button { padding: 2px 6px; }
+  .statusbar .llselect-trigger { padding: 2px 6px; }
+  .statusbar .llselect-root { max-width: none; font-size: 13px; }
+  #show-at { min-width: 0; }   /* llselect's host element; "24 px" needs no 14rem */
+  #status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .row { display: flex; align-items: center; gap: 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .row:hover { background: var(--hover); }
   .row.selected { background: var(--sel); }
@@ -193,7 +222,17 @@
 <main id="list"></main>
 <aside id="detail"><p style="color:var(--muted)">Click an icon to see its files.</p></aside>
 </div>
-<div class="statusbar"><span id="status">Loading…</span><span class="grip"></span></div>
+<div class="statusbar"><span id="status">Loading…</span>
+  <div class="view-controls">
+    <div id="grid-opts">
+      <div class="zoom" title="Grid: every icon is drawn at this size, the way the chosen API would draw it.
+A tick in Sizes means: you would include that size.
+A red size under an icon = a fallback, drawn from that folder."><button type="button" id="zoom-out" title="Zoom out: the next smaller size the themes have"><img src="/icons/Tango/16x16/actions/zoom-out.svg" width="16" height="16" alt="Zoom out"></button><div id="show-at"></div><button type="button" id="zoom-in" title="Zoom in: the next larger size the themes have"><img src="/icons/Tango/16x16/actions/zoom-in.svg" width="16" height="16" alt="Zoom in"></button></div>
+      <div id="pick-as-box"><div id="pick-as"></div></div>
+    </div>
+    <span class="view-switch" title="List: every ticked size side by side. Grid: one size per icon, drawn as the chosen API would draw it."><button type="button" id="view-list">List</button><button type="button" id="view-grid">Grid</button></span>
+  </div>
+  <span class="grip"></span></div>
 </div>
 <dialog id="about" aria-labelledby="about-name">
   <div class="titlebar"><span class="wm-title">About Tango Remixer Icon Viewer</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
@@ -210,6 +249,29 @@ const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
 const $ = id => document.getElementById(id);
 const DEFAULT_SIZES = ['16', '22', '24', '32', '48', 'scalable'];   // scalable: the FLOSS application themes have nothing else
+// Grid view: the API whose lookup and drawing the cells imitate. `rules` is the chooser's tooltip.
+const APIS = {
+  qt6: { label: 'Qt 6 QIcon::fromTheme()', short: 'Qt 6 QIcon::fromTheme', rules: `Drawn as Qt 6 draws it: QIcon::fromTheme().
+1. A folder with exactly this size wins.
+2. Else the nearest size in pixels. A @2 folder counts double (16x16@2 = 32 px).
+3. Two are equally near: Qt sorts the folder names alphabetically, character by character (so 128x128 comes before 16x16), and takes the last one. 48x48 beats 32x32; 16x16 beats 128x128.
+4. A PNG is never enlarged. A smaller file is drawn at its own size.` },
+  gtk4: { label: 'GTK 4 gtk_icon_theme_lookup_icon()', short: 'GTK 4 gtk_icon_theme_lookup_icon', rules: `Drawn as GTK 4 draws it: gtk_icon_theme_lookup_icon().
+1. A folder with exactly this size wins. A @2 folder with exactly this many pixels counts too (16x16@2 = 32 px).
+2. Else a folder of this size or larger always beats a smaller one.
+3. Then the nearest in pixels. Two are equally near: the folder whose Scale matches wins (a normal folder beats a @2 folder).
+4. The PNG is scaled to this size, larger or smaller.` },
+  gtk3: { label: 'GTK 3 gtk_icon_theme_lookup_icon()', short: 'GTK 3 gtk_icon_theme_lookup_icon', rules: `Drawn as GTK 3 draws it: gtk_icon_theme_lookup_icon(), shown by a GtkImage without pixel-size.
+1. A folder with exactly this size wins. A @2 folder with exactly this many pixels counts too (16x16@2 = 32 px).
+2. Else a folder of this size or larger always beats a smaller one.
+3. Then the nearest in pixels. Two are equally near: the folder whose Scale matches wins (a normal folder beats a @2 folder).
+4. The PNG is not scaled. It is drawn at its own size, even when larger than this. (A tree view cell would scale it.)` },
+  gtk2: { label: 'GTK 2 gtk_icon_theme_lookup_icon()', short: 'GTK 2 gtk_icon_theme_lookup_icon', rules: `Drawn as GTK 2 draws it: gtk_icon_theme_lookup_icon(), shown by a GtkImage without pixel-size.
+1. A folder with exactly this size wins.
+2. Else a larger folder always beats a smaller one.
+3. Then the nearest. GTK 2 knows no Scale, so the @2 folders play no part.
+4. The PNG is not scaled. It is drawn at its own size, even when larger than this.` },
+};
 // Filter state + dark toggle live in localStorage (per origin, so the server's fixed port matters).
 const STORAGE_KEY = 'tango-remixer-icon-viewer';
 function loadState() {
@@ -218,6 +280,7 @@ function loadState() {
 function saveState() {
   const state = { q: $('q').value, re: $('re').checked, themes: themeSel.getChosenItems(),
     contexts: contextSel.getChosenItems(), sizes: sizeSel.getChosenItems(), dark: $('dark').checked,
+    view, showAt: showAtSel?.getChosenItem(), api: apiSel?.getChosenItem(),
     maximized: document.body.classList.contains('maximized'), scroll: $('list').scrollTop, selected: selectedKey };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
@@ -229,7 +292,8 @@ const UI_ICONS = {
   copied: 'Nome/emblems/16/emblem-default.svg',
   inkscape: 'InkscapeTango/actions/scalable/inkscape-logo.svg',
 };
-let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, selectedKey = null;
+let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, showAtSel, apiSel, selectedKey = null;
+let view = 'list';   // 'list' | 'grid'
 const keyOf = icon => `${icon.theme}/${icon.context}/${icon.name}`;
 
 function el(tag, props, ...children) {
@@ -348,29 +412,121 @@ function render() {
   const sizes = allSizes.filter(s => sizeSel.isChosen(s));   // the columns, in canonical order
   const hits = icons.filter(i => themes.has(i.theme) && contexts.has(i.context)
     && i.sizes.some(s => sizes.includes(s.size)) && matches(i));
-  $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => {
-    const row = el('div', { className: 'row', onclick: () => showDetail(icon, row) },
-      // data-key lets a restored selection find its row again
-      el('div', { className: 'meta', title: icon.aliases.join('\n') },
-        el('div', { className: 'where' }, `${icon.theme}/${icon.context}`),
-        el('div', {}, icon.name),
-        el('div', { className: 'aliases' }, icon.aliases.join(', ') || '\u00a0')),   // keep 3 lines so rows line up
-      // Every row shows every chosen size column, an empty box where the icon lacks that size, so columns line up.
-      el('div', { className: 'sizes' }, ...sizes.map(size => {
-        const s = icon.sizes.find(x => x.size === size), px = rowPx(size);
-        return el('figure', {}, s ? img(icon, s, px) : el('div', { className: 'empty', style: `width:${px}px;height:${px}px` }),
-          el('figcaption', {}, size));
-      })),
-      el('div', { className: 'license' }, themeInfo[icon.theme].license));
-    row.dataset.key = keyOf(icon);
-    return row;
-  }));
+  const grid = view === 'grid', showAt = grid ? Number(showAtSel.getChosenItem()) : 0, api = grid ? apiSel.getChosenItem() : '';
+  $('list').classList.toggle('grid', grid);
+  if (grid) {
+    $('list').style.setProperty('--cell', `${Math.max(showAt, 64) + 40}px`);
+    const steps = showAtSel.getItems(), k = steps.indexOf(String(showAt));
+    $('zoom-out').disabled = k <= 0;
+    $('zoom-in').disabled = k >= steps.length - 1;
+  }
+  $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => grid ? gridCell(icon, showAt, api) : listRow(icon, sizes)));
   $('status').textContent = hits.length > MAX_ROWS
     ? `Showing ${MAX_ROWS} of ${hits.length} icons – narrow the filter`
     : `${hits.length} icons`;
   for (const sel of [themeSel, contextSel, sizeSel]) sel.refreshExpanded();
   saveState();
 }
+
+// A list row: name block, one column per chosen size (an empty box where the icon lacks that size, so columns
+// line up), the theme's license. data-key lets a restored selection find its row again.
+function listRow(icon, sizes) {
+  const row = el('div', { className: 'row', onclick: () => showDetail(icon, row) },
+    el('div', { className: 'meta', title: icon.aliases.join('\n') },
+      el('div', { className: 'where' }, `${icon.theme}/${icon.context}`),
+      el('div', {}, icon.name),
+      el('div', { className: 'aliases' }, icon.aliases.join(', ') || '\u00a0')),   // keep 3 lines so rows line up
+    el('div', { className: 'sizes' }, ...sizes.map(size => {
+      const s = icon.sizes.find(x => x.size === size), px = rowPx(size);
+      return el('figure', {}, s ? img(icon, s, px) : el('div', { className: 'empty', style: `width:${px}px;height:${px}px` }),
+        el('figcaption', {}, size));
+    })),
+    el('div', { className: 'license' }, themeInfo[icon.theme].license));
+  row.dataset.key = keyOf(icon);
+  return row;
+}
+
+// --- Grid view: what an icon-theme API would show ---------------------------------------------------------
+// The build writes a PNG theme with one Type=Fixed folder per size plus a @2 twin (Scale=2, twice the pixels),
+// listed in index.theme by size ascending. The ticked Sizes are the sizes that would be included; `scalable`
+// counts as the exact file for any size (what a `scalable>N` line gives). For a requested size the APIs pick:
+//   Qt 6 (qiconloader.cpp, QIconLoaderEngine::entryForSize): the exact folder, else the nearest in pixels with
+//     @2 counting double; a tie goes to the folder name that sorts last alphabetically (QSettings sorts the
+//     sections, PNG entries are prepended). PixmapEntry only ever shrinks a PNG.
+//   GTK 3 / 4 (gtkicontheme.c, compare_dir_matches): a folder at pixel distance 0 (a @2 twin counts), else a
+//     folder whose Size is >= the request always beats a smaller one, then the nearest in pixels, then the folder
+//     whose Scale matches. GTK 4 draws the PNG scaled to the request; GTK 3's GtkImage draws it at its own size
+//     unless pixel-size is set (GTK_ICON_LOOKUP_FORCE_SIZE).
+//   GTK 2 (theme_lookup_icon): the exact folder, else a larger folder always beats a smaller one, then the
+//     nearest; no Scale= support, so the @2 twins never win; GtkImage draws the PNG at its own size.
+// Returns { file, folder, px, shown, exact, tie } (+ nominal, scale for a fallback).
+function pickFile(icon, size, api) {
+  const files = icon.sizes.filter(s => sizeSel.isChosen(s.size));   // never empty: the filter kept this icon
+  const exact = files.find(s => s.size === String(size)) || files.find(s => s.size === 'scalable');
+  if (exact) return { file: exact, folder: exact.size === 'scalable' ? 'scalable' : `${size}x${size}`, px: size, shown: size, exact: true, tie: null };
+  const scales = api === 'gtk2' ? [1] : [1, 2];
+  const dirs = files.filter(s => s.size !== 'scalable').flatMap(s => scales.map(scale =>
+    ({ file: s, folder: `${s.size}x${s.size}${scale === 2 ? '@2' : ''}`, nominal: Number(s.size), scale, px: Number(s.size) * scale })));
+  const dist = d => Math.abs(d.px - size);
+  // `primary` decides nearly every case; `final` is the API's tie rule. A tie is reported when only `final` decided.
+  const primary = api === 'qt6' ? d => [dist(d)]
+    : api === 'gtk2' ? d => [d.nominal > size ? 0 : 1, dist(d)]
+    : d => [dist(d) === 0 ? 0 : 1, d.nominal >= size ? 0 : 1, dist(d)];
+  const final = api === 'qt6' ? (a, b) => (a.folder < b.folder) - (a.folder > b.folder)
+    : api === 'gtk2' ? (a, b) => a.nominal - b.nominal
+    : (a, b) => (a.scale !== 1) - (b.scale !== 1) || b.nominal - a.nominal || b.scale - a.scale;
+  const same = (a, b) => primary(a).every((v, k) => v === primary(b)[k]);
+  dirs.sort((a, b) => { const pa = primary(a), pb = primary(b), k = pa.findIndex((v, i) => v !== pb[i]); return k < 0 ? final(a, b) : pa[k] - pb[k]; });
+  const [pick, next] = dirs;
+  const shown = api === 'qt6' ? Math.min(pick.px, size) : api === 'gtk4' ? size : pick.px;
+  return { ...pick, shown, exact: false, tie: next && same(pick, next) ? next : null };
+}
+function cellTitle(icon, pick, size, api) {
+  const lines = [`${icon.name} (${icon.theme})`];
+  if (pick.exact) {
+    lines.push(pick.file.size === 'scalable' ? `Asked for ${size} px. Drawn from the scalable file at ${size} px (what scalable>${size} gives).`
+                                            : `Asked for ${size} px. Drawn from ${pick.folder}.`);
+    return lines.join('\n');
+  }
+  const how = api === 'qt6' ? (pick.px > size ? `shrunk to ${size} px` : `kept at ${pick.px} px`)
+    : api === 'gtk4' ? `scaled to ${size} px`
+    : `drawn at its own ${pick.px} px (a GtkImage does not scale it)`;
+  lines.push(`Asked for ${size} px. Drawn from ${pick.folder} (${pick.px} px), ${how}.`);
+  const none = `no ${size} px file among the ticked sizes`;
+  if (pick.px === size) lines.push(`Why: ${none}, but ${pick.folder} holds ${size} px files: an exact match in pixels.`);
+  else if (api === 'qt6') lines.push(`Why: ${none}. ${pick.px} px is the nearest.${pick.px < size ? ' A PNG is never enlarged.' : ''}`);
+  else if (pick.nominal > size) lines.push(`Why: ${none}. GTK prefers a larger folder: ${pick.folder} is the nearest one (${pick.px} px).`);
+  else lines.push(`Why: ${none}, and no larger folder either. ${pick.folder} is the nearest in pixels (${pick.px} px).`);
+  if (pick.tie) lines.push(api === 'qt6' ? `Tie: ${pick.tie.folder} is equally near. Qt takes ${pick.folder}: sorted alphabetically, character by character, its name comes last.`
+                                          : `Tie: ${pick.tie.folder} is equally near. GTK takes ${pick.folder}: its Scale matches the request.`);
+  return lines.join('\n');
+}
+function gridCell(icon, size, api) {
+  const pick = pickFile(icon, size, api), box = Math.max(size, pick.shown);   // GTK 2 / 3 may draw a bigger file as is
+  const cell = el('div', { className: 'cell', title: cellTitle(icon, pick, size, api), onclick: () => showDetail(icon, cell) },
+    el('div', { className: 'cell-img', style: `width:${box}px;height:${box}px` },
+      el('img', { src: encodeURI(`/icons/${icon.theme}/${pick.file.path}`), width: pick.shown, height: pick.shown, loading: 'lazy', alt: '' })),
+    el('div', { className: 'cell-name' }, icon.name),
+    el('div', { className: 'cell-info' }, icon.theme, ...(pick.exact ? [] : [' · ', el('span', { className: 'fallback' }, pick.folder)])));
+  cell.dataset.key = keyOf(icon);
+  return cell;
+}
+function setView(mode) {
+  view = mode;
+  document.body.classList.toggle('grid', mode === 'grid');
+  $('view-list').classList.toggle('pressed', mode === 'list');
+  $('view-grid').classList.toggle('pressed', mode === 'grid');
+  render();
+}
+$('view-list').addEventListener('click', () => setView('list'));
+$('view-grid').addEventListener('click', () => setView('grid'));
+// Zoom: step Show-at through the sizes the themes have (the chooser's items).
+function zoom(step) {
+  const steps = showAtSel.getItems(), next = steps[steps.indexOf(showAtSel.getChosenItem()) + step];
+  if (next) showAtSel.setChosenItem(next);   // renders
+}
+$('zoom-out').addEventListener('click', () => zoom(-1));
+$('zoom-in').addEventListener('click', () => zoom(1));
 
 // The included_icons.txt box: size checkboxes (start from the Sizes filter), the resulting line, Copy line.
 // An icon with a `scalable` file gets a second row: the pixel sizes to produce from it, by default the
@@ -407,7 +563,7 @@ function includedBox(icon) {
 // `row` may be missing when the icon is not among the rendered rows (restored selection).
 function showDetail(icon, row) {
   selectedKey = keyOf(icon);
-  document.querySelector('.row.selected')?.classList.remove('selected');
+  $('list').querySelector('.selected')?.classList.remove('selected');   // the previous row or grid cell
   row?.classList.add('selected');
   $('detail').replaceChildren(
     el('h3', {}, icon.name),
@@ -567,6 +723,27 @@ fetch('/api/index.json').then(r => r.json()).then(data => {
   sizeSel = multiSelect('size', 'Sizes', allSizes, DEFAULT_SIZES.filter(s => allSizes.includes(s)));
   // Restore the last state; names that no longer exist are dropped.
   const saved = loadState();
+  // Show at: the pixel sizes the themes have (the grid's zoom steps), 24 to start with (a toolbar icon).
+  const steps = allSizes.filter(s => s !== 'scalable');
+  showAtSel = new llselect.LLSelectSingle($('show-at'), {
+    ariaLabel: 'Show at',
+    createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
+    createTriggerContentElFn: ({ chosenItem }) => el('span', {}, `${chosenItem} px`),
+    createItemContentElFn: item => el('span', {}, `${item} px`),
+    onChange: () => render(),
+  });
+  showAtSel.setItems(steps);
+  showAtSel.setChosenItem(steps.includes(String(saved.showAt)) ? String(saved.showAt) : steps.includes('24') ? '24' : steps[0]);
+  apiSel = new llselect.LLSelectSingle($('pick-as'), {
+    ariaLabel: 'Drawn as',
+    createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
+    createTriggerContentElFn: ({ chosenItem }) => el('span', {}, chosenItem ? `As: ${APIS[chosenItem].short}` : ''),   // rendered once before an item is chosen
+    createItemContentElFn: item => el('span', {}, APIS[item].label),
+    onChange: () => { $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules; render(); },
+  });
+  apiSel.setItems(Object.keys(APIS));
+  apiSel.setChosenItem(APIS[saved.api] ? saved.api : 'qt6');
+  $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules;
   if (saved.themes) themeSel.setChosenItems(saved.themes.filter(t => themes.includes(t)));
   if (saved.contexts) contextSel.setChosenItems(saved.contexts.filter(c => contexts.includes(c)));
   if (saved.sizes) sizeSel.setChosenItems(saved.sizes.filter(s => allSizes.includes(s)));
@@ -574,7 +751,7 @@ fetch('/api/index.json').then(r => r.json()).then(data => {
   $('re').checked = !!saved.re;
   $('dark').checked = !!saved.dark;
   document.body.classList.toggle('dark', !!saved.dark);
-  render();
+  setView(saved.view === 'grid' ? 'grid' : 'list');   // renders
   const selected = icons.find(i => keyOf(i) === saved.selected);
   if (selected) showDetail(selected, [...$('list').children].find(r => r.dataset.key === saved.selected));
   $('list').scrollTop = saved.scroll || 0;   // the list is inside its own scroll box, so the browser does not restore it
@@ -624,6 +801,12 @@ const MENUS = [
     null,
     { label: '_Reset Filters', icon: 'Tango/16x16/actions/edit-undo.svg', run: () => $('reset').click() }]],
   ['_View', () => [
+    { label: '_List', radio: view === 'list', run: () => setView('list') },
+    { label: '_Grid', radio: view === 'grid', run: () => setView('grid') },
+    null,
+    { label: 'Zoom _In', icon: 'Tango/16x16/actions/zoom-in.svg', disabled: view !== 'grid' || $('zoom-in').disabled, run: () => zoom(1) },
+    { label: 'Zoom _Out', icon: 'Tango/16x16/actions/zoom-out.svg', disabled: view !== 'grid' || $('zoom-out').disabled, run: () => zoom(-1) },
+    null,
     { label: '_Dark Background', check: $('dark').checked, run: () => $('dark').click() },
     { label: 'Regular _Expression Search', check: $('re').checked, run: () => $('re').click() },
     null,
@@ -641,7 +824,11 @@ function openMenu(title, items) {
   const menu = el('div', { className: 'menu' }, ...items().map(item => {
     if (!item) return el('div', { className: 'menu-sep' });
     const slot = el('span', { className: 'slot' });
-    if ('check' in item) { const box = el('span', { className: 'check' }); box.dataset.state = item.check ? 'checked' : 'unchecked'; slot.append(box); }
+    if ('check' in item || 'radio' in item) {
+      const mark = el('span', { className: 'check' in item ? 'check' : 'radio' });
+      mark.dataset.state = (item.check ?? item.radio) ? 'checked' : 'unchecked';
+      slot.append(mark);
+    }
     else if (item.icon) slot.append(el('img', { src: `/icons/${item.icon}`, width: 16, height: 16, alt: '' }));
     const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
     if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
