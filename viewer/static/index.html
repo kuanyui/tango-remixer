@@ -61,7 +61,9 @@
   .tip-path, .tip-none { color: var(--muted); }
   .tip-path { font-family: monospace; }
   /* About dialog: a small window of its own, with the same title bar. */
-  dialog { padding: 0; border: 1px solid var(--ctl-border); background: var(--bg); color: var(--fg); }
+  /* overflow: the title bar overlaps the frame border, which the browser's default overflow: auto for a modal
+     dialog would turn into a scrollbar */
+  dialog { padding: 0; border: 1px solid var(--ctl-border); background: var(--bg); color: var(--fg); overflow: visible; }
   dialog::backdrop { background: transparent; }
   .about { padding: 12px 24px 16px; text-align: center; }
   .about img { display: block; margin: 0 auto 8px; }
