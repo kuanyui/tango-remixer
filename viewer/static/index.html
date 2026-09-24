@@ -224,9 +224,8 @@
 <div class="statusbar"><span id="status">Loading…</span>
   <div class="view-controls">
     <div id="grid-opts">
-      <div class="zoom" title="Grid: every icon is drawn at this size, the way the chosen API would draw it.
-A tick in Sizes means: you would include that size.
-A red size under an icon = a fallback, drawn from that folder."><button type="button" id="zoom-out" title="Zoom out: the next smaller size the themes have"><img src="/icons/Tango/16x16/actions/zoom-out.svg" width="16" height="16" alt="Zoom out"></button><div id="show-at"></div><button type="button" id="zoom-in" title="Zoom in: the next larger size the themes have"><img src="/icons/Tango/16x16/actions/zoom-in.svg" width="16" height="16" alt="Zoom in"></button></div>
+      <div class="zoom" title="Size requested from the icon API, e.g. pixmap(24).
+Grid icons may come out smaller or larger: see As."><button type="button" id="zoom-out" title="Zoom out: the next smaller size the themes have"><img src="/icons/Tango/16x16/actions/zoom-out.svg" width="16" height="16" alt="Zoom out"></button><div id="show-at"></div><button type="button" id="zoom-in" title="Zoom in: the next larger size the themes have"><img src="/icons/Tango/16x16/actions/zoom-in.svg" width="16" height="16" alt="Zoom in"></button></div>
       <div id="pick-as-box"><div id="pick-as"></div></div>
     </div>
     <span class="view-switch" title="List: every ticked size side by side. Grid: one size per icon, drawn as the chosen API would draw it."><button type="button" id="view-list">List</button><button type="button" id="view-grid">Grid</button></span>
@@ -250,26 +249,26 @@ const $ = id => document.getElementById(id);
 const DEFAULT_SIZES = ['16', '22', '24', '32', '48', 'scalable'];   // scalable: the FLOSS application themes have nothing else
 // Grid view: the API whose lookup and drawing the cells imitate. `rules` is the chooser's tooltip.
 const APIS = {
-  qt6: { label: 'Qt 6 QIcon::fromTheme()', short: 'Qt 6 QIcon::fromTheme', rules: `Drawn as Qt 6 draws it: QIcon::fromTheme().
-1. A folder with exactly this size wins.
-2. Else the nearest size in pixels. A @2 folder counts double (16x16@2 = 32 px).
-3. Two are equally near: Qt sorts the folder names alphabetically, character by character (so 128x128 comes before 16x16), and takes the last one. 48x48 beats 32x32; 16x16 beats 128x128.
-4. A PNG is never enlarged. A smaller file is drawn at its own size.` },
-  gtk4: { label: 'GTK 4 gtk_icon_theme_lookup_icon()', short: 'GTK 4 gtk_icon_theme_lookup_icon', rules: `Drawn as GTK 4 draws it: gtk_icon_theme_lookup_icon().
-1. A folder with exactly this size wins. A @2 folder with exactly this many pixels counts too (16x16@2 = 32 px).
-2. Else a folder of this size or larger always beats a smaller one.
-3. Then the nearest in pixels. Two are equally near: the folder whose Scale matches wins (a normal folder beats a @2 folder).
-4. The PNG is scaled to this size, larger or smaller.` },
-  gtk3: { label: 'GTK 3 gtk_icon_theme_lookup_icon()', short: 'GTK 3 gtk_icon_theme_lookup_icon', rules: `Drawn as GTK 3 draws it: gtk_icon_theme_lookup_icon(), shown by a GtkImage without pixel-size.
-1. A folder with exactly this size wins. A @2 folder with exactly this many pixels counts too (16x16@2 = 32 px).
-2. Else a folder of this size or larger always beats a smaller one.
-3. Then the nearest in pixels. Two are equally near: the folder whose Scale matches wins (a normal folder beats a @2 folder).
-4. The PNG is not scaled. It is drawn at its own size, even when larger than this. (A tree view cell would scale it.)` },
-  gtk2: { label: 'GTK 2 gtk_icon_theme_lookup_icon()', short: 'GTK 2 gtk_icon_theme_lookup_icon', rules: `Drawn as GTK 2 draws it: gtk_icon_theme_lookup_icon(), shown by a GtkImage without pixel-size.
-1. A folder with exactly this size wins.
-2. Else a larger folder always beats a smaller one.
-3. Then the nearest. GTK 2 knows no Scale, so the @2 folders play no part.
-4. The PNG is not scaled. It is drawn at its own size, even when larger than this.` },
+  qt6: { label: 'Qt 6 QIcon::fromTheme()', short: 'Qt 6 QIcon::fromTheme', rules: `Qt 6 · QIcon::fromTheme()
+1. Exact size folder first.
+2. Else nearest in pixels; @2 folders count double.
+3. Ties: the folder name sorting last, character by character.
+4. PNGs shrink, never enlarge: smaller picks keep their size.` },
+  gtk4: { label: 'GTK 4 gtk_icon_theme_lookup_icon()', short: 'GTK 4 gtk_icon_theme_lookup_icon', rules: `GTK 4 · gtk_icon_theme_lookup_icon()
+1. Exact pixels first, @2 folders included.
+2. Else same-size or larger folders first; then nearest pixels.
+3. Ties: the folder whose Scale matches.
+4. PNGs scale to the requested size.` },
+  gtk3: { label: 'GTK 3 gtk_icon_theme_lookup_icon()', short: 'GTK 3 gtk_icon_theme_lookup_icon', rules: `GTK 3 · gtk_icon_theme_lookup_icon()
+1. Exact pixels first, @2 folders included.
+2. Else same-size or larger folders first; then nearest pixels.
+3. Ties: the folder whose Scale matches.
+4. GtkImage keeps the PNG's own size, unless pixel-size is set.` },
+  gtk2: { label: 'GTK 2 gtk_icon_theme_lookup_icon()', short: 'GTK 2 gtk_icon_theme_lookup_icon', rules: `GTK 2 · gtk_icon_theme_lookup_icon()
+1. Exact size folder first.
+2. Else larger folders first; then nearest.
+3. @2 folders are ignored: no Scale support.
+4. GtkImage keeps the PNG's own size.` },
 };
 // Filter state + dark toggle live in localStorage (per origin, so the server's fixed port matters).
 const STORAGE_KEY = 'tango-remixer-icon-viewer';
@@ -339,7 +338,8 @@ function sizeMatrix(available, checked, scalableTargets) {
 
 // A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order.
 // Rows carry a CSS-drawn check mark (`.check`); they re-render on every chosen-state change, so it stays in sync.
-// opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row.
+// opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row;
+// opts.title is the tooltip of the trigger and of the sidebar heading.
 function multiSelect(id, label, items, chosen, opts = {}) {
   const STATES = { none: 'unchecked', some: 'indeterminate', all: 'checked' };   // llselect's choose-all vocabulary
   const checkbox = state => { const c = el('span', { className: 'check' }); c.dataset.state = STATES[state] || state; return c; };
@@ -361,11 +361,14 @@ function multiSelect(id, label, items, chosen, opts = {}) {
   });
   sel.setItems(items);
   sel.setChosenItems(chosen);
+  if (opts.title) $(id).querySelector('.llselect-trigger').title = opts.title;
   // The same rows, always visible, for the wide-window sidebar (llselect itself is popup-only). Rows are built
   // once; a refresh only swaps the checkbox icons, so the row images are not fetched again.
   const allRow = el('div', { className: 'exp-row', onclick: () => sel.toggleAll() });
   const rows = items.map(item => el('div', { className: 'exp-row', onclick: () => sel.toggleItem(item) }, content(item)));
-  const children = [el('div', { className: 'exp-title' }, label), allRow];
+  const heading = el('div', { className: 'exp-title' }, label);
+  if (opts.title) heading.title = opts.title;
+  const children = [heading, allRow];
   items.forEach((item, k) => {
     if (opts.groupOf && (k === 0 || opts.groupOf(item) !== opts.groupOf(items[k - 1]))) children.push(el('div', { className: 'exp-group' }, opts.groupOf(item)));
     children.push(rows[k]);
@@ -461,9 +464,9 @@ function listRow(icon, sizes) {
 //     nearest; no Scale= support, so the @2 twins never win; GtkImage draws the PNG at its own size.
 // Returns { file, folder, px, shown, exact, tie } (+ nominal, scale for a fallback).
 function pickFile(icon, size, api) {
-  const files = icon.sizes.filter(s => sizeSel.isChosen(s.size));   // never empty: the filter kept this icon
+  const files = icon.sizes.filter(s => sizeSel.isChosen(s.size)), have = files.map(s => s.size);   // never empty: the filter kept this icon
   const exact = files.find(s => s.size === String(size)) || files.find(s => s.size === 'scalable');
-  if (exact) return { file: exact, folder: exact.size === 'scalable' ? 'scalable' : `${size}x${size}`, px: size, shown: size, exact: true, tie: null };
+  if (exact) return { file: exact, folder: exact.size === 'scalable' ? 'scalable' : `${size}x${size}`, px: size, shown: size, exact: true, tie: null, have };
   const scales = api === 'gtk2' ? [1] : [1, 2];
   const dirs = files.filter(s => s.size !== 'scalable').flatMap(s => scales.map(scale =>
     ({ file: s, folder: `${s.size}x${s.size}${scale === 2 ? '@2' : ''}`, nominal: Number(s.size), scale, px: Number(s.size) * scale })));
@@ -479,27 +482,22 @@ function pickFile(icon, size, api) {
   dirs.sort((a, b) => { const pa = primary(a), pb = primary(b), k = pa.findIndex((v, i) => v !== pb[i]); return k < 0 ? final(a, b) : pa[k] - pb[k]; });
   const [pick, next] = dirs;
   const shown = api === 'qt6' ? Math.min(pick.px, size) : api === 'gtk4' ? size : pick.px;
-  return { ...pick, shown, exact: false, tie: next && same(pick, next) ? next : null };
+  return { ...pick, shown, exact: false, tie: next && same(pick, next) ? next : null, have };
 }
+// Three lines: name · theme · request; the ticked sizes the icon has; what was drawn and the one rule that decided.
 function cellTitle(icon, pick, size, api) {
-  const lines = [`${icon.name} (${icon.theme})`];
-  if (pick.exact) {
-    lines.push(pick.file.size === 'scalable' ? `Asked for ${size} px. Drawn from the scalable file at ${size} px (what scalable>${size} gives).`
-                                            : `Asked for ${size} px. Drawn from ${pick.folder}.`);
-    return lines.join('\n');
+  const drawn = `${pick.folder} drawn at ${pick.shown} px`;
+  let why;
+  if (pick.exact) why = pick.file.size === 'scalable' ? `as scalable>${size} gives` : 'exact match';
+  else if (pick.px === size) why = 'exact in pixels';
+  else if (api === 'qt6') why = pick.px > size ? 'nearest, shrunk' : 'nearest; a smaller PNG keeps its size';
+  else {
+    const larger = pick.nominal > size;
+    const keep = api === 'gtk4' ? '' : '; GtkImage keeps the PNG size';
+    why = (larger ? 'larger folders first, nearest of them' : 'no larger folder; nearest in pixels') + keep;
   }
-  const how = api === 'qt6' ? (pick.px > size ? `shrunk to ${size} px` : `kept at ${pick.px} px`)
-    : api === 'gtk4' ? `scaled to ${size} px`
-    : `drawn at its own ${pick.px} px (a GtkImage does not scale it)`;
-  lines.push(`Asked for ${size} px. Drawn from ${pick.folder} (${pick.px} px), ${how}.`);
-  const none = `no ${size} px file among the ticked sizes`;
-  if (pick.px === size) lines.push(`Why: ${none}, but ${pick.folder} holds ${size} px files: an exact match in pixels.`);
-  else if (api === 'qt6') lines.push(`Why: ${none}. ${pick.px} px is the nearest.${pick.px < size ? ' A PNG is never enlarged.' : ''}`);
-  else if (pick.nominal > size) lines.push(`Why: ${none}. GTK prefers a larger folder: ${pick.folder} is the nearest one (${pick.px} px).`);
-  else lines.push(`Why: ${none}, and no larger folder either. ${pick.folder} is the nearest in pixels (${pick.px} px).`);
-  if (pick.tie) lines.push(api === 'qt6' ? `Tie: ${pick.tie.folder} is equally near. Qt takes ${pick.folder}: sorted alphabetically, character by character, its name comes last.`
-                                          : `Tie: ${pick.tie.folder} is equally near. GTK takes ${pick.folder}: its Scale matches the request.`);
-  return lines.join('\n');
+  if (pick.tie) why += api === 'qt6' ? `; tie with ${pick.tie.folder}, ${pick.folder} sorts last` : `; tie with ${pick.tie.folder}, Scale matches`;
+  return [`${icon.name} · ${icon.theme} · asked for ${size} px`, `Ticked sizes present: ${pick.have.join(', ')}`, `${drawn}: ${why}.`].join('\n');
 }
 function gridCell(icon, size, api) {
   const pick = pickFile(icon, size, api), box = Math.max(size, pick.shown);   // GTK 2 / 3 may draw a bigger file as is
@@ -720,7 +718,10 @@ fetch('/api/index.json').then(r => r.json()).then(data => {
     itemContent: (name, box) => el('span', { className: 'opt' }, box,
       el('img', { src: encodeURI(`/icons/${contextIcons[name] || ''}`), width: 16, height: 16 }), name),
   });
-  sizeSel = multiSelect('size', 'Sizes', allSizes, DEFAULT_SIZES.filter(s => allSizes.includes(s)));
+  sizeSel = multiSelect('size', 'Sizes', allSizes, DEFAULT_SIZES.filter(s => allSizes.includes(s)), {
+    title: `Tick the size folders to include in your build.
+List: one column per ticked size. Grid: draws only from ticked sizes.`,
+  });
   // Restore the last state; names that no longer exist are dropped.
   const saved = loadState();
   // Show at: the pixel sizes the themes have (the grid's zoom steps), 24 to start with (a toolbar icon).
