@@ -103,7 +103,6 @@ body:has(dialog[open]) .window > .titlebar button.wm-button { background: var(--
 
 /* --- status bar: an etched line along the top, the resize grip in the corner --------------------------------- */
 .statusbar { border-top: 1px solid var(--cl-shade3); box-shadow: inset 0 1px 0 var(--cl-status-hi); }
-.statusbar .llselect-trigger-arrow { margin-top: -2px; margin-bottom: -2px; }   /* the compact trigger has 2 px of padding */
 .grip { background: var(--cl-grip) no-repeat; }
 
 /* --- toolbar / sidebar ------------------------------------------------ */
