@@ -15,6 +15,10 @@ The server listens on every interface so the page can also be opened from
 another machine (e.g. server in a VM, browser on the desktop). The reveal
 request is only honoured with the per-launch token embedded in the printed
 URLs, and only for files inside a registered theme folder.
+
+homepage/generate_static_site.py writes the same page as a static site (no server,
+no reveal: the files link to their repository instead), which GitHub Pages and
+GitLab Pages publish.
 """
 
 from __future__ import annotations
@@ -38,10 +42,13 @@ from urllib.parse import unquote
 _PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
-# build_icons.py parses CLI args at import time -> spoof argv first
-# (same trick as tests/test_read_included_icons_txt.py).
+# build_icons.py parses CLI args at import time -> spoof argv around the import
+# (same trick as tests/test_read_included_icons_txt.py), then put the real
+# arguments back for importers with arguments of their own (homepage/generate_static_site.py).
+_real_argv: List[str] = sys.argv
 sys.argv = [sys.argv[0], "--included-icon-file", str(_PROJECT_ROOT / "_dummy_not_used.txt")]
 from build_icons import BUILT_IN_RAW_ICON_THEMES_PATH, key_for_sorting_size, parse_size_folder_name  # noqa: E402
+sys.argv = _real_argv
 import lib.color_converter  # noqa: E402
 from lib.included_icons_parser import is_icon_context_dir_type  # noqa: E402
 
@@ -356,15 +363,23 @@ class ViewerHandler(BaseHTTPRequestHandler):
         pass  # a page load requests thousands of icons; keep the terminal quiet
 
 
-def make_server(themes: Dict[str, SourceTheme], token: str, index: List[Dict[str, Any]], port: int = 0) -> ThreadingHTTPServer:
-    index_json: bytes = json.dumps({
-        "themes": [{"name": name, "folder": str(t.folder), "group": t.group, "icon": t.icon,
+def index_json(themes: Dict[str, SourceTheme], index: List[Dict[str, Any]], where: str, places: Dict[str, str]) -> bytes:
+    """The /api/index.json document. `places[name]` becomes each theme's `where`
+    field: the server sends the absolute `folder` (for Copy full path), the static
+    export (homepage/generate_static_site.py) a `url` in the theme's repository (for
+    View on GitHub / GitLab); the page picks its file buttons by which of the two it finds."""
+    return json.dumps({
+        "themes": [{"name": name, where: places[name], "group": t.group, "icon": t.icon,
                     "license": t.license, "about": t.about, "on_dark": t.on_dark}
                    for name, t in themes.items()],   # dropdown order
         "contexts": _CONTEXT_ICONS,
         "icons": index,
     }).encode()
-    handler = partial(ViewerHandler, themes=themes, token=token, index_json=index_json)
+
+
+def make_server(themes: Dict[str, SourceTheme], token: str, index: List[Dict[str, Any]], port: int = 0) -> ThreadingHTTPServer:
+    handler = partial(ViewerHandler, themes=themes, token=token,
+                      index_json=index_json(themes, index, "folder", {name: str(t.folder) for name, t in themes.items()}))
     return ThreadingHTTPServer(("0.0.0.0", port), handler)
 
 

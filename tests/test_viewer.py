@@ -3,7 +3,9 @@
 """Tests for viewer/server.py: source scanning (both folder layouts, symlink
 aliases, alias chains, dangling links, scale-2 folders), on-the-fly
 colorizing of a Blue*-style variant, static serving, and the `/api/open`
-guard rails (token + path allowlist).
+guard rails (token + path allowlist); and that every icon the page names by
+path is a real file (the static export in homepage/generate_static_site.py,
+tested in tests/test_generate_static_site.py, writes only those).
 
 The theme folders are synthetic. The file-manager call is replaced by a
 recorder, so nothing is opened on the desktop. Skipped where symlinks
@@ -15,6 +17,7 @@ import importlib
 import ipaddress
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -228,6 +231,25 @@ class TestViewer(unittest.TestCase):
     def test_lan_ips_are_ipv4_addresses(self) -> None:
         for ip in viewer_server.lan_ips():
             ipaddress.IPv4Address(ip)  # raises on garbage
+
+
+class TestFixedIconPaths(unittest.TestCase):
+    """Every icon the page or the server tables name by path (title bar, buttons,
+    menus, dropdown thumbnails) must be a real file of the index: the static site
+    has only those, and the page never asks for an alias. Skipped without the
+    submodules."""
+
+    @unittest.skipUnless(all(raw.copied_src_theme_folder.is_dir() for raw in viewer_server.BUILT_IN_RAW_ICON_THEMES_PATH),
+                         "theme submodules not checked out")
+    def test_named_icons_are_indexed_real_files(self) -> None:
+        themes = viewer_server.source_themes()
+        names = "|".join(map(re.escape, sorted(themes, key=len, reverse=True)))   # Humanity-Dark before Humanity
+        named = set(re.findall(rf"\b((?:{names})/[A-Za-z0-9_./@-]+\.svg)", (viewer_server._STATIC_DIR / "index.html").read_text("utf-8")))
+        named |= set(viewer_server._CONTEXT_ICONS.values())
+        named |= {f"{name}/{theme.icon}" for name, theme in themes.items()}
+        indexed = {f"{entry['theme']}/{size['path']}" for entry in viewer_server.build_index(themes) for size in entry["sizes"]}
+        self.assertGreater(len(named), 20)
+        self.assertEqual(sorted(named - indexed), [])
 
 
 if __name__ == "__main__":

@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <title>Tango Remixer Icon Viewer</title>
 <!-- @llselect/core 0.0.8 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
-<link rel="stylesheet" href="/static/llselect/vanilla.css">
-<script src="/static/llselect/index.umd.js"></script>
+<link rel="stylesheet" href="static/llselect/vanilla.css">
+<script src="static/llselect/index.umd.js"></script>
 <style>
   :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa;
           --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; --desktop: #76848f; --fallback: #c01c28; }
@@ -194,12 +194,12 @@
   #re-toggle code { font-size: 12px; }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
-<link rel="stylesheet" href="/static/clearlooks.css">
+<link rel="stylesheet" href="static/clearlooks.css">
 </head>
 <body>
 <div class="window">
 <div class="titlebar">
-  <img class="wm-icon" src="/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">
+  <img class="wm-icon" src="icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">
   <span class="wm-title">Tango Remixer Icon Viewer</span>
   <span class="wm-buttons">
     <button type="button" class="wm-button" id="wm-minimize" title="Minimize (a browser tab has nothing to minimize)"><svg viewBox="0 0 9 9"><rect class="o" x="0.5" y="5.5" width="8" height="3"/><rect class="i filled" x="1" y="6" width="7" height="2"/></svg></button>
@@ -215,8 +215,8 @@
   <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
   <div id="size-box"><div id="size"></div><div class="expanded" id="size-list"></div></div>
-  <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="/icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
-  <label id="dark-toggle"><input type="checkbox" id="dark"> <img src="/icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"> Dark background</label>
+  <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
+  <label id="dark-toggle"><input type="checkbox" id="dark"> <img src="icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"> Dark background</label>
 </header>
 <main id="list"></main>
 <aside id="detail"><p style="color:var(--muted)">Click an icon to see its files.</p></aside>
@@ -225,7 +225,7 @@
   <div class="view-controls">
     <div id="grid-opts">
       <div class="zoom" title="Size requested from the icon API, e.g. pixmap(24).
-Grid icons may come out smaller or larger: see As."><button type="button" id="zoom-out" title="Zoom out: the next smaller size the themes have"><img src="/icons/Tango/16x16/actions/zoom-out.svg" width="16" height="16" alt="Zoom out"></button><div id="show-at"></div><button type="button" id="zoom-in" title="Zoom in: the next larger size the themes have"><img src="/icons/Tango/16x16/actions/zoom-in.svg" width="16" height="16" alt="Zoom in"></button></div>
+Grid icons may come out smaller or larger: see As."><button type="button" id="zoom-out" title="Zoom out: the next smaller size the themes have"><img src="icons/Tango/16x16/actions/zoom-out.svg" width="16" height="16" alt="Zoom out"></button><div id="show-at"></div><button type="button" id="zoom-in" title="Zoom in: the next larger size the themes have"><img src="icons/Tango/16x16/actions/zoom-in.svg" width="16" height="16" alt="Zoom in"></button></div>
       <div id="pick-as-box"><div id="pick-as"></div></div>
     </div>
     <span class="view-switch" title="List: every ticked size side by side. Grid: one size per icon, drawn as the chosen API would draw it."><button type="button" id="view-list">List</button><button type="button" id="view-grid">Grid</button></span>
@@ -235,7 +235,7 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 <dialog id="about" aria-labelledby="about-name">
   <div class="titlebar"><span class="wm-title">About Tango Remixer Icon Viewer</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
   <div class="about">
-    <img src="/icons/Nome/apps/48/preferences-desktop-theme.svg" width="48" height="48" alt="">
+    <img src="icons/Nome/apps/48/preferences-desktop-theme.svg" width="48" height="48" alt="">
     <h2 id="about-name">Tango Remixer Icon Viewer</h2>
     <p>Browse the source icon themes and copy lines for <code>included_icons.txt</code>.</p>
     <a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">github.com/kuanyui/tango-remixer</a>
@@ -289,6 +289,7 @@ const UI_ICONS = {
   copy: 'Nome/actions/16/edit-copy.svg',
   copied: 'Nome/emblems/16/emblem-default.svg',
   inkscape: 'InkscapeTango/actions/scalable/inkscape-logo.svg',
+  web: 'Nome/apps/16/web-browser.svg',   // the static site's link to the file on GitHub
 };
 let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, showAtSel, apiSel, selectedKey = null;
 let view = 'list';   // 'list' | 'grid'
@@ -299,7 +300,7 @@ function el(tag, props, ...children) {
   node.append(...children);
   return node;
 }
-const buttonContent = (icon, label) => [el('img', { src: `/icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
+const buttonContent = (icon, label) => [el('img', { src: `icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
 function iconButton(icon, label, onclick, title) {
   return el('button', { onclick, title }, ...buttonContent(icon, label));
 }
@@ -384,7 +385,7 @@ function multiSelect(id, label, items, chosen, opts = {}) {
 // `scalable` folders have no pixel size: show them at 48. Rows cap at 64 so a 256 icon stays a thumbnail.
 const rowPx = size => Math.min(size === 'scalable' ? 48 : Number(size), 64);
 function img(icon, s, px) {
-  return el('img', { src: encodeURI(`/icons/${icon.theme}/${s.path}`), width: px, height: px, loading: 'lazy', title: `${icon.name} ${s.size}` });
+  return el('img', { src: encodeURI(`icons/${icon.theme}/${s.path}`), width: px, height: px, loading: 'lazy', title: `${icon.name} ${s.size}` });
 }
 
 function render() {
@@ -503,7 +504,7 @@ function gridCell(icon, size, api) {
   const pick = pickFile(icon, size, api), box = Math.max(size, pick.shown);   // GTK 2 / 3 may draw a bigger file as is
   const cell = el('div', { className: 'cell', title: cellTitle(icon, pick, size, api), onclick: () => showDetail(icon, cell) },
     el('div', { className: 'cell-img', style: `width:${box}px;height:${box}px` },
-      el('img', { src: encodeURI(`/icons/${icon.theme}/${pick.file.path}`), width: pick.shown, height: pick.shown, loading: 'lazy', alt: '' })),
+      el('img', { src: encodeURI(`icons/${icon.theme}/${pick.file.path}`), width: pick.shown, height: pick.shown, loading: 'lazy', alt: '' })),
     el('div', { className: 'cell-name' }, icon.name),
     el('div', { className: 'cell-info' }, icon.theme, ...(pick.exact ? [] : [' · ', el('span', { className: 'fallback' }, pick.folder)])));
   cell.dataset.key = keyOf(icon);
@@ -575,15 +576,30 @@ function showDetail(icon, row) {
       el('div', {},
         el('strong', {}, s.size),
         el('code', {}, s.path),
-        iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal'),
-          'Select this source file in the file manager of the machine running the viewer.'),
-        iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir'),
-          'Open the folder containing this source file, on the machine running the viewer.'),
-        iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape'),
-          'Open this source SVG in Inkscape, on the machine running the viewer.'),
-        iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget),
-          'Copy the absolute path of this source SVG on the machine running the viewer.'))))));
+        ...fileButtons(icon, s))))));
   saveState();
+}
+
+// The buttons under a file in the detail pane. Served by viewer/server.py, the file is on the machine running
+// it and can be opened there. On the static site (homepage/generate_static_site.py; GitHub or GitLab Pages) there
+// is no such machine: the one button opens the file in its source repository, at the exported commit. index.json
+// tells the two apart: the server gives each theme its `folder`, the export its `url`.
+function fileButtons(icon, s) {
+  const url = themeInfo[icon.theme].url;
+  if (url) {
+    const host = url.includes('gitlab') ? 'GitLab' : 'GitHub';
+    return [iconButton('web', `View on ${host}`, () => window.open(`${url}/${s.path}`, '_blank', 'noopener'),
+      `Open this source SVG on ${host}, in a new tab. For a Blue* theme: the base theme's file, before the hue shift.`)];
+  }
+  return [
+    iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal'),
+      'Select this source file in the file manager of the machine running the viewer.'),
+    iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir'),
+      'Open the folder containing this source file, on the machine running the viewer.'),
+    iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape'),
+      'Open this source SVG in Inkscape, on the machine running the viewer.'),
+    iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget),
+      'Copy the absolute path of this source SVG on the machine running the viewer.')];
 }
 
 // --- Tooltips ------------------------------------------------------------------------------------------
@@ -643,7 +659,7 @@ function showTextTip(target, text, e) {
   placeTip(e.clientX - tip.offsetWidth / 2, below + tip.offsetHeight <= innerHeight - 4 ? below : e.clientY - tip.offsetHeight - 8);
 }
 async function showFileTip(thumb) {
-  const { icon, s } = fileOf.get(thumb), url = encodeURI(`/icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
+  const { icon, s } = fileOf.get(thumb), url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
   const meta = await fileMeta(url);
   if (tipTarget !== thumb) return;   // the pointer moved on while the file was loading
   const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), value);
@@ -692,7 +708,7 @@ function copyText(text, button) {
 }
 
 async function openPath(theme, path, action) {
-  const res = await fetch('/api/open', {
+  const res = await fetch('api/open', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'X-Viewer-Token': token },
     body: JSON.stringify({ theme, path, action }),
@@ -700,7 +716,7 @@ async function openPath(theme, path, action) {
   if (!res.ok) alert(`${action} failed (HTTP ${res.status}):\n${await res.text()}`);
 }
 
-fetch('/api/index.json').then(r => r.json()).then(data => {
+fetch('api/index.json').then(r => r.json()).then(data => {
   icons = data.icons;
   themeInfo = Object.fromEntries(data.themes.map(t => [t.name, t]));
   folders = Object.fromEntries(data.themes.map(t => [t.name, t.folder]));
@@ -711,12 +727,12 @@ fetch('/api/index.json').then(r => r.json()).then(data => {
   themeSel = multiSelect('theme', 'Themes', themes, themes, {
     groupOf: name => themeInfo[name].group,
     itemContent: (name, box) => el('span', { className: 'opt theme-opt' }, box,
-      el('img', { src: encodeURI(`/icons/${name}/${themeInfo[name].icon}`), width: 24, height: 24, className: themeInfo[name].on_dark ? 'on-dark' : '' }),
+      el('img', { src: encodeURI(`icons/${name}/${themeInfo[name].icon}`), width: 24, height: 24, className: themeInfo[name].on_dark ? 'on-dark' : '' }),
       el('span', {}, el('div', {}, name), el('small', {}, `${themeInfo[name].license} · ${themeInfo[name].about}`))),
   });
   contextSel = multiSelect('context', 'Contexts', contexts, contexts, {
     itemContent: (name, box) => el('span', { className: 'opt' }, box,
-      el('img', { src: encodeURI(`/icons/${contextIcons[name] || ''}`), width: 16, height: 16 }), name),
+      el('img', { src: encodeURI(`icons/${contextIcons[name] || ''}`), width: 16, height: 16 }), name),
   });
   sizeSel = multiSelect('size', 'Sizes', allSizes, DEFAULT_SIZES.filter(s => allSizes.includes(s)), {
     title: `Tick the size folders to include in your build.
@@ -830,7 +846,7 @@ function openMenu(title, items) {
       mark.dataset.state = (item.check ?? item.radio) ? 'checked' : 'unchecked';
       slot.append(mark);
     }
-    else if (item.icon) slot.append(el('img', { src: `/icons/${item.icon}`, width: 16, height: 16, alt: '' }));
+    else if (item.icon) slot.append(el('img', { src: `icons/${item.icon}`, width: 16, height: 16, alt: '' }));
     const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
     if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
     if (!item.disabled) row.addEventListener('click', () => { closeMenu(); item.run(); });
