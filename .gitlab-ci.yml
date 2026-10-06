@@ -1,0 +1,21 @@
+# Publish the website (homepage/: this README, plus the icon viewer of viewer/) on GitLab Pages:
+# https://<group>.gitlab.io/tango-remixer/   (.github/workflows/pages.yml does the same on GitHub Pages)
+# Nothing to enable: GitLab deploys the `public/` artifact of the job named `pages`. The site is generated from
+# the submodules on every push to the default branch and never committed: the icons (about 250 MB with the Blue*
+# themes) exist only in the artifact, under its 1 GB limit. GitLab Pages does not compress on the fly: it serves
+# `file.gz` next to `file` when the browser accepts gzip, so every text file gets a .gz twin here.
+pages:
+  image: python:3.13   # build_icons.py uses warnings.deprecated
+  variables:
+    GIT_SUBMODULE_STRATEGY: none   # the runner cannot clone the git@github.com: URLs of .gitmodules; done below over HTTPS
+  script:
+    - git config --global url."https://github.com/".insteadOf "git@github.com:"
+    - git submodule update --init --depth 1
+    - pip install markdown
+    - python3 homepage/generate_static_site.py public
+    - find public -type f -regex '.*\.\(html\|css\|js\|json\|svg\)$' -exec gzip -f -k {} \;
+  artifacts:
+    paths:
+      - public
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

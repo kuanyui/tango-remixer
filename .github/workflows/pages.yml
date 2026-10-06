@@ -1,0 +1,43 @@
+# Publish the website (homepage/: this README, plus the icon viewer of viewer/) on GitHub Pages:
+# https://kuanyui.github.io/tango-remixer/   (.gitlab-ci.yml does the same on GitLab Pages)
+# One-time setup in the repository: Settings > Pages > Build and deployment > Source: "GitHub Actions".
+# The site is generated from the submodules on every push to master and never committed: the icons (about 250 MB
+# with the Blue* themes) exist only in the deployment, well under the 1 GB that Pages allows. GitHub's CDN gzips
+# the SVGs on the fly.
+name: Pages
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deployment at a time; a run already in progress finishes.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: true   # the icon themes; the action rewrites their git@github.com: URLs to HTTPS
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"   # build_icons.py uses warnings.deprecated
+      - run: pip install markdown
+      - run: make homepage-build
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v5
