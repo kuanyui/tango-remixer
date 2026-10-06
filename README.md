@@ -8,7 +8,10 @@ Remix multiple [Tango-flavoured icon themes](https://en.wikipedia.org/wiki/Tango
 
 This project is to convert it to `.qrc` which can be easily to be used in your Qt project. (only tested on Qt 6, mainly the HiDPI support.)
 
+**Website:** https://kuanyui.github.io/tango-remixer/ : this README, plus the **[icon viewer](https://kuanyui.github.io/tango-remixer/viewer/)** to browse every icon of the built-in themes and copy the line for `included_icons.txt`. `make homepage-build` generates it from `homepage/` and `viewer/`; GitHub Actions (`.github/workflows/pages.yml`) and GitLab CI (`.gitlab-ci.yml`, the same site under `https://<group>.gitlab.io/tango-remixer/`) publish it on every push to `master`.
+
 > **Table of Contents**
+
 > - [Tango Remixer](#tango-remixer)
 > - [Why](#why)
 > - [Used Submodules / Thirdparties Tarballs](#used-submodules--thirdparties-tarballs)
@@ -335,7 +338,10 @@ Now you can get `QIcon` via `QIcon::fromTheme()`. Setup `mainwindow.cpp` like th
 ```sh
 python3 ./build_icons.py --included-icon-file included_icons.txt   # build .svg and .qrc into dist/
 make viewer  # browse the source icon themes (submodules/, no build needed); listens on all interfaces, open one of the printed URLs
-make check-svg   # list source SVGs that Inkscape draws but browsers do not (details: tools/fix_svg_for_browsers.py)
+make homepage-build       # generate the website (this README + the icon viewer) into _site/; needs python3-markdown (apt) or `pip install markdown`
+make homepage-dev-server  # the same, then preview it at http://127.0.0.1:8000/
+make check-svg
+   # list source SVGs that Inkscape draws but browsers do not (details: tools/fix_svg_for_browsers.py)
 make fix-svg     # repair them in place
 make clean   # delete dist/
 make clean-tarballs    # delete all thirdparty tarballs (so that you can download again if you encountered fail)
