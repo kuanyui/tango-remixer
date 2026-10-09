@@ -59,3 +59,29 @@ body.dark .readme a { color: #8fb3e6; }
   .sidebar { position: absolute; top: 0; bottom: 0; left: 0; z-index: 5; width: min(260px, 85%); box-shadow: 4px 0 12px rgba(0, 0, 0, 0.25); }
   #content { padding: 12px 16px 32px; }
 }
+
+/* included_icons.txt examples: the tokens of lib/included_icons_tokens.py (the LSP server's), in Tango's colours.
+   Theme names in Sky Blue (built-in bold, a declared one in Plum), contexts in Chocolate, icon names in Chameleon,
+   input sizes in Sky Blue, output sizes in Orange, operators in Aluminium, `scalable` and paths in Plum,
+   the directive keyword in Pygments' decorator violet, comments in Aluminium. */
+.ii-theme { color: #5c3566; font-weight: 600; }
+.ii-theme.ii-builtin { color: #204a87; }
+.ii-context { color: #8f5902; }
+.ii-icon { color: #4e9a06; }
+.ii-input_size { color: #3465a4; }
+.ii-output_size { color: #ce5c00; }
+.ii-operator { color: #555753; font-weight: 700; }
+.ii-keyword { color: #75507b; font-weight: 600; }
+.ii-directive { color: #5c35cc; font-weight: 600; }
+.ii-string { color: #75507b; }
+.ii-comment { color: #888a85; font-style: italic; }
+body.dark .ii-theme { color: #ad7fa8; }
+body.dark .ii-theme.ii-builtin { color: #729fcf; }
+body.dark .ii-context { color: #e9b96e; }
+body.dark .ii-icon { color: #8ae234; }
+body.dark .ii-input_size { color: #729fcf; }
+body.dark .ii-output_size { color: #fcaf3e; }
+body.dark .ii-operator { color: #babdb6; }
+body.dark .ii-keyword, body.dark .ii-string { color: #ad7fa8; }
+body.dark .ii-directive { color: #b39ddb; }
+body.dark .ii-comment { color: #888a85; }

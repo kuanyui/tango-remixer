@@ -119,7 +119,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 > Run `./build_icons.py --help` for more latest information and full usages.
 
 ## 1. Clone this project into `MY_QT_PROJ/resources/`
-```
+```sh
 git clone --recursive git@github.com:kuanyui/tango-remixer.git
 ```
 
@@ -156,7 +156,7 @@ git clone --recursive git@github.com:kuanyui/tango-remixer.git
   - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
 
 For example:
-```py
+```included-icons
 # Line started with `#` will be seen as comment and be ignored.
 
 # Include the icon named `application-exit` in icon theme `Nome`.
@@ -227,12 +227,12 @@ This is the recommended way -- self-describing, also **recognizable by the LSP s
 
 **Syntax: `# @extra-icon-theme THEME_NAME THEME_PATH`**
 
-```conf
+```included-icons
 # @extra-icon-theme MyIcon       ../appicons
 # @extra-icon-theme AnotherIcon  /opt/themes/another
 # @extra-icon-theme YetAnotherIcon  C:/absolute/path/on/windows/yet_another_icon_theme
 Tango    document-save
-MyIcon   my-custom-thing
+MyIcon    my-custom-thing
 ```
 
 > [!IMPORTANT]
@@ -422,7 +422,7 @@ QIcon::setThemeName("Humanity");
 ```
 
 - Then `QIcon::fromTheme("ICON_NAME")` will automatically traverse across all folders, according to the difinition inside `Humanity/index.theme` and create a new `QIcon`.
-```
+```cpp
 setWindowIcon(QIcon::fromTheme("totem"));
 ```
 
@@ -487,7 +487,7 @@ The `*.svg` files themselves already define the image size (via `<svg width="16"
 
 > I don't sure the detailed implementation of `@2` or `@2x` naming convention in Qt... And don't want to do more experiments for it neither. After all, I think the way Humanity did should be "standard enough".
 
-```conf
+```ini
 [Icon Theme]
 Name=Tango
 Comment=Smooth modern theme designed to be intuitive.

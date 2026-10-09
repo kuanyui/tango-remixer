@@ -37,6 +37,7 @@ origin remote of the checkout.
 
 from __future__ import annotations
 
+import html
 import json
 import os
 import re
@@ -52,6 +53,7 @@ from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
 _PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
+from lib.included_icons_tokens import tokenize  # noqa: E402
 from viewer.server import _COLOR_CONVERTER, _STATIC_DIR, Colorizer, SourceTheme, build_index, index_json, source_themes  # noqa: E402
 
 _HOMEPAGE_DIR: Path = Path(__file__).resolve().parent
@@ -93,6 +95,8 @@ IconLookup = Callable[[str, str, int], str]
 """(context, icon name, size in px) -> `<theme>/<path>` under viewer/icons/"""
 _LANGUAGES: Dict[str, str] = {"cmakelists": "cmake"}
 """Fence languages of README.md under the names Pygments knows them by."""
+INCLUDED_ICONS_LANGUAGE: str = "included-icons"
+"""The fence language of an included_icons.txt example: coloured by this project's own tokenizer, not Pygments."""
 
 
 class Repository(NamedTuple):
@@ -250,7 +254,8 @@ def render_markdown(text: str) -> Rendered:
     `extra` set (tables, fenced code, ...), plus what GitHub renders and it does not: `~~gone~~`, the
     `> [!NOTE]` alert blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION), a
     fenced code block inside a blockquote (made an indented one), and two
-    blockquotes separated by a blank line (kept apart)."""
+    blockquotes separated by a blank line (kept apart). An `included-icons` fence
+    is coloured by highlight_included_icons instead of Pygments."""
     try:
         import markdown
     except ImportError:
@@ -259,18 +264,29 @@ def render_markdown(text: str) -> Rendered:
     lines: List[str] = []
     fence: Optional[str] = None   # inside a fenced block: the blockquote prefix it was opened with ("" outside a quote)
     quoted = False                # the last non-blank line was a blockquote line
+    example: Optional[List[str]] = None   # the lines of an included-icons fence, coloured here and passed on as HTML
     for line in text.splitlines(keepends=True):
         prefix, rest = re.match(r"(\s*(?:>\s*)*)(.*\n?)", line).groups()
         if rest.startswith("```"):
             if fence is None:
                 fence = prefix
                 language = rest[3:].strip()
+                if language == INCLUDED_ICONS_LANGUAGE and not prefix.strip():
+                    example = []
+                    continue
                 line = f"{prefix}```{_LANGUAGES.get(language, language)}\n"
             else:
                 fence = None
+                if example is not None:
+                    lines.append("\n" + highlight_included_icons("".join(example)) + "\n\n")
+                    example = None
+                    continue
             if prefix.strip():   # an indented code block wants a blank quoted line on each side
                 lines.append(prefix.rstrip() + "\n")
                 continue
+        elif example is not None:
+            example.append(line)
+            continue
         elif fence is not None and fence.strip():
             lines.append(prefix + "    " + rest)
             continue
@@ -291,6 +307,25 @@ def render_markdown(text: str) -> Rendered:
         return head if m[2] == "</p>" else head + "\n<p>"   # the marker shared its paragraph with the text after it
 
     return Rendered(re.sub(rf"<blockquote>\s*<p>\[!({'|'.join(_ALERTS)})\](</p>|\n)", alert, html), headings)
+
+
+def highlight_included_icons(code: str) -> str:
+    """An included_icons.txt example as HTML in the shape Pygments writes (a
+    div.highlight), every token in a span of its kind: ii-theme (plus ii-builtin
+    for a built-in theme), ii-context, ii-icon, ii-input_size, ii-output_size,
+    ii-operator, ii-keyword, ii-comment, ii-directive, ii-string. The tokens are
+    the LSP server's (lib/included_icons_tokens.py), so the site and an editor agree."""
+    tokens = tokenize(code)
+    lines: List[str] = []
+    for n, raw in enumerate(code.splitlines()):
+        pos, parts = 0, []
+        for t in [t for t in tokens if t.line == n]:
+            parts.append(html.escape(raw[pos:t.col]))
+            parts.append(f'<span class="ii-{t.kind}{" ii-builtin" if t.builtin else ""}">{html.escape(raw[t.col:t.col + t.length])}</span>')
+            pos = t.col + t.length
+        parts.append(html.escape(raw[pos:]))
+        lines.append("".join(parts))
+    return '<div class="highlight"><pre><span></span><code>' + "\n".join(lines) + '\n</code></pre></div>'
 
 
 def highlight_css() -> str:

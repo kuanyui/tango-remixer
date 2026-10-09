@@ -135,6 +135,19 @@ class TestHomepage(unittest.TestCase):
         self.assertIn(".highlight .kt {", css)
         self.assertIn("body.dark .highlight .kt {", css)
 
+    def test_included_icons_examples_are_coloured_by_the_projects_own_tokenizer(self) -> None:
+        html = gen.highlight_included_icons("# @extra-icon-theme MyIcons ../foo\nTango    places/folder    {16>32}   # tail\n")
+        self.assertEqual(html, '<div class="highlight"><pre><span></span><code>'
+                               '<span class="ii-comment">#</span> <span class="ii-directive">@extra-icon-theme</span> <span class="ii-theme">MyIcons</span> <span class="ii-string">../foo</span>\n'
+                               '<span class="ii-theme ii-builtin">Tango</span>    <span class="ii-context">places</span>/<span class="ii-icon">folder</span>    '
+                               '{<span class="ii-input_size">16</span><span class="ii-operator">&gt;</span><span class="ii-output_size">32</span>}   <span class="ii-comment"># tail</span>\n'
+                               '</code></pre></div>')
+        page = gen.render_markdown("text\n\n```included-icons\nTango    document-save\n\n# <b>\n```\n\nafter\n").html
+        self.assertIn('<p>text</p>\n<div class="highlight"><pre><span></span><code><span class="ii-theme ii-builtin">Tango</span>    <span class="ii-icon">document-save</span>\n\n'
+                      '<span class="ii-comment"># &lt;b&gt;</span>\n</code></pre></div>', page)
+        self.assertIn("<p>after</p>", page)
+        self.assertNotIn("language-included-icons", page)
+
     def test_localize_copies_images_and_links_repository_files(self) -> None:
         repo = gen.Repository("https://github.com/o/r", "abc")
         html = ('<img src="banner.svg" alt=""> <a href="lsp/README.md">file</a> <a href="lsp">folder</a> <a href="https://x.y/z">web</a> '
