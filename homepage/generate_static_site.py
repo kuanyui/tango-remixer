@@ -84,6 +84,7 @@ SECTION_ICONS: Dict[str, Tuple[str, str]] = {   # top-level heading id -> (conte
     "used-submodules--thirdparties-tarballs": ("mimetypes", "package-x-generic"),
     "built-in-icon-themes-and-licenses": ("apps", "preferences-desktop-theme"),
     "how-to-use-in-qt-project": ("categories", "applications-development"),
+    "included_iconstxt-reference": ("apps", "accessories-text-editor"),
     "build-svg-and-qrc": ("apps", "utilities-terminal"),
     "internal-concepts": ("categories", "preferences-system"),
     "acknowledgments": ("emblems", "emblem-favorite"),
