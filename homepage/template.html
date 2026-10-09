@@ -104,7 +104,7 @@ const MENUS = [
   ['_View', () => [
     ...(narrow() ? [] : [   // the sidebar: on a narrow window the toolbar's combo box stands in for it
       { label: '_Contents', check: !document.body.classList.contains('no-contents'), run: () => { document.body.classList.toggle('no-contents'); saveState(); } }]),
-    { label: '_Dark Background', check: document.body.classList.contains('dark'), run: () => { document.body.classList.toggle('dark'); saveState(); } },
+    { label: '_Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: document.body.classList.contains('dark'), run: () => { document.body.classList.toggle('dark'); saveState(); } },
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
   ['_Help', () => [

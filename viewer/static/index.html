@@ -156,18 +156,21 @@
     .row { flex-wrap: wrap; gap: 4px 12px; padding: 6px 10px; }
     .meta { width: 100%; }
     .row .license { display: none; }
-    /* Status bar: the text and List | Grid on one row; in grid view the zoom and the API chooser on a second
-       row (display: contents makes the four parts siblings, so they can wrap that way). */
+    /* Status bar: one row where it fits; else the zoom and the API chooser (grid view) wrap to a second row,
+       the grip last (display: contents makes the four parts siblings, so they wrap one by one). */
     .statusbar { flex-wrap: wrap; }
     .view-controls { display: contents; }
-    #grid-opts { order: 1; flex: 1 1 100%; }
+    #grid-opts { order: 1; }
+    .grip { order: 2; }
   }
   /* The detail window (a phone, see placeDetail): the pane fills it under a title bar naming the icon (so the
-     pane's own heading is dropped) and scrolls as a whole, with a Close button at the bottom as About has. */
+     pane's own heading is dropped), its file list scrolling as it does beside the list, with a Close button at
+     the bottom as About has; the title bar and the button row keep their height. */
   #detail-window[open] { display: flex; flex-direction: column; width: calc(100% - 16px); max-width: none; }
+  #detail-window > .titlebar, #detail-window > .buttons { flex: none; }
   #detail-window #detail { flex: 1 1 auto; min-height: 0; border-left: 0; }
+  #detail-window #detail > .files { flex-basis: auto; }   /* sized by its files, so the window grows to fit them, up to the screen (beside the list the pane is as tall as the window anyway) */
   #detail-window #detail h3 { display: none; }
-  #detail-window #detail > .files { flex: none; min-height: 0; overflow: visible; }
   #detail-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
@@ -371,6 +374,14 @@ function img(icon, s, px) {
   return el('img', { src: encodeURI(`icons/${icon.theme}/${s.path}`), width: px, height: px, loading: 'lazy', title: `${icon.name} ${s.size}` });
 }
 
+// The status text: how many icons the filter matches and, past the cap, that the list stops there (the cap is
+// explained in the tooltip; on a phone just `500 / 3095`, the status bar keeping to one row where it can).
+let hitCount = 0;
+function showStatus() {
+  const capped = hitCount > MAX_ROWS;
+  $('status').textContent = !capped ? `${hitCount} icons` : narrow() ? `${MAX_ROWS} / ${hitCount}` : `Showing ${MAX_ROWS} of ${hitCount} icons`;
+  $('status').title = capped ? `The list stops at the first ${MAX_ROWS} matches. Search, or untick themes, contexts or sizes, to reach the rest.` : '';
+}
 function render() {
   if (!sizeSel) return;   // selects not built yet
   const typed = $('q').value.trim();
@@ -408,9 +419,8 @@ function render() {
   }
   $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => grid ? gridCell(icon, showAt, api) : listRow(icon, sizes)));
   [...$('list').children].find(n => n.dataset.key === selectedKey)?.classList.add('selected');   // keep the highlight across re-renders
-  $('status').textContent = hits.length > MAX_ROWS ? `Showing ${MAX_ROWS} of ${hits.length} icons` : `${hits.length} icons`;
-  $('status').title = hits.length > MAX_ROWS
-    ? `The list stops at the first ${MAX_ROWS} matches. Search, or untick themes, contexts or sizes, to reach the rest.` : '';
+  hitCount = hits.length;
+  showStatus();
   for (const sel of [themeSel, contextSel, sizeSel]) sel.refreshExpanded();
   saveState();
 }
@@ -520,6 +530,8 @@ function includedBox(icon) {
   const line = el('code', {});
   const copy = iconButton('copy', 'Copy line', e => copyText(line.textContent, e.currentTarget),
     'Copy this line. Pasted into included_icons.txt it includes exactly the checked sizes of this icon.');
+  const copyName = iconButton('copy', 'Copy icon name', e => copyText(icon.name, e.currentTarget),
+    'Copy the name alone: what QIcon::fromTheme() or gtk_icon_theme_lookup_icon() asks for.');
   const check = (set, size, label) => el('label', {}, el('input', { type: 'checkbox', checked: set.has(size), value: size,
     onchange: e => { e.target.checked ? set.add(size) : set.delete(size); refresh(); } }), ' ' + label);
   const targetBoxes = available.includes('scalable') ? SCALABLE_TARGETS.map(t => check(targets, t, t)) : [];
@@ -539,7 +551,7 @@ function includedBox(icon) {
       ...available.map(size => check(chosen, size, size))),
     ...(targetBoxes.length ? [el('div', { className: 'note', title: 'Pixel sizes to produce from the scalable file (written as scalable>N). A size already checked above as a real file is skipped.' },
       'scalable → ', ...targetBoxes)] : []),
-    line, copy];
+    line, copy, copyName];
 }
 
 // `row` may be missing when the icon is not among the rendered rows (restored selection). `open`: a click, which
@@ -729,6 +741,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules;
   for (const query of Object.values(TIERS)) matchMedia(query).addEventListener('change', () => {   // the triggers' text, the pane's place and the frame follow the tier
     [themeSel, contextSel, sizeSel, apiSel].forEach(s => s.rerender());
+    showStatus();
     placeDetail();
     applyMaximized();
   });
@@ -797,7 +810,7 @@ const MENUS = [
     { label: 'Zoom _In', icon: 'Tango/16x16/actions/zoom-in.svg', disabled: view !== 'grid' || $('zoom-in').disabled, run: () => zoom(1) },
     { label: 'Zoom _Out', icon: 'Tango/16x16/actions/zoom-out.svg', disabled: view !== 'grid' || $('zoom-out').disabled, run: () => zoom(-1) },
     null,
-    { label: '_Dark Background', check: $('dark').checked, run: () => $('dark').click() },
+    { label: '_Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: $('dark').checked, run: () => $('dark').click() },
     { label: 'Regular _Expression Search', check: $('re').checked, run: () => $('re').click() },
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],

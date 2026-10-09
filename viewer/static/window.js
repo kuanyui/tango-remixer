@@ -14,7 +14,8 @@ function el(tag, props, ...children) {
 // so its check items and disabled items always show the current state. Click opens a menu; while one is open,
 // pointing at another title switches to it; Escape or a click elsewhere closes it.
 // `menus` is [[label, () => items], ...]; an item is null (separator) or { label, run, icon?, accel?, disabled?,
-// check? (a check item), radio? (a radio item) }. Item icons are theme paths under `iconBase`.
+// check? (a check item), radio? (a radio item) }. Item icons are theme paths under `iconBase`; a check item with
+// an icon shows the icon in place of the check mark, drawn pressed while checked.
 function mnemonic(label) {   // '_File' -> 'F' underlined, then 'ile'
   const k = label.indexOf('_');
   return k < 0 ? [label] : [label.slice(0, k), el('u', {}, label[k + 1]), label.slice(k + 2)];
@@ -25,12 +26,14 @@ function openMenu(title, items, iconBase) {
   const menu = el('div', { className: 'menu' }, ...items().map(item => {
     if (!item) return el('div', { className: 'menu-sep' });
     const slot = el('span', { className: 'slot' });
-    if ('check' in item || 'radio' in item) {
+    if (item.icon) {
+      slot.append(el('img', { src: `${iconBase}${item.icon}`, width: 16, height: 16, alt: '' }));
+      if ('check' in item) slot.classList.toggle('on', !!item.check);
+    } else if ('check' in item || 'radio' in item) {
       const mark = el('span', { className: 'check' in item ? 'check' : 'radio' });
       mark.dataset.state = (item.check ?? item.radio) ? 'checked' : 'unchecked';
       slot.append(mark);
     }
-    else if (item.icon) slot.append(el('img', { src: `${iconBase}${item.icon}`, width: 16, height: 16, alt: '' }));
     const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
     if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
     if (!item.disabled) row.addEventListener('click', () => { closeMenu(); item.run(); });
