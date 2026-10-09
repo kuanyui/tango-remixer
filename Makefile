@@ -8,9 +8,10 @@ viewer:
 homepage-build:
 	python3 homepage/generate_static_site.py homepage/_build
 
-# The same, then served at http://127.0.0.1:8000/ for a look before pushing. Ctrl-C stops it; run again after edits.
+# The same, then served on port 8000 on every interface (as `make viewer`), so the host of a VM can open it too:
+# http://127.0.0.1:8000/ here, http://<this machine's IP>:8000/ elsewhere. Ctrl-C stops it; run again after edits.
 homepage-dev-server: homepage-build
-	python3 -m http.server --directory homepage/_build --bind 127.0.0.1 8000
+	python3 -m http.server --directory homepage/_build 8000
 
 test:
 

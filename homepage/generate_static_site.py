@@ -12,7 +12,7 @@ and GitLab Pages publish it:
 
 Run:  python3 homepage/generate_static_site.py [OUT]     (default: homepage/_build/)
       make homepage-build        the same
-      make homepage-dev-server   the same, then served at http://127.0.0.1:8000/
+      make homepage-dev-server   the same, then served on port 8000, on every interface as the viewer is
 Needs Python-Markdown (the `markdown` module): `apt install python3-markdown` on
 Debian / Ubuntu, else `pip install markdown`. (`markdown2` is a different library.)
 
