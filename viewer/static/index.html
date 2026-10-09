@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tango Remixer Icon Viewer</title>
 <!-- @llselect/core 0.0.8 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
 <link rel="stylesheet" href="static/llselect/vanilla.css">
@@ -130,6 +131,37 @@
   button img { vertical-align: -3px; margin-right: 4px; }
   #q.invalid { border-color: #c01c28; box-shadow: 0 0 0 2px rgba(192, 28, 40, .25); }
   #re-toggle code { font-size: 12px; }
+  /* A phone (700 px and under): the window is maximized (see the script) and the toolbar is two rows: the
+     search box with Reset and the Dark toggle (icons only, the toggle drawn as a button, pressed while on),
+     then the three filters in thirds, their triggers saying how many are ticked instead of which (see
+     multiSelect). A row wraps its sizes under the name and drops the license; the status bar wraps, the API
+     chooser naming just the toolkit; the detail pane is hidden: there is no room for it beside the list. */
+  @media (max-width: 700px) {
+    header { gap: 6px; padding: 6px 8px; }
+    /* The search box claims the first row but 160 px (room for the three buttons beside it, with some to
+       spare), so the filters, sorted after them, wrap to a second row; a quarter each, three of them fit. */
+    header input[type=search] { flex: 1 1 calc(100% - 160px); max-width: none; }
+    #theme-box, #context-box, #size-box { order: 1; flex: 1 1 25%; min-width: 0; }
+    header .llselect-root { display: block; min-width: 0; max-width: none; font-size: 12px; }   /* fills its third */
+    header .llselect-trigger { padding-left: 6px; padding-right: 6px; gap: 4px; }   /* less chrome: a third is 110 to 125 px */
+    header .llselect-trigger-arrow { padding-left: 6px; margin-left: 0; }
+    #reset span, #dark-toggle span, #dark { display: none; }
+    #reset img { margin-right: 0; }
+    #dark-toggle { padding: 0.4rem 0.6rem; border: 1px solid var(--ctl-border); border-radius: 4px; background: var(--cl-btn, var(--ctl-bg));
+                   box-shadow: var(--cl-btn-shadow, none); cursor: pointer; }
+    body.dark #dark-toggle { background: var(--cl-btn-active, var(--sel)); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
+    .client { grid-template-columns: 1fr; }
+    #detail { display: none; }
+    .row { flex-wrap: wrap; gap: 4px 12px; padding: 6px 10px; }
+    .meta { width: 100%; }
+    .row .license { display: none; }
+    /* Status bar: the text and List | Grid on one row; in grid view the zoom and the API chooser on a second
+       row (display: contents makes the four parts siblings, so they can wrap that way). */
+    .statusbar { flex-wrap: wrap; }
+    .view-controls { display: contents; }
+    #grid-opts { order: 1; flex: 1 1 100%; }
+    #pick-as { min-width: 0; }
+  }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
 <link rel="stylesheet" href="static/clearlooks.css">
@@ -153,8 +185,8 @@
   <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
   <div id="size-box"><div id="size"></div><div class="expanded" id="size-list"></div></div>
-  <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""> Reset</button>
-  <label id="dark-toggle"><input type="checkbox" id="dark"> <img src="icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"> Dark background</label>
+  <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""><span> Reset</span></button>
+  <label id="dark-toggle" title="Draw the icons on a dark background"><input type="checkbox" id="dark"> <img src="icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"><span> Dark background</span></label>
 </header>
 <main id="list"></main>
 <aside id="detail"><p style="color:var(--muted)">Click an icon to see its files.</p></aside>
@@ -183,6 +215,7 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 <script>
 const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
+const narrow = () => matchMedia('(max-width: 700px)').matches;   // a phone: the media query at the end of the style sheet
 const DEFAULT_SIZES = ['16', '22', '24', '32', '48', 'scalable'];   // scalable: the FLOSS application themes have nothing else
 // Grid view: the API whose lookup and drawing the cells imitate. `rules` is the chooser's tooltip.
 const APIS = {
@@ -269,7 +302,8 @@ function sizeMatrix(available, checked, scalableTargets) {
   return segs.length ? `{${segs.join(';')}}` : '';
 }
 
-// A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order.
+// A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order; on a
+// phone `Sizes: 3` (or `all`), three triggers sharing one row.
 // Rows carry a CSS-drawn check mark (`.check`); they re-render on every chosen-state change, so it stays in sync.
 // opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row;
 // opts.title is the tooltip of the trigger and of the sidebar heading.
@@ -289,7 +323,8 @@ function multiSelect(id, label, items, chosen, opts = {}) {
     createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
       checkbox(state), `All (${chosenCount}/${totalCount})`),
     createTriggerContentElFn: ({ chosenItems, items }) => el('span', {}, `${label}: ` +
-      (chosenItems.length === items.length ? 'all' : chosenItems.length ? items.filter(i => chosenItems.includes(i)).join(', ') : 'none')),
+      (chosenItems.length === items.length ? 'all' : narrow() ? chosenItems.length : !chosenItems.length ? 'none'
+        : items.filter(i => chosenItems.includes(i)).join(', '))),
     onChange: () => render(),
   });
   sel.setItems(items);
@@ -656,13 +691,15 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   apiSel = new llselect.LLSelectSingle($('pick-as'), {
     ariaLabel: 'Drawn as',
     createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
-    createTriggerContentElFn: ({ chosenItem }) => el('span', {}, chosenItem ? `As: ${APIS[chosenItem].short}` : ''),   // rendered once before an item is chosen
+    createTriggerContentElFn: ({ chosenItem }) => el('span', {}, !chosenItem ? ''   // rendered once before an item is chosen
+      : `As: ${narrow() ? APIS[chosenItem].short.split(' ', 2).join(' ') : APIS[chosenItem].short}`),   // a phone: just the toolkit, "Qt 6"
     createItemContentElFn: item => el('span', {}, APIS[item].label),
     onChange: () => { $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules; render(); },
   });
   apiSel.setItems(Object.keys(APIS));
   apiSel.setChosenItem(APIS[saved.api] ? saved.api : 'qt6');
   $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules;
+  matchMedia('(max-width: 700px)').addEventListener('change', () => [themeSel, contextSel, sizeSel, apiSel].forEach(s => s.rerender()));   // the triggers' text depends on it
   if (saved.themes) themeSel.setChosenItems(saved.themes.filter(t => themes.includes(t)));
   if (saved.contexts) contextSel.setChosenItems(saved.contexts.filter(c => contexts.includes(c)));
   if (saved.sizes) sizeSel.setChosenItems(saved.sizes.filter(s => allSizes.includes(s)));
@@ -695,7 +732,7 @@ $('dark').addEventListener('change', e => { document.body.classList.toggle('dark
 // Minimize and Close are only drawn. File > Quit asks the browser to close the tab, which it only does for a
 // tab that was opened straight from the URL the server printed (no other history entries); otherwise the
 // status bar says so.
-document.body.classList.toggle('maximized', !!loadState().maximized);   // before the first paint
+document.body.classList.toggle('maximized', !!loadState().maximized || narrow());   // before the first paint; a phone has no room for a desktop margin
 function syncMaximize() { $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize'; }
 syncMaximize();
 $('wm-maximize').addEventListener('click', () => { document.body.classList.toggle('maximized'); syncMaximize(); saveState(); });
