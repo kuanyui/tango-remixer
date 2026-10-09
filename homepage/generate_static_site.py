@@ -10,7 +10,7 @@ and GitLab Pages publish it:
                               icons/<theme>/<path>, the Blue* themes colorized with
                               the same code the build uses
 
-Run:  python3 homepage/generate_static_site.py [OUT]     (default: _site/)
+Run:  python3 homepage/generate_static_site.py [OUT]     (default: homepage/_build/)
       make homepage-build        the same
       make homepage-dev-server   the same, then served at http://127.0.0.1:8000/
 Needs Python-Markdown (the `markdown` module): `apt install python3-markdown` on
@@ -281,7 +281,7 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
 
 
 def main(argv: List[str]) -> None:
-    generate(Path(argv[0] if argv else "_site").resolve())
+    generate(Path(argv[0]).resolve() if argv else _HOMEPAGE_DIR / "_build")
 
 
 if __name__ == "__main__":

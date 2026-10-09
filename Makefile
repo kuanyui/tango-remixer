@@ -3,14 +3,14 @@
 viewer:
 	python3 -m viewer
 
-# The website (this README + the icon viewer) as plain files in _site/, as GitHub Pages and GitLab Pages publish
+# The website (this README + the icon viewer) as plain files in homepage/_build/, as GitHub Pages and GitLab Pages publish
 # it. Needs Python-Markdown: `apt install python3-markdown` (Debian / Ubuntu) or `pip install markdown`.
 homepage-build:
-	python3 homepage/generate_static_site.py _site
+	python3 homepage/generate_static_site.py homepage/_build
 
 # The same, then served at http://127.0.0.1:8000/ for a look before pushing. Ctrl-C stops it; run again after edits.
 homepage-dev-server: homepage-build
-	python3 -m http.server --directory _site --bind 127.0.0.1 8000
+	python3 -m http.server --directory homepage/_build --bind 127.0.0.1 8000
 
 test:
 
