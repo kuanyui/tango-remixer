@@ -161,6 +161,13 @@ class TestHomepage(unittest.TestCase):
         self.assertIn("<p>after</p>", page)
         self.assertNotIn("language-included-icons", page)
 
+    def test_write_pages_drops_a_page_that_is_no_longer_one(self) -> None:
+        (self.out / "old-section.html").write_text("stale")
+        (self.out / "style.css").write_text("kept")
+        gen.write_pages(self.out, {"index.html": "<p>home</p>", "why.html": "<p>why</p>"})
+        self.assertEqual(sorted(p.name for p in self.out.iterdir()), ["index.html", "style.css", "why.html"])
+        self.assertEqual((self.out / "why.html").read_text("utf-8"), "<p>why</p>")
+
     def test_localize_copies_images_and_links_repository_files(self) -> None:
         repo = gen.Repository("https://github.com/o/r", "abc")
         html = ('<img src="banner.svg" alt=""> <a href="lsp/README.md">file</a> <a href="lsp">folder</a> <a href="https://x.y/z">web</a> '

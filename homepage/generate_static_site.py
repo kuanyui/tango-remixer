@@ -491,6 +491,16 @@ def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: st
     return pages
 
 
+def write_pages(out: Path, pages: Dict[str, str]) -> None:
+    """The pages into `out`; a page of an earlier build that is no longer one (a
+    section renamed or removed) goes, so a preview never shows a stale one."""
+    for stale in out.glob("*.html"):
+        if stale.name not in pages:
+            stale.unlink()
+    for file, html in pages.items():
+        (out / file).write_text(html, "utf-8")
+
+
 def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     """The whole site into `out`."""
     started = time.perf_counter()
@@ -503,8 +513,7 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     themes = source_themes()
     index = build_index(themes)
     pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_paths, index))
-    for file, html in pages.items():
-        (out / file).write_text(html, "utf-8")
+    write_pages(out, pages)
     urls: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's
     for theme in themes.values():
         urls.setdefault(theme.folder, source_url(theme.folder))
