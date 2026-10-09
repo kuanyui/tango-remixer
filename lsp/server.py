@@ -12,7 +12,6 @@ Wires up pygls. Reacts to didOpen / didChange / didSave.
 
 from __future__ import annotations
 
-import re
 import sys
 from pathlib import Path
 from typing import List, Optional, Tuple
@@ -29,6 +28,9 @@ from lib.included_icons_parser import (  # noqa: E402
     BUILT_IN_ICON_THEMES,
     PATT_DIRECTIVE,
 )
+from lib.included_icons_tokens import (  # noqa: E402
+    KINDS, SPAN_KINDS, DIRECTIVE_KEYWORD, COMMENT_FULL_LINE, COMMENT_EOL, tokenize, tokenize_size_matrix,
+)
 from urllib.parse import urlparse, unquote  # noqa: E402
 
 
@@ -39,7 +41,8 @@ server = LanguageServer(name=SERVER_NAME, version=SERVER_VERSION)
 
 
 # Semantic token legend. Editors color tokens by these LSP-standard types.
-# The order is the index used by `tokenType` in the wire format.
+# The order is the index used by `tokenType` in the wire format, and the order of
+# lib/included_icons_tokens.py's KINDS, where the tokens come from.
 TOKEN_TYPES: List[lsp.SemanticTokenTypes] = [
     lsp.SemanticTokenTypes.Namespace,   # 0  theme name (also: directive NAME)
     lsp.SemanticTokenTypes.Type,        # 1  context    (e.g. "apps")
@@ -63,23 +66,18 @@ _MOD_DEFAULT_LIBRARY: int = 1 << 0
 
 # Map ParsedIncludedIcon.spans key -> index into TOKEN_TYPES.
 # `size_io_matrix` is split into per-piece tokens via _tokenize_size_matrix.
-_SPAN_KEY_TO_TYPE_IDX: dict[str, int] = {
-    "src_theme":      0,
-    "src_context":    1,
-    "src_icon_name":  2,
-    "dst_context":    1,
-    "dst_icon_name":  2,
-}
-_NAMESPACE_TYPE_IDX: int = 0
-_COMMENT_TYPE_IDX: int = 4
-_INPUT_NUMBER_TYPE_IDX: int = 3
-_OUTPUT_NUMBER_TYPE_IDX: int = 5
-_OPERATOR_TYPE_IDX: int = 6
-_KEYWORD_TYPE_IDX: int = 7
-_DECORATOR_TYPE_IDX: int = 8
-_STRING_TYPE_IDX: int = 9
+_SPAN_KEY_TO_TYPE_IDX: dict[str, int] = {key: KINDS.index(kind) for key, kind in SPAN_KINDS.items()}
+_NAMESPACE_TYPE_IDX: int = KINDS.index("theme")
+_COMMENT_TYPE_IDX: int = KINDS.index("comment")
+_INPUT_NUMBER_TYPE_IDX: int = KINDS.index("input_size")
+_OUTPUT_NUMBER_TYPE_IDX: int = KINDS.index("output_size")
+_OPERATOR_TYPE_IDX: int = KINDS.index("operator")
+_KEYWORD_TYPE_IDX: int = KINDS.index("keyword")
+_DECORATOR_TYPE_IDX: int = KINDS.index("directive")
+_STRING_TYPE_IDX: int = KINDS.index("string")
 
-_DIRECTIVE_KEYWORD = "@extra-icon-theme"
+_DIRECTIVE_KEYWORD = DIRECTIVE_KEYWORD
+_COMMENT_FULL_LINE, _COMMENT_EOL = COMMENT_FULL_LINE, COMMENT_EOL   # hover classifies comments with the tokenizer's regexes
 
 
 # ---------------------------------------------------------------------------
@@ -168,110 +166,20 @@ def on_did_save(ls: LanguageServer, params: lsp.DidSaveTextDocumentParams) -> No
 # Semantic tokens
 # ---------------------------------------------------------------------------
 
-# Comment regexes. Full-line: starts with `#` (after optional indent).
-# EOL: `#` preceded by space/tab (matches what parse_text strips).
-_COMMENT_FULL_LINE = re.compile(r'^\s*(#.*)$')
-_COMMENT_EOL = re.compile(r'[ \t](#.*)$')
-
-# Lexer for the inside of `{...}`. Recognized pieces only -- whitespace and
-# anything else falls through silently (uncolored).
-_SIZE_PIECE = re.compile(r'(scalable|\d+|>|-|;)')
-
+# The tokens come from lib/included_icons_tokens.py (shared with the website's code blocks); here they are
+# put into the legend's indices and the wire format.
 
 def _tokenize_size_matrix(matrix_text: str, base_col: int, line_no: int) -> List[Tuple[int, int, int, int, int]]:
-    """Yield per-piece tokens for the inside of `{...}`.
-
-    Tuple format: `(line, col, length, type_idx, mods)`. `mods` is always 0
-    here (no built-in concept for matrix pieces).
-
-    State machine: a `>` flips `expect_output`; the next number/keyword
-    consumes it. `;` resets state. `-` doesn't switch.
-    `;` and whitespace deliberately get no token (default face)."""
-    out: List[Tuple[int, int, int, int, int]] = []
-    expect_output = False
-    for m in _SIZE_PIECE.finditer(matrix_text):
-        piece = m.group(1)
-        col = base_col + m.start(1)
-        length = len(piece)
-        line = line_no - 1
-        if piece == ';':
-            expect_output = False
-            continue
-        if piece == '>':
-            out.append((line, col, length, _OPERATOR_TYPE_IDX, 0))
-            expect_output = True
-        elif piece == '-':
-            out.append((line, col, length, _OPERATOR_TYPE_IDX, 0))
-        elif piece == 'scalable':
-            out.append((line, col, length, _KEYWORD_TYPE_IDX, 0))
-            expect_output = False
-        else:  # digits
-            if expect_output:
-                out.append((line, col, length, _OUTPUT_NUMBER_TYPE_IDX, 0))
-                expect_output = False
-            else:
-                out.append((line, col, length, _INPUT_NUMBER_TYPE_IDX, 0))
-    return out
+    """Per-piece tokens for the inside of `{...}`, as `(line, col, length, type_idx, mods)`;
+    `line_no` is 1-based, the line in the tuples 0-based. `mods` is always 0 here."""
+    return [(t.line, t.col, t.length, KINDS.index(t.kind), 0) for t in tokenize_size_matrix(matrix_text, base_col, line_no - 1)]
 
 
 def _build_tokens(text: str) -> List[Tuple[int, int, int, int, int]]:
     """Collect `(line, col, length, type_idx, mods)` tokens. Sorted by position.
-    Lines are 0-based for LSP. `mods` is a bitmask over `TOKEN_MODIFIERS`."""
-    parsed_lines, _errors, _directives = parse_text(text, built_in_themes=None)
-    raw_lines = text.splitlines()
-    tokens: List[Tuple[int, int, int, int, int]] = []
-
-    for p in parsed_lines:
-        for span_key, type_idx in _SPAN_KEY_TO_TYPE_IDX.items():
-            if span_key in p.spans:
-                col_start, col_end = p.spans[span_key]
-                # Mark built-in theme NAME so editors can color it distinctly.
-                mods = 0
-                if span_key == "src_theme":
-                    value = raw_lines[p.line_no - 1][col_start:col_end]
-                    if value in BUILT_IN_ICON_THEMES:
-                        mods = _MOD_DEFAULT_LIBRARY
-                tokens.append((p.line_no - 1, col_start, col_end - col_start, type_idx, mods))
-        # Matrix is tokenized piece by piece (input num / output num / op / keyword).
-        if "size_io_matrix" in p.spans:
-            col_start, col_end = p.spans["size_io_matrix"]
-            matrix_text = raw_lines[p.line_no - 1][col_start:col_end]
-            tokens.extend(_tokenize_size_matrix(matrix_text, col_start, p.line_no))
-
-    # Directive lines: highlight `#`, `@extra-icon-theme`, NAME, PATH separately
-    # (like TS's `// @ts-ignore`). Re-scan via PATT_DIRECTIVE so even directives
-    # that fail validation still get the directive-style colors.
-    directive_lines: set[int] = set()
-    for line_idx, raw in enumerate(raw_lines):
-        md = PATT_DIRECTIVE.search(raw)
-        if not md:
-            continue
-        directive_lines.add(line_idx)
-        hash_col = raw.find('#')
-        if hash_col >= 0:
-            tokens.append((line_idx, hash_col, 1, _COMMENT_TYPE_IDX, 0))
-        kw_col = raw.find(_DIRECTIVE_KEYWORD)
-        if kw_col >= 0:
-            tokens.append((line_idx, kw_col, len(_DIRECTIVE_KEYWORD), _DECORATOR_TYPE_IDX, 0))
-        n_start, n_end = md.start('name'), md.end('name')
-        tokens.append((line_idx, n_start, n_end - n_start, _NAMESPACE_TYPE_IDX, 0))
-        p_start, p_end = md.start('path'), md.end('path')
-        tokens.append((line_idx, p_start, p_end - p_start, _STRING_TYPE_IDX, 0))
-
-    # Comments. Skip directive lines (already tokenized piece-by-piece above).
-    for line_idx, raw in enumerate(raw_lines):
-        if line_idx in directive_lines:
-            continue
-        m = _COMMENT_FULL_LINE.match(raw)
-        if m:
-            tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX, 0))
-            continue
-        m = _COMMENT_EOL.search(raw)
-        if m:
-            tokens.append((line_idx, m.start(1), len(m.group(1)), _COMMENT_TYPE_IDX, 0))
-
-    tokens.sort(key=lambda t: (t[0], t[1]))
-    return tokens
+    Lines are 0-based for LSP. `mods` is a bitmask over `TOKEN_MODIFIERS`: a
+    built-in theme's name gets defaultLibrary, so editors can color it distinctly."""
+    return [(t.line, t.col, t.length, KINDS.index(t.kind), _MOD_DEFAULT_LIBRARY if t.builtin else 0) for t in tokenize(text)]
 
 
 def _encode_tokens_delta(tokens: List[Tuple[int, int, int, int, int]]) -> List[int]:

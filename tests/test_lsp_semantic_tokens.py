@@ -53,6 +53,12 @@ def _decode_delta(data: List[int]) -> List[Tuple[int, int, int, int, int]]:
 @unittest.skipUnless(HAS_LSP_DEPS, "pygls / lsprotocol not installed")
 class TestBuildTokens(unittest.TestCase):
 
+    def test_legend_follows_the_shared_token_kinds(self) -> None:
+        # lib/included_icons_tokens.py's KINDS are the legend's indices.
+        from lib.included_icons_tokens import KINDS
+        self.assertEqual([t.value for t in TOKEN_TYPES], ["namespace", "type", "variable", "number", "comment", "property", "operator", "keyword", "decorator", "string"])
+        self.assertEqual(KINDS, ("theme", "context", "icon", "input_size", "comment", "output_size", "operator", "keyword", "directive", "string"))
+
     def test_basic_line_tokens(self) -> None:
         # `Tango    document-save` -> theme (built-in) + icon tokens
         tokens = _build_tokens("Tango    document-save")
