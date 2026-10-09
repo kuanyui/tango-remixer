@@ -75,18 +75,23 @@ function loadState() {
 }
 function saveState() {
   const state = { dark: document.body.classList.contains('dark'), contents: !document.body.classList.contains('no-contents'),
-    maximized: document.body.classList.contains('maximized') };
+    maximized };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 const saved = loadState(), narrow = () => matchMedia('(max-width: 700px)').matches;
+let maximized = !!saved.maximized;   // the user's choice
 document.body.classList.toggle('dark', !!saved.dark);
-document.body.classList.toggle('maximized', !!saved.maximized || narrow());   // a narrow window (a phone) has no room for a desktop margin
 document.body.classList.toggle('no-contents', saved.contents === false);
 
-// --- Window frame: Maximize drops the desktop margin; Minimize and Close are only drawn; File > Quit closes the tab
-function syncMaximize() { $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize'; }
-syncMaximize();
-$('wm-maximize').addEventListener('click', () => { document.body.classList.toggle('maximized'); syncMaximize(); saveState(); });
+// --- Window frame: Maximize drops the desktop margin; a narrow window (a phone) has no room for it and is maximized
+// whatever the choice, the button only drawn there, as Minimize and Close are; File > Quit closes the tab
+function applyMaximized() {   // before the first paint, on a click, and when the width crosses 700 px
+  document.body.classList.toggle('maximized', maximized || narrow());
+  $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize';
+}
+applyMaximized();
+matchMedia('(max-width: 700px)').addEventListener('change', applyMaximized);
+$('wm-maximize').addEventListener('click', () => { if (narrow()) return; maximized = !maximized; applyMaximized(); saveState(); });
 function quit() {
   window.close();
   setTimeout(() => { $('status').textContent = 'The browser did not let the page close this tab. Close it yourself.'; }, 200);

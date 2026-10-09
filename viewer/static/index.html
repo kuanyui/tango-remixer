@@ -134,9 +134,9 @@
   /* A phone (700 px and under): the window is maximized (see the script) and the toolbar is two rows: the
      search box with Reset and the Dark toggle (icons only, the toggle drawn as a button, pressed while on),
      then the three filters in thirds, their triggers saying how many are ticked instead of which (see
-     multiSelect). A row wraps its sizes under the name and drops the license; the status bar wraps, the API
-     chooser naming just the toolkit; the detail pane is a window of its own (placeDetail): there is no room
-     for it beside the list. */
+     multiSelect). A row wraps its sizes under the name and drops the license; the status bar wraps; the detail
+     pane is a window of its own (placeDetail): there is no room for it beside the list. */
+  @media (max-width: 900px) { #pick-as { min-width: 0; } }   /* the API chooser, naming just the toolkit (see apiSel), shrinks to it */
   @media (max-width: 700px) {
     header { gap: 6px; padding: 6px 8px; }
     /* The search box claims the first row but 160 px (room for the three buttons beside it, with some to
@@ -161,7 +161,6 @@
     .statusbar { flex-wrap: wrap; }
     .view-controls { display: contents; }
     #grid-opts { order: 1; flex: 1 1 100%; }
-    #pick-as { min-width: 0; }
   }
   /* The detail window (a phone, see placeDetail): the pane fills it under a title bar naming the icon (so the
      pane's own heading is dropped) and scrolls as a whole, with a Close button at the bottom as About has. */
@@ -227,7 +226,12 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 <script>
 const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
-const narrow = () => matchMedia('(max-width: 700px)').matches;   // a phone: the media query at the end of the style sheet
+// Width tiers, matching the media queries at the end of the style sheet: on a laptop (1366 px and under) the
+// filter triggers say how many are ticked instead of which; at 900 px and under the API chooser names just the
+// toolkit; 700 px and under is the phone layout (`narrow`).
+const TIERS = { laptop: '(max-width: 1366px)', small: '(max-width: 900px)', phone: '(max-width: 700px)' };
+const tier = name => matchMedia(TIERS[name]).matches;
+const narrow = () => tier('phone');
 const DEFAULT_SIZES = ['16', '22', '24', '32', '48', 'scalable'];   // scalable: the FLOSS application themes have nothing else
 // Grid view: the API whose lookup and drawing the cells imitate. `rules` is the chooser's tooltip.
 const APIS = {
@@ -261,7 +265,7 @@ function saveState() {
   const state = { q: $('q').value, re: $('re').checked, themes: themeSel.getChosenItems(),
     contexts: contextSel.getChosenItems(), sizes: sizeSel.getChosenItems(), dark: $('dark').checked,
     view, showAt: showAtSel?.getChosenItem(), api: apiSel?.getChosenItem(),
-    maximized: document.body.classList.contains('maximized'), scroll: $('list').scrollTop, selected: selectedKey };
+    maximized, scroll: $('list').scrollTop, selected: selectedKey };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 // Button icons come from the themes themselves (Tango where it has a 16 px one, else Nome).
@@ -315,7 +319,7 @@ function sizeMatrix(available, checked, scalableTargets) {
 }
 
 // A multi-select whose trigger reads e.g. `Sizes: 16, 22, 24` (or `all` / `none`), chosen ones in item order; on a
-// phone `Sizes: 3` (or `all`), three triggers sharing one row.
+// laptop and under `Sizes: 3` (or `all`): three of them share a phone's row.
 // Rows carry a CSS-drawn check mark (`.check`); they re-render on every chosen-state change, so it stays in sync.
 // opts.groupOf(item) puts items under option-group headers; opts.itemContent(item, checkbox) renders a richer row;
 // opts.title is the tooltip of the trigger and of the sidebar heading.
@@ -335,7 +339,7 @@ function multiSelect(id, label, items, chosen, opts = {}) {
     createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
       checkbox(state), `All (${chosenCount}/${totalCount})`),
     createTriggerContentElFn: ({ chosenItems, items }) => el('span', {}, `${label}: ` +
-      (chosenItems.length === items.length ? 'all' : narrow() ? chosenItems.length : !chosenItems.length ? 'none'
+      (chosenItems.length === items.length ? 'all' : tier('laptop') ? chosenItems.length : !chosenItems.length ? 'none'
         : items.filter(i => chosenItems.includes(i)).join(', '))),
     onChange: () => render(),
   });
@@ -404,9 +408,9 @@ function render() {
   }
   $('list').replaceChildren(...hits.slice(0, MAX_ROWS).map(icon => grid ? gridCell(icon, showAt, api) : listRow(icon, sizes)));
   [...$('list').children].find(n => n.dataset.key === selectedKey)?.classList.add('selected');   // keep the highlight across re-renders
-  $('status').textContent = hits.length > MAX_ROWS
-    ? `Showing ${MAX_ROWS} of ${hits.length} icons – narrow the filter`
-    : `${hits.length} icons`;
+  $('status').textContent = hits.length > MAX_ROWS ? `Showing ${MAX_ROWS} of ${hits.length} icons` : `${hits.length} icons`;
+  $('status').title = hits.length > MAX_ROWS
+    ? `The list stops at the first ${MAX_ROWS} matches. Search, or untick themes, contexts or sizes, to reach the rest.` : '';
   for (const sel of [themeSel, contextSel, sizeSel]) sel.refreshExpanded();
   saveState();
 }
@@ -716,16 +720,17 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
     ariaLabel: 'Drawn as',
     createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
     createTriggerContentElFn: ({ chosenItem }) => el('span', {}, !chosenItem ? ''   // rendered once before an item is chosen
-      : `As: ${narrow() ? APIS[chosenItem].short.split(' ', 2).join(' ') : APIS[chosenItem].short}`),   // a phone: just the toolkit, "Qt 6"
+      : `As: ${tier('small') ? APIS[chosenItem].short.split(' ', 2).join(' ') : APIS[chosenItem].short}`),   // 900 px and under: just the toolkit, "Qt 6"
     createItemContentElFn: item => el('span', {}, APIS[item].label),
     onChange: () => { $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules; render(); },
   });
   apiSel.setItems(Object.keys(APIS));
   apiSel.setChosenItem(APIS[saved.api] ? saved.api : 'qt6');
   $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules;
-  matchMedia('(max-width: 700px)').addEventListener('change', () => {   // the triggers' text and the pane's place depend on it
+  for (const query of Object.values(TIERS)) matchMedia(query).addEventListener('change', () => {   // the triggers' text, the pane's place and the frame follow the tier
     [themeSel, contextSel, sizeSel, apiSel].forEach(s => s.rerender());
     placeDetail();
+    applyMaximized();
   });
   if (saved.themes) themeSel.setChosenItems(saved.themes.filter(t => themes.includes(t)));
   if (saved.contexts) contextSel.setChosenItems(saved.contexts.filter(c => contexts.includes(c)));
@@ -755,14 +760,18 @@ $('reset').addEventListener('click', () => {
 $('dark').addEventListener('change', e => { document.body.classList.toggle('dark', e.target.checked); saveState(); });
 
 // --- Window frame ---------------------------------------------------------------------------------------
-// Maximize drops the desktop margin around the window (kept across reloads with the rest of the state).
-// Minimize and Close are only drawn. File > Quit asks the browser to close the tab, which it only does for a
-// tab that was opened straight from the URL the server printed (no other history entries); otherwise the
+// Maximize drops the desktop margin around the window; the choice is kept across reloads with the rest of the
+// state. A phone has no room for the margin: there the window is maximized whatever the choice, and the button
+// is only drawn, as Minimize and Close are. File > Quit asks the browser to close the tab, which it only does
+// for a tab that was opened straight from the URL the server printed (no other history entries); otherwise the
 // status bar says so.
-document.body.classList.toggle('maximized', !!loadState().maximized || narrow());   // before the first paint; a phone has no room for a desktop margin
-function syncMaximize() { $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize'; }
-syncMaximize();
-$('wm-maximize').addEventListener('click', () => { document.body.classList.toggle('maximized'); syncMaximize(); saveState(); });
+let maximized = !!loadState().maximized;   // the user's choice
+function applyMaximized() {   // before the first paint, on a click, and when the width crosses 700 px
+  document.body.classList.toggle('maximized', maximized || narrow());
+  $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize';
+}
+applyMaximized();
+$('wm-maximize').addEventListener('click', () => { if (narrow()) return; maximized = !maximized; applyMaximized(); saveState(); });
 function quit() {
   window.close();
   setTimeout(() => { $('status').textContent = 'The browser did not let the page close this tab. Close it yourself.'; }, 200);
