@@ -234,17 +234,18 @@ class TestViewer(unittest.TestCase):
 
 
 class TestFixedIconPaths(unittest.TestCase):
-    """Every icon the page or the server tables name by path (title bar, buttons,
-    menus, dropdown thumbnails) must be a real file of the index: the static site
-    has only those, and the page never asks for an alias. Skipped without the
-    submodules."""
+    """Every icon the viewer page, the homepage template (its favicon) or the
+    server tables name by path (title bar, buttons, menus, dropdown thumbnails)
+    must be a real file of the index: the static site has only those, and the
+    page never asks for an alias. Skipped without the submodules."""
 
     @unittest.skipUnless(all(raw.copied_src_theme_folder.is_dir() for raw in viewer_server.BUILT_IN_RAW_ICON_THEMES_PATH),
                          "theme submodules not checked out")
     def test_named_icons_are_indexed_real_files(self) -> None:
         themes = viewer_server.source_themes()
         names = "|".join(map(re.escape, sorted(themes, key=len, reverse=True)))   # Humanity-Dark before Humanity
-        named = set(re.findall(rf"\b((?:{names})/[A-Za-z0-9_./@-]+\.svg)", (viewer_server._STATIC_DIR / "index.html").read_text("utf-8")))
+        pages = [viewer_server._STATIC_DIR / "index.html", viewer_server._PROJECT_ROOT / "homepage" / "template.html"]
+        named = {path for page in pages for path in re.findall(rf"\b((?:{names})/[A-Za-z0-9_./@-]+\.svg)", page.read_text("utf-8"))}
         named |= set(viewer_server._CONTEXT_ICONS.values())
         named |= {f"{name}/{theme.icon}" for name, theme in themes.items()}
         indexed = {f"{entry['theme']}/{size['path']}" for entry in viewer_server.build_index(themes) for size in entry["sizes"]}

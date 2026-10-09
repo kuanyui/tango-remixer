@@ -101,7 +101,7 @@ class TestHomepage(unittest.TestCase):
 
     def test_markdown_renders_alerts_strikethrough_and_heading_ids(self) -> None:
         html = gen.render_markdown("# Used Submodules / Thirdparties Tarballs\n\n> [!WARNING]\n> ## Disclosure\n> text ~~gone~~ here\n\n"
-                                   "> [!CAUTION]\n> same paragraph\n\n```sh\n~~kept~~\n```\n")
+                                   "> [!CAUTION]\n> same paragraph\n\n```sh\n~~kept~~\n```\n").html
         self.assertIn('<h1 id="used-submodules--thirdparties-tarballs">', html)
         self.assertIn('<blockquote class="alert warning">\n<p class="alert-title">Warning</p>', html)
         self.assertIn('<blockquote class="alert caution">\n<p class="alert-title">Caution</p>\n<p>same paragraph</p>', html)   # a second blockquote, as on GitHub
@@ -110,9 +110,16 @@ class TestHomepage(unittest.TestCase):
         self.assertNotIn("[!", html)
 
     def test_markdown_renders_a_fenced_block_inside_a_blockquote(self) -> None:
-        html = gen.render_markdown("> [!NOTE]\n> Like this:\n> ```sh\n> ./build.py --x\n> ```\n> The built files.\n")
+        html = gen.render_markdown("> [!NOTE]\n> Like this:\n> ```sh\n> ./build.py --x\n> ```\n> The built files.\n").html
         self.assertIn('<p class="alert-title">Note</p>\n<p>Like this:</p>\n<pre><code>./build.py --x\n</code></pre>\n<p>The built files.</p>', html)
         self.assertNotIn("```", html)
+
+    def test_markdown_builds_a_table_of_contents_of_headings_1_to_3(self) -> None:
+        rendered = gen.render_markdown("# Top A\n\n## Mid B\n\n### Low C\n\n#### Deep D\n\ntext\n\n# Top E\n")
+        self.assertEqual(rendered.toc.replace("\n", ""),
+                         '<div class="toc"><ul><li><a href="#top-a">Top A</a><ul><li><a href="#mid-b">Mid B</a>'
+                         '<ul><li><a href="#low-c">Low C</a></li></ul></li></ul></li><li><a href="#top-e">Top E</a></li></ul></div>')
+        self.assertIn('<h4 id="deep-d">Deep D</h4>', rendered.html)   # still an anchor, just not listed
 
     def test_localize_copies_images_and_links_repository_files(self) -> None:
         repo = gen.Repository("https://github.com/o/r", "abc")
@@ -138,6 +145,7 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('href="https://gitlab.com/g/r">Source on GitLab</a>', page)
         self.assertIn("commit abcdef0,", page)
         self.assertIn('href="viewer/"', page)
+        self.assertIn('<nav id="toc" aria-label="Contents">\n<div class="toc">\n<ul>\n<li><a href="#hi">Hi</a></li>\n</ul>\n</div>', page)
 
 
 class TestViewerExport(unittest.TestCase):

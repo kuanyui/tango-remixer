@@ -5,25 +5,67 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tango Remixer</title>
 <meta name="description" content="Remix Tango-flavoured icon themes (Tango, GNOME, Humanity, ...) into one XDG icon theme for Qt and GTK applications.">
-<link rel="icon" href="viewer/icons/Nome/apps/48/preferences-desktop-theme.svg">
+<!-- Tango's own Start Here icon (two footprints, by Jakub Steiner), from the viewer's copy of the theme -->
+<link rel="icon" href="viewer/icons/Tango/16x16/places/start-here.svg" sizes="16x16" type="image/svg+xml">
+<link rel="icon" href="viewer/icons/Tango/48x48/places/start-here.svg" sizes="any" type="image/svg+xml">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<!-- Filled by homepage/generate_static_site.py: the readme placeholder below is README.md as HTML, the others
-     name the repository the site was built from. -->
+<!-- Filled by homepage/generate_static_site.py: the readme placeholder below is README.md as HTML, the toc one its
+     headings as nested lists, the others name the repository the site was built from. -->
 <header class="bar">
+  <button type="button" id="toc-toggle" aria-controls="toc" aria-expanded="false">Contents</button>
   <a class="brand" href="./">Tango Remixer</a>
   <nav>
     <a class="button" href="viewer/">Icon viewer</a>
     <a href="{{repo_url}}">Source on {{repo_host}}</a>
   </nav>
 </header>
+<div class="page">
+<nav id="toc" aria-label="Contents">
+{{toc}}
+</nav>
 <main class="readme">
 {{readme}}
 </main>
+</div>
 <footer class="bar">
   <span>Generated from README.md at commit {{commit}}, {{date}}.</span>
   <nav><a href="viewer/">Icon viewer</a><a href="{{repo_url}}">Source on {{repo_host}}</a></nav>
 </footer>
+<script>
+// The table of contents follows the reading position: the last heading above the top of the window is the
+// current one; its entry is highlighted and kept in view inside the sidebar's own scroll box. On a narrow
+// window the sidebar is a panel under the header, opened by the Contents button, closed by a click on an entry.
+(() => {
+  const toc = document.getElementById('toc'), toggle = document.getElementById('toc-toggle'), header = document.querySelector('header');
+  const links = [...toc.querySelectorAll('a[href^="#"]')];
+  const idOf = a => decodeURIComponent(a.hash.slice(1));
+  const headings = links.map(a => document.getElementById(idOf(a))).filter(Boolean);   // in reading order, as the list is
+  let current = null;
+  function update() {
+    document.documentElement.style.setProperty('--header-height', header.offsetHeight + 'px');   // the header wraps on narrow windows
+    let active = headings[0];
+    for (const h of headings) { if (h.getBoundingClientRect().top <= header.offsetHeight + 24) active = h; else break; }
+    if (innerHeight + scrollY >= document.documentElement.scrollHeight - 2) {   // the end: the last headings never reach the line
+      const target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+      active = target && headings.includes(target) && target.getBoundingClientRect().top >= 0 ? target : headings[headings.length - 1];
+    }
+    if (!active || active === current) return;
+    current = active;
+    let link = null;
+    for (const a of links) { const on = idOf(a) === active.id; a.classList.toggle('current', on); if (on) link = a; }
+    const r = link.getBoundingClientRect(), box = toc.getBoundingClientRect();
+    if (r.top < box.top || r.bottom > box.bottom) toc.scrollTop += r.top - box.top - box.height / 2;
+  }
+  let queued = false;
+  addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; update(); }); } }, { passive: true });
+  addEventListener('resize', update);
+  addEventListener('hashchange', update);   // an entry clicked while its heading is already in view scrolls nothing
+  update();
+  toggle.addEventListener('click', () => toggle.setAttribute('aria-expanded', String(document.body.classList.toggle('toc-open'))));
+  toc.addEventListener('click', e => { if (e.target.closest('a')) { document.body.classList.remove('toc-open'); toggle.setAttribute('aria-expanded', 'false'); } });
+})();
+</script>
 </body>
 </html>

@@ -3,7 +3,8 @@
 """Generate the project website as plain files (no server), the way GitHub Pages
 and GitLab Pages publish it:
 
-    index.html, style.css     the homepage: README.md rendered into template.html
+    index.html, style.css     the homepage: README.md rendered into template.html, with a
+                              table of contents that follows the reading position
     tango-mixer-banner.svg    (and any other image README.md shows)
     viewer/                   the icon viewer (viewer/) as a static site: its page and
                               assets, api/index.json, and every indexed SVG under
@@ -50,6 +51,12 @@ from viewer.server import _COLOR_CONVERTER, _STATIC_DIR, Colorizer, SourceTheme,
 _HOMEPAGE_DIR: Path = Path(__file__).resolve().parent
 _ALERTS: Tuple[str, ...] = ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
 """GitHub's `> [!NOTE]` blockquote kinds."""
+
+
+class Rendered(NamedTuple):
+    """README.md as HTML, and its table of contents: headings 1 to 3 as nested lists."""
+    html: str
+    toc: str
 
 
 class Repository(NamedTuple):
@@ -193,9 +200,9 @@ def github_slug(text: str, separator: str) -> str:
     return re.sub(r"[^\w\- ]", "", text.lower()).strip().replace(" ", separator)
 
 
-def render_markdown(text: str) -> str:
-    """Markdown to HTML with Python-Markdown and its `extra` set (tables, fenced
-    code, ...), plus what GitHub renders and it does not: `~~gone~~`, the
+def render_markdown(text: str) -> Rendered:
+    """Markdown to HTML (and its table of contents) with Python-Markdown and its
+    `extra` set (tables, fenced code, ...), plus what GitHub renders and it does not: `~~gone~~`, the
     `> [!NOTE]` alert blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION), a
     fenced code block inside a blockquote (made an indented one), and two
     blockquotes separated by a blank line (kept apart)."""
@@ -227,13 +234,14 @@ def render_markdown(text: str) -> str:
         if line.strip():
             quoted = bool(prefix.strip())
         lines.append(line)
-    html: str = markdown.markdown("".join(lines), extensions=["extra", "toc"], extension_configs={"toc": {"slugify": github_slug}})
+    md = markdown.Markdown(extensions=["extra", "toc"], extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1-3"}})
+    html: str = md.convert("".join(lines))
 
     def alert(m: re.Match[str]) -> str:
         head = f'<blockquote class="alert {m[1].lower()}">\n<p class="alert-title">{m[1].capitalize()}</p>'
         return head if m[2] == "</p>" else head + "\n<p>"   # the marker shared its paragraph with the text after it
 
-    return re.sub(rf"<blockquote>\s*<p>\[!({'|'.join(_ALERTS)})\](</p>|\n)", alert, html)
+    return Rendered(re.sub(rf"<blockquote>\s*<p>\[!({'|'.join(_ALERTS)})\](</p>|\n)", alert, html), md.toc)
 
 
 def localize(html: str, root: Path, out: Path, repo: Repository) -> str:
@@ -255,11 +263,13 @@ def localize(html: str, root: Path, out: Path, repo: Repository) -> str:
 
 
 def render_homepage(readme: str, repo: Repository, root: Path, out: Path) -> str:
-    """index.html of the site: template.html with README.md rendered into it."""
-    html = localize(render_markdown(readme), root, out, repo)
+    """index.html of the site: template.html with README.md and its table of contents rendered into it."""
+    rendered = render_markdown(readme)
+    html = localize(rendered.html, root, out, repo)
     host = "GitHub" if "github" in repo.host else "GitLab" if "gitlab" in repo.host else repo.host
     page = (_HOMEPAGE_DIR / "template.html").read_text("utf-8")
-    for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()), ("readme", html)]:
+    for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()),
+                       ("toc", rendered.toc), ("readme", html)]:
         page = page.replace("{{" + key + "}}", value)
     return page
 
