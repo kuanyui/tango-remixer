@@ -147,9 +147,11 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCombo()
 // them); the other pages' are counted in search-index.json (every page's text, written by the generator) and
 // the pages with any are listed under the box, each with its count. Next and Previous (Enter, Shift+Enter)
 // step through the matches, the current one scrolled to the middle of the page, and past this page's last one
-// go on to the next page that has any (`?find=` carries the text over, `&at=last` lands on its last match),
-// around the ends; the counter numbers the matches across the pages.
-const findBox = $('find'), content = $('content'), here = $('toc').querySelector('a.current').getAttribute('href');
+// go on to the next page that has any, swapped into this window (swapPage below), around the ends; the
+// counter numbers the matches across the pages. A link into a page may carry the text in `?find=` (`&at=last`
+// lands on its last match): the listed pages' links do, for a new tab.
+const findBox = $('find'), content = $('content');
+let here = $('toc').querySelector('a.current').getAttribute('href');
 let pages = null, found = [], counts = [], at = -1, findMenu = null;
 function textNodes(root) {   // the page's text, the Previous / Next links left out (the index has them not)
   const out = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, n => n.parentElement.closest('.pager') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT);
@@ -199,7 +201,7 @@ function step(by) {
     const j = (k + by * i + n * n) % n;
     if (!counts[j]) continue;
     if (j === k) return show(by > 0 ? 0 : found.length - 1);   // this page alone has any
-    location.href = `${pages[j].href}?find=${encodeURIComponent(findBox.value.trim())}${by < 0 ? '&at=last' : ''}`;
+    swapPage(pages[j].href).then(() => runFind(by < 0 ? 'last' : undefined, !findMenu));
     return;
   }
 }
@@ -210,7 +212,8 @@ function listPages() {   // under the box: the pages with matches, each with its
   closeCombo();
   const rows = [...$('toc').querySelectorAll('li a')];   // the sidebar's rows: each page's icon, in order
   findMenu = el('div', { className: 'menu find-menu', role: 'menu' }, ...pages.flatMap((p, i) => !counts[i] ? [] : [
-    el('a', { className: p.href === here ? 'menu-item current' : 'menu-item', href: `${p.href}?find=${encodeURIComponent(findBox.value.trim())}`, role: 'menuitem' },
+    el('a', { className: p.href === here ? 'menu-item current' : 'menu-item', href: `${p.href}?find=${encodeURIComponent(findBox.value.trim())}`, role: 'menuitem',
+          onclick: e => { e.preventDefault(); swapPage(p.href).then(() => runFind(undefined, true)); } },
       el('span', { className: 'slot' }, rows.find(a => a.getAttribute('href') === p.href).querySelector('img').cloneNode()),
       el('span', {}, p.title), el('span', { className: 'accel' }, String(counts[i])))]));
   bar.append(findMenu);
@@ -227,8 +230,30 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFindMen
 $('find-clear').addEventListener('click', () => { findBox.value = ''; runFind(); findBox.focus(); });
 $('find-previous').addEventListener('click', () => step(-1));
 $('find-next').addEventListener('click', () => step(1));
-const params = new URLSearchParams(location.search);   // arrived from another page's find bar
+const params = new URLSearchParams(location.search);   // arrived through a link that carries the text
 if (params.get('find')) { findBox.value = params.get('find'); runFind(params.get('at'), true); }
+
+// --- Another page in this window: its content, title, status, sidebar row and combo box swapped in, no reload,
+// the address updated; Back and Forward swap the same way, the find bar's text searched again on the page.
+const pageOf = url => { const file = url.pathname.split('/').pop(); return !file || file === 'index.html' ? './' : file; };
+async function swapPage(href, push = true) {
+  let doc;
+  try { doc = new DOMParser().parseFromString(await (await fetch(href)).text(), 'text/html'); }
+  catch { location.href = href; return; }   // offline, or the page gone: the plain way
+  content.replaceChildren(...doc.getElementById('content').childNodes);
+  content.scrollTop = 0;
+  document.title = doc.title;
+  $('status').textContent = doc.getElementById('status').textContent;
+  $('toc').querySelector('a.current')?.classList.remove('current');
+  $('toc').querySelector(`a[href="${href}"]`)?.classList.add('current');
+  combo.replaceChildren(...doc.getElementById('contents-combo').childNodes);
+  here = href;
+  if (push) history.pushState({ href }, '', href);
+}
+window.addEventListener('popstate', () => {
+  const href = pageOf(location);
+  if (href !== here) swapPage(href, false).then(() => { if (findBox.value.trim()) runFind(undefined, true); });
+});
 </script>
 </body>
 </html>
