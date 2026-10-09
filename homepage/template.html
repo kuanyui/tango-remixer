@@ -35,6 +35,11 @@
 </div>
 <nav class="menubar" id="menubar"></nav>
 <div class="client">
+<!-- On a narrow window the sidebar gives way to this toolbar: a combo box naming the section, whose menu
+     lists them all (built by the script from the sidebar's entries). -->
+<div class="toolbar" id="contents-bar">
+  <button type="button" class="combo" id="contents-combo" aria-haspopup="menu" aria-expanded="false" title="Contents: the sections of the documentation">{{section_icon}}<span class="combo-text">{{title}}</span><span class="combo-arrow"><span class="arrow"></span></span></button>
+</div>
 <nav id="toc" class="sidebar" aria-label="Contents">
 <div class="sidebar-title">Contents</div>
 <ul>
@@ -73,10 +78,10 @@ function saveState() {
     maximized: document.body.classList.contains('maximized') };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
-const saved = loadState(), narrow = () => matchMedia('(max-width: 900px)').matches;
+const saved = loadState(), narrow = () => matchMedia('(max-width: 700px)').matches;
 document.body.classList.toggle('dark', !!saved.dark);
-document.body.classList.toggle('maximized', !!saved.maximized);
-document.body.classList.toggle('no-contents', saved.contents === undefined ? narrow() : !saved.contents);   // a narrow window starts without the sidebar
+document.body.classList.toggle('maximized', !!saved.maximized || narrow());   // a narrow window (a phone) has no room for a desktop margin
+document.body.classList.toggle('no-contents', saved.contents === false);
 
 // --- Window frame: Maximize drops the desktop margin; Minimize and Close are only drawn; File > Quit closes the tab
 function syncMaximize() { $('wm-maximize').title = document.body.classList.contains('maximized') ? 'Restore' : 'Maximize'; }
@@ -92,7 +97,8 @@ const MENUS = [
   ['_File', () => [
     { label: '_Quit', icon: 'Nome/actions/16/application-exit.svg', run: quit }]],
   ['_View', () => [
-    { label: '_Contents', check: !document.body.classList.contains('no-contents'), run: () => { document.body.classList.toggle('no-contents'); saveState(); } },
+    ...(narrow() ? [] : [   // the sidebar: on a narrow window the toolbar's combo box stands in for it
+      { label: '_Contents', check: !document.body.classList.contains('no-contents'), run: () => { document.body.classList.toggle('no-contents'); saveState(); } }]),
     { label: '_Dark Background', check: document.body.classList.contains('dark'), run: () => { document.body.classList.toggle('dark'); saveState(); } },
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
@@ -102,9 +108,28 @@ const MENUS = [
 buildMenuBar(MENUS, 'viewer/icons/');
 installTooltips();
 
-// On a narrow window the sidebar lies over the text, so a choice puts it away before the next page loads
-// (View > Contents brings it back).
-$('toc').addEventListener('click', e => { if (e.target.closest('a') && narrow()) { document.body.classList.add('no-contents'); saveState(); } });
+// --- The toolbar's combo box (narrow windows): its menu lists the sections, from the sidebar's entries, the
+// page's own in bold. A choice loads that page; a click elsewhere or Escape closes the menu.
+const combo = $('contents-combo'), bar = $('contents-bar');
+let comboMenu = null;
+function closeCombo() {
+  if (!comboMenu) return;
+  comboMenu.remove();
+  comboMenu = null;
+  combo.classList.remove('open');
+  combo.setAttribute('aria-expanded', 'false');
+}
+function openCombo() {
+  comboMenu = el('div', { className: 'menu contents-menu', role: 'menu' }, ...[...$('toc').querySelectorAll('li a')].map(link =>
+    el('a', { className: link.classList.contains('current') ? 'menu-item current' : 'menu-item', href: link.getAttribute('href'), role: 'menuitem' },
+      el('span', { className: 'slot' }, link.querySelector('img').cloneNode()), el('span', {}, link.querySelector('span').textContent))));
+  bar.append(comboMenu);
+  combo.classList.add('open');
+  combo.setAttribute('aria-expanded', 'true');
+}
+combo.addEventListener('click', () => comboMenu ? closeCombo() : openCombo());
+document.addEventListener('mousedown', e => { if (comboMenu && !e.target.closest('.contents-menu, #contents-combo')) closeCombo(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCombo(); });
 </script>
 </body>
 </html>

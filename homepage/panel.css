@@ -1,10 +1,11 @@
 /* The GNOME 2 panel (homepage/panel.html) on both pages of the website: 24 px, fixed at the top; the page's
    window starts under it. Colours are the window's (window.css, clearlooks.css), loaded before this file. */
-.panel { position: fixed; top: 0; left: 0; right: 0; z-index: 25; box-sizing: border-box; height: 24px; display: flex; align-items: stretch;
+:root { --panel-height: 24px; }
+.panel { position: fixed; top: 0; left: 0; right: 0; z-index: 25; box-sizing: border-box; height: var(--panel-height); display: flex; align-items: stretch;
          gap: 2px; padding: 0 2px; font-size: 12px; color: var(--fg); user-select: none;
          background: linear-gradient(var(--cl-shine, #fff), var(--bg) 40%, var(--cl-menubar-low, var(--bg))); border-bottom: 1px solid var(--cl-shade3, var(--line)); }
-body:has(> .panel) { padding-top: calc(24px + 16px); }
-body.maximized:has(> .panel) { padding-top: 24px; }
+body:has(> .panel) { padding-top: calc(var(--panel-height) + 16px); }
+body.maximized:has(> .panel) { padding-top: var(--panel-height); }
 /* Panel buttons are flat until pointed at; the open main menu and the window of the page are pressed in. */
 .panel .panel-button { display: flex; align-items: center; gap: 5px; margin: 1px 0; padding: 0 5px; border: 1px solid transparent; border-radius: 3px;
                        background: none; box-shadow: none; color: inherit; font: inherit; text-decoration: none; cursor: default; }
@@ -22,8 +23,15 @@ body.maximized:has(> .panel) { padding-top: 24px; }
 .tray { display: flex; gap: 2px; }   /* the notification area, left of the clock */
 .task { width: 230px; min-width: 0; }   /* the window list gives every window the same width; the longer title fits */
 .task span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.task .short { display: none; }   /* the short name, for narrow windows */
 .panel-clock { display: flex; align-items: center; padding: 0 8px; white-space: nowrap; }
 /* The main menu: window.css's menu, under its button. Its items are links. */
-.panel-menu { top: 23px; left: 2px; }
+.panel-menu { top: calc(var(--panel-height) - 1px); left: 2px; }
 .panel-menu .menu-item { color: inherit; text-decoration: none; }
-@media (max-width: 700px) { .task { width: auto; } .task span, .panel-clock, #main-menu span { display: none; } }
+/* Narrow window (a phone): a taller panel for fingers, the windows by their short names, no clock. */
+@media (max-width: 700px) {
+  :root { --panel-height: 32px; }
+  .task { width: auto; }
+  .task .long, .panel-clock, #main-menu span { display: none; }
+  .task .short { display: inline; }
+}

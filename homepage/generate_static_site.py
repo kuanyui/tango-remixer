@@ -486,7 +486,7 @@ def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: st
         page = template
         for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()),
                            ("page_title", section.title if k == 0 else f"{section.title} - Tango Remixer"), ("title", section.title),
-                           ("panel", panel), ("sidebar", sidebar), ("content", html), ("pager", pager)]:
+                           ("panel", panel), ("section_icon", section_icon(section, 16)), ("sidebar", sidebar), ("content", html), ("pager", pager)]:
             page = page.replace("{{" + key + "}}", value)
         pages["index.html" if k == 0 else section.file] = page
     return pages

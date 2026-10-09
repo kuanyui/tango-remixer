@@ -194,6 +194,8 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('src="../viewer/icons/Tango/22x22/places/start-here.svg"', panel)
         self.assertIn("abcdef0</span>", panel)
         self.assertIn('<span>Applications</span>\n  </button>', panel)
+        self.assertIn('<span class="long">Tango Remixer Documentation</span><span class="short">Documentation</span>', panel)
+        self.assertIn('<span class="long">Tango Remixer Icon Viewer</span><span class="short">Viewer</span>', panel)
         self.assertLess(panel.index('class="window-list"'), panel.index('<span class="tray"'))   # launchers in the notification area, before the clock
         self.assertLess(panel.index('<span class="tray"'), panel.index('class="panel-clock"'))
         self.assertEqual(panel.count('class="panel-button launcher"'), 2)
@@ -227,6 +229,8 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<span></span>', home)   # no Previous on the first page
         self.assertIn("<title>Why - Tango Remixer</title>", why)
         self.assertIn('<span class="wm-title">Tango Remixer Documentation</span>', why)   # the window keeps its name
+        self.assertIn('id="contents-combo" aria-haspopup="menu" aria-expanded="false" title="Contents: the sections of the documentation">'
+                      '<img src="viewer/icons/Tango/16x16/apps/help-browser.svg" width="16" height="16" alt=""><span class="combo-text">Why</span>', why)   # the narrow window's combo box
         self.assertIn('<span class="wm-title">Tango Remixer Documentation</span>', home)
         self.assertIn('<span id="status">Why</span>', why)
         self.assertIn('<a href="why.html" class="current" title="Why">', why)
