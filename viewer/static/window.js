@@ -14,26 +14,27 @@ function el(tag, props, ...children) {
 // so its check items and disabled items always show the current state. Click opens a menu; while one is open,
 // pointing at another title switches to it; Escape or a click elsewhere closes it.
 // `menus` is [[label, () => items], ...]; an item is null (separator) or { label, run, icon?, accel?, disabled?,
-// check? (a check item), radio? (a radio item) }. Item icons are theme paths under `iconBase`; a check item with
-// an icon shows the icon in place of the check mark, drawn pressed while checked.
+// check? (a check item), radio? (a radio item) }. Item icons are theme paths under `iconBase`. A check item with
+// an icon gives its menu two columns, marks then icons, every row keeping both so that the labels line up.
 function mnemonic(label) {   // '_File' -> 'F' underlined, then 'ile'
   const k = label.indexOf('_');
   return k < 0 ? [label] : [label.slice(0, k), el('u', {}, label[k + 1]), label.slice(k + 2)];
 }
 let openTitle = null;
 function buildMenu(items, iconBase, close) {   // the rows of a menu; `close` runs before a chosen item's action
-  return el('div', { className: 'menu' }, ...items().map(item => {
+  const rows = items();
+  const twoColumns = rows.some(item => item && item.icon && ('check' in item || 'radio' in item));
+  const slot = content => el('span', { className: 'slot' }, ...(content ? [content] : []));
+  return el('div', { className: 'menu' }, ...rows.map(item => {
     if (!item) return el('div', { className: 'menu-sep' });
-    const slot = el('span', { className: 'slot' });
-    if (item.icon) {
-      slot.append(el('img', { src: `${iconBase}${item.icon}`, width: 16, height: 16, alt: '' }));
-      if ('check' in item) slot.classList.toggle('on', !!item.check);
-    } else if ('check' in item || 'radio' in item) {
-      const mark = el('span', { className: 'check' in item ? 'check' : 'radio' });
+    let mark = null;
+    if ('check' in item || 'radio' in item) {
+      mark = el('span', { className: 'check' in item ? 'check' : 'radio' });
       mark.dataset.state = (item.check ?? item.radio) ? 'checked' : 'unchecked';
-      slot.append(mark);
     }
-    const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
+    const icon = item.icon ? el('img', { src: `${iconBase}${item.icon}`, width: 16, height: 16, alt: '' }) : null;
+    const slots = twoColumns ? [slot(mark), slot(icon)] : [slot(mark || icon)];
+    const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, ...slots, el('span', {}, ...mnemonic(item.label)));
     if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
     if (!item.disabled) row.addEventListener('click', () => { close(); item.run(); });
     return row;

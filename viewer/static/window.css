@@ -34,8 +34,7 @@ body.maximized #wm-maximize .restore { display: inline; }
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); }
 .context-menu { position: fixed; }   /* at the pointer (openContextMenu sets left and top) */
 .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 3px; white-space: nowrap; cursor: default; }
-.menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark */
-.menu-item .slot.on { box-sizing: content-box; padding: 2px; margin: -3px; border: 1px solid var(--ctl-border); border-radius: 3px; background: var(--sel); }   /* a checked item's icon: pressed */
+.menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark; both, in two columns, when an item has both */
 .menu-item .accel { margin-left: auto; padding-left: 24px; }
 .menu-item:hover:not(.disabled) { background: var(--sel); }
 .menu-item.disabled { color: var(--muted); }

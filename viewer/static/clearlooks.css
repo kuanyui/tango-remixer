@@ -99,7 +99,6 @@ body:has(dialog[open]) .window > .titlebar button.wm-button { background: var(--
 .menu { background: var(--cl-base); border: 1px solid var(--cl-menu-border); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.35); }
 .menu-item:hover:not(.disabled) { background: var(--cl-menu-grad); color: var(--cl-sel-fg); box-shadow: inset 0 0 0 1px var(--cl-sel-border); }
 .menu-item.disabled { color: var(--muted); text-shadow: 1px 1px 0 var(--cl-shine); }
-.menu-item .slot.on { background: var(--cl-btn-active); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }   /* as a pressed button */
 .menu-sep { border-top: 1px solid var(--cl-sep); border-bottom: 1px solid var(--cl-sep-hi); }
 
 /* --- status bar: an etched line along the top, the resize grip in the corner --------------------------------- */
