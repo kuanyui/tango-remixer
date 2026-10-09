@@ -1,0 +1,17 @@
+<!-- The GNOME 2 panel at the top of both pages of the website, filled by generate_static_site.py: the root
+     placeholder is the way to the site root ("" or "../"), a pressed placeholder is " pressed" for the window of
+     the page. Main menu, two launchers, the window list with the two windows, and the clock slot, which shows
+     the build instead. The launchers' marks are painted by panel.css (a mask per class). -->
+<div class="panel" id="panel" data-root="{{root}}">
+  <button type="button" class="panel-button" id="main-menu" title="Main Menu" aria-haspopup="menu" aria-expanded="false">
+    <img src="{{root}}viewer/icons/Tango/22x22/places/start-here.svg" width="22" height="22" alt="Main Menu">
+  </button>
+  <a class="panel-button launcher" href="https://github.com/kuanyui/tango-remixer" title="Source on GitHub"><span class="mark github"></span></a>
+  <a class="panel-button launcher" href="https://gitlab.com/kuanyui/tango-remixer" title="Source on GitLab"><span class="mark gitlab"></span></a>
+  <span class="panel-sep"></span>
+  <nav class="window-list" aria-label="Windows">
+    <a class="panel-button task{{home_pressed}}" href="{{root}}"><img src="{{root}}viewer/icons/Tango/16x16/places/start-here.svg" width="16" height="16" alt=""><span>Tango Remixer</span></a>
+    <a class="panel-button task{{viewer_pressed}}" href="{{root}}viewer/"><img src="{{root}}viewer/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt=""><span>Tango Remixer Icon Viewer</span></a>
+  </nav>
+  <span class="panel-clock" title="The site was generated from commit {{commit}} on {{date}}">{{date}} · {{commit}}</span>
+</div>

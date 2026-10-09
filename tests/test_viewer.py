@@ -244,7 +244,8 @@ class TestFixedIconPaths(unittest.TestCase):
     def test_named_icons_are_indexed_real_files(self) -> None:
         themes = viewer_server.source_themes()
         names = "|".join(map(re.escape, sorted(themes, key=len, reverse=True)))   # Humanity-Dark before Humanity
-        pages = [viewer_server._STATIC_DIR / "index.html", viewer_server._PROJECT_ROOT / "homepage" / "template.html"]
+        pages = [viewer_server._STATIC_DIR / "index.html", viewer_server._PROJECT_ROOT / "homepage" / "template.html",
+                 viewer_server._PROJECT_ROOT / "homepage" / "panel.html"]
         named = {path for page in pages for path in re.findall(rf"\b((?:{names})/[A-Za-z0-9_./@-]+\.svg)", page.read_text("utf-8"))}
         named |= set(viewer_server._CONTEXT_ICONS.values())
         named |= {f"{name}/{theme.icon}" for name, theme in themes.items()}

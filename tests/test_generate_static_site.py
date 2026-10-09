@@ -136,15 +136,29 @@ class TestHomepage(unittest.TestCase):
         self.assertFalse((self.tmp / "out" / ".." / "outside.svg").resolve().is_relative_to(self.out))
         self.assertEqual(sorted(p.name for p in self.out.iterdir()), ["banner.svg"])
 
+    def test_panel_marks_the_window_of_the_page(self) -> None:
+        panel = gen.render_panel("../", "viewer", gen.Repository("https://github.com/o/r", "abcdef0123"))
+        self.assertNotIn("{{", panel)
+        self.assertIn('class="panel-button task" href="../"', panel)                  # the homepage, not pressed
+        self.assertIn('class="panel-button task pressed" href="../viewer/"', panel)   # this page's window
+        self.assertIn('<span class="mark github"></span>', panel)
+        self.assertFalse(panel.endswith("\n"))
+        self.assertIn('src="../viewer/icons/Tango/22x22/places/start-here.svg"', panel)
+        self.assertIn("abcdef0</span>", panel)
+        self.assertIn('class="panel-button task pressed" href=""', gen.render_panel("", "home", gen.Repository("https://github.com/o/r", "abc")))
+
     def test_homepage_fills_the_template(self) -> None:
-        page = gen.render_homepage("# Hi\n\nSee [the lsp](lsp/README.md).", gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out)
+        page = gen.render_homepage("# Hi\n\nSee [the lsp](lsp/README.md).", gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out,
+                                   panel='<div class="panel">P</div>')
         self.assertNotIn("{{", page)
+        self.assertIn('<div class="panel">P</div>\n<div class="window">', page)
+        self.assertIn('<nav class="menubar" id="menubar"></nav>', page)
+        self.assertIn('<nav id="toc" class="sidebar" aria-label="Contents">\n<div class="sidebar-title">Contents</div>\n<div class="toc">', page)
         self.assertIn('<h1 id="hi">Hi</h1>', page)
         self.assertIn('href="https://gitlab.com/g/r/-/blob/abcdef0123/lsp/README.md"', page)
-        self.assertIn('href="https://gitlab.com/g/r">Source on GitLab</a>', page)
+        self.assertIn('href="https://gitlab.com/g/r" target="_blank" rel="noopener">Source on GitLab</a>', page)
         self.assertIn("commit abcdef0,", page)
-        self.assertIn('href="viewer/"', page)
-        self.assertIn('<nav id="toc" aria-label="Contents">\n<div class="toc">\n<ul>\n<li><a href="#hi">Hi</a></li>\n</ul>\n</div>', page)
+        self.assertIn('<li><a href="#hi">Hi</a></li>', page)
 
 
 class TestViewerExport(unittest.TestCase):
@@ -173,7 +187,7 @@ class TestViewerExport(unittest.TestCase):
         site = self.tmp / "viewer"
         urls = {"ThemeA": "https://github.com/o/a/blob/0123abc", "BlueA": "https://github.com/o/a/blob/0123abc"}
         self.assertEqual(gen.export_viewer(self.themes, site, urls), (4, 4))
-        self.assertEqual((site / "index.html").read_bytes(), (viewer_server._STATIC_DIR / "index.html").read_bytes())
+        self.assertEqual((site / "index.html").read_bytes(), (viewer_server._STATIC_DIR / "index.html").read_bytes())   # no panel given: the page as is
         self.assertTrue((site / "static/llselect/index.umd.js").is_file())
         self.assertTrue((site / "static/clearlooks.css").is_file())
         self.assertFalse((site / "static/index.html").exists())
@@ -198,6 +212,15 @@ class TestViewerExport(unittest.TestCase):
         self.assertEqual((site / "icons/BlueA/apps/32/foo.svg").read_bytes(), _SVG.replace(b"16", b"32").replace(b"#f57900", b"#3465a4"))
         self.assertEqual(gen.export_viewer(self.themes, site, urls), (4, 0))
         self.assertEqual(json.loads((site / ".versions.json").read_text()), {})   # not a checkout: compared file by file every time
+
+    def test_export_puts_the_panel_above_the_viewer_window(self) -> None:
+        site, urls = self.tmp / "viewer3", {"ThemeA": "https://github.com/o/a/blob/0123abc", "BlueA": "https://github.com/o/a/blob/0123abc"}
+        gen.export_viewer(self.themes, site, urls, panel='<div class="panel">P</div>')
+        page = (site / "index.html").read_text("utf-8")
+        for once in ['<link rel="stylesheet" href="../panel.css">\n</head>', '<body>\n<div class="panel">P</div>\n<div class="window">',
+                     '<script src="../panel.js"></script>\n</body>']:
+            self.assertEqual(page.count(once), 1, once)
+        self.assertNotIn('class="panel"', (viewer_server._STATIC_DIR / "index.html").read_text("utf-8"))   # the viewer page itself knows no panel
 
     def test_export_skips_a_clean_theme_at_the_commit_of_the_last_export(self) -> None:
         repo = self.tmp / "repo"

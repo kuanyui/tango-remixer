@@ -3,8 +3,11 @@
 """Generate the project website as plain files (no server), the way GitHub Pages
 and GitLab Pages publish it:
 
-    index.html, style.css     the homepage: README.md rendered into template.html, with a
-                              table of contents that follows the reading position
+    index.html, style.css     the homepage: README.md rendered into template.html as a Clearlooks
+                              window (viewer/static/window.*, clearlooks.css) with a Contents sidebar
+                              that follows the reading position
+    panel.css, panel.js,      the GNOME 2 panel above both windows (panel.html: main menu, launchers
+    marks/                    with the GitHub / GitLab marks, window list, the build in the clock slot)
     tango-mixer-banner.svg    (and any other image README.md shows)
     viewer/                   the icon viewer (viewer/) as a static site: its page and
                               assets, api/index.json, and every indexed SVG under
@@ -134,10 +137,11 @@ def clean_commit(folder: Path) -> Optional[str]:
     return None if status.strip() else repo.commit
 
 
-def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str]) -> Tuple[int, int]:
-    """Write the viewer into `out`: index.html and static/ from viewer/static/,
-    api/index.json with `urls[name]` as each theme's `url`, and icons/<theme>/<path>
-    for every indexed file. Returns (icons in the site, icons written this time).
+def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str = "") -> Tuple[int, int]:
+    """Write the viewer into `out`: index.html (with the site's `panel` above its
+    window, when given) and static/ from viewer/static/, api/index.json with
+    `urls[name]` as each theme's `url`, and icons/<theme>/<path> for every indexed
+    file. Returns (icons in the site, icons written this time).
 
     A rerun is quick: a theme whose checkout is clean and at the commit of the last
     export (noted in .versions.json; for a Blue* theme together with the colorizer's
@@ -145,8 +149,13 @@ def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str
     rewritten when its source (or, for a Blue* theme, the colorizer) changed, and
     dropped when no longer indexed."""
     shutil.rmtree(out / "static", ignore_errors=True)
-    shutil.copytree(_STATIC_DIR, out / "static", ignore=shutil.ignore_patterns("index.html"))   # llselect, clearlooks.css
-    shutil.copyfile(_STATIC_DIR / "index.html", out / "index.html")
+    shutil.copytree(_STATIC_DIR, out / "static", ignore=shutil.ignore_patterns("index.html"))   # llselect, window.*, clearlooks.css
+    page = (_STATIC_DIR / "index.html").read_text("utf-8")
+    if panel:   # the panel's stylesheet, markup and script, from the site root above this folder
+        page = page.replace("</head>", '<link rel="stylesheet" href="../panel.css">\n</head>', 1)
+        page = page.replace("<body>\n", "<body>\n" + panel + "\n", 1)
+        page = page.replace("</body>", '<script src="../panel.js"></script>\n</body>', 1)
+    (out / "index.html").write_text(page, "utf-8")
     index = build_index(themes)
     (out / "api").mkdir(exist_ok=True)
     (out / "api" / "index.json").write_bytes(index_json(themes, index, "url", urls))
@@ -262,14 +271,25 @@ def localize(html: str, root: Path, out: Path, repo: Repository) -> str:
     return re.sub(r'\b(src|href)="(?![a-z]+:|#|/)([^"]+)"', repl, html)
 
 
-def render_homepage(readme: str, repo: Repository, root: Path, out: Path) -> str:
-    """index.html of the site: template.html with README.md and its table of contents rendered into it."""
+def render_panel(root: str, active: str, repo: Repository) -> str:
+    """homepage/panel.html for a page `root` away from the site root ("" for the
+    homepage, "../" for the viewer), with the window of the page (`home` or
+    `viewer`) pressed in the window list."""
+    panel = (_HOMEPAGE_DIR / "panel.html").read_text("utf-8")
+    for key, value in [("root", root), ("home_pressed", " pressed" if active == "home" else ""),
+                       ("viewer_pressed", " pressed" if active == "viewer" else ""), ("commit", repo.commit[:7]), ("date", date.today().isoformat())]:
+        panel = panel.replace("{{" + key + "}}", value)
+    return panel.rstrip("\n")
+
+
+def render_homepage(readme: str, repo: Repository, root: Path, out: Path, panel: str = "") -> str:
+    """index.html of the site: template.html with the panel, README.md and its table of contents rendered into it."""
     rendered = render_markdown(readme)
     html = localize(rendered.html, root, out, repo)
     host = "GitHub" if "github" in repo.host else "GitLab" if "gitlab" in repo.host else repo.host
     page = (_HOMEPAGE_DIR / "template.html").read_text("utf-8")
     for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()),
-                       ("toc", rendered.toc), ("readme", html)]:
+                       ("panel", panel), ("toc", rendered.toc), ("readme", html)]:
         page = page.replace("{{" + key + "}}", value)
     return page
 
@@ -279,13 +299,15 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     started = time.perf_counter()
     out.mkdir(parents=True, exist_ok=True)
     repo = site_repository(root)
-    shutil.copyfile(_HOMEPAGE_DIR / "style.css", out / "style.css")
-    (out / "index.html").write_text(render_homepage((root / "README.md").read_text("utf-8"), repo, root, out), "utf-8")
+    for name in ["style.css", "panel.css", "panel.js"]:
+        shutil.copyfile(_HOMEPAGE_DIR / name, out / name)
+    shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
+    (out / "index.html").write_text(render_homepage((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo)), "utf-8")
     themes = source_themes()
     urls: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's
     for theme in themes.values():
         urls.setdefault(theme.folder, source_url(theme.folder))
-    total, written = export_viewer(themes, out / "viewer", {name: urls[theme.folder] for name, theme in themes.items()})
+    total, written = export_viewer(themes, out / "viewer", {name: urls[theme.folder] for name, theme in themes.items()}, render_panel("../", "viewer", repo))
     print(f"Homepage from README.md at {repo.web} ({repo.commit[:7]}). Viewer: {total} icons of {len(themes)} themes, "
           f"{written} written, the rest unchanged. {out} ready in {time.perf_counter() - started:.0f}s.", flush=True)
 
