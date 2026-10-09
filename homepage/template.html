@@ -74,14 +74,14 @@ function loadState() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 }
 function saveState() {
-  const state = { dark: document.body.classList.contains('dark'), contents: !document.body.classList.contains('no-contents'),
+  const state = { dark: document.body.classList.contains('dark'), sidebar: !document.body.classList.contains('no-contents'),
     maximized };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 const saved = loadState(), narrow = () => matchMedia('(max-width: 700px)').matches;
 let maximized = !!saved.maximized;   // the user's choice
 document.body.classList.toggle('dark', !!saved.dark);
-document.body.classList.toggle('no-contents', saved.contents === false);
+document.body.classList.toggle('no-contents', saved.sidebar === false);   // `sidebar`, not the earlier `contents`: builds before 2613ba9 saved that false on every narrow window
 
 // --- Window frame: Maximize drops the desktop margin; a narrow window (a phone) has no room for it and is maximized
 // whatever the choice, the button only drawn there, as Minimize and Close are; File > Quit closes the tab
