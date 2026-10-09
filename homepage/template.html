@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Tango Remixer</title>
+<title>{{page_title}}</title>
 <meta name="description" content="Remix Tango-flavoured icon themes (Tango, GNOME, Humanity, ...) into one XDG icon theme for Qt and GTK applications.">
 <!-- Tango's own Start Here icon (two footprints, by Jakub Steiner), from the viewer's copy of the theme -->
 <link rel="icon" href="viewer/icons/Tango/16x16/places/start-here.svg" sizes="16x16" type="image/svg+xml">
@@ -17,13 +17,14 @@
 <link rel="stylesheet" href="panel.css">
 </head>
 <body>
-<!-- Filled by homepage/generate_static_site.py: the panel, the README's top-level headings (toc), README.md as
-     HTML (readme), and what names the repository the site was built from. -->
+<!-- Filled by homepage/generate_static_site.py, once per top-level heading of README.md: the panel, the page's
+     title, the Contents sidebar with every section (this one selected), the section itself (content), the
+     Previous / Next links (pager), and what names the repository the site was built from. -->
 {{panel}}
 <div class="window">
 <div class="titlebar">
   <img class="wm-icon" src="viewer/icons/Tango/16x16/places/start-here.svg" width="16" height="16" alt="">
-  <span class="wm-title">Tango Remixer</span>
+  <span class="wm-title">{{title}}</span>
   <span class="wm-buttons">
     <button type="button" class="wm-button" id="wm-minimize" title="Minimize (a browser tab has nothing to minimize)"><svg viewBox="0 0 9 9"><rect class="o" x="0.5" y="5.5" width="8" height="3"/><rect class="i filled" x="1" y="6" width="7" height="2"/></svg></button>
     <button type="button" class="wm-button" id="wm-maximize" title="Maximize"><svg viewBox="0 0 9 9"><g class="maximize"><rect class="o" x="0.5" y="0.5" width="8" height="8"/><rect class="o" x="2.5" y="3.5" width="4" height="3"/><rect class="i" x="1.5" y="1.5" width="6" height="6"/><path class="i" d="M2 2.5h5"/></g><g class="restore"><rect class="o" x="1.5" y="1.5" width="6" height="6"/><rect class="o" x="3.5" y="4.5" width="2" height="2"/><rect class="i" x="2.5" y="2.5" width="4" height="4"/><path class="i" d="M3 3.5h3"/></g></svg></button>
@@ -34,13 +35,16 @@
 <div class="client">
 <nav id="toc" class="sidebar" aria-label="Contents">
 <div class="sidebar-title">Contents</div>
-{{toc}}
+<ul>
+{{sidebar}}
+</ul>
 </nav>
 <main id="content" class="readme">
-{{readme}}
+{{content}}
+<nav class="pager">{{pager}}</nav>
 </main>
 </div>
-<div class="statusbar"><span id="status"></span><span class="grip"></span></div>
+<div class="statusbar"><span id="status">{{title}}</span><span class="grip"></span></div>
 </div>
 <dialog id="about" aria-labelledby="about-name">
   <div class="titlebar"><span class="wm-title">About Tango Remixer</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
@@ -55,8 +59,9 @@
 </dialog>
 <script src="panel.js"></script>
 <script>
-// The homepage as a GNOME 2 help-browser window: Contents sidebar, the README in the window's own scroll box,
-// the current section in the status bar. State (dark background, Contents shown, maximized) lives in localStorage.
+// The homepage as a GNOME 2 help-browser window: one page per section, the Contents sidebar with this page's
+// section selected, the text in the window's own scroll box. State (dark background, Contents shown, maximized)
+// lives in localStorage and carries over from page to page.
 const STORAGE_KEY = 'tango-remixer-homepage';
 function loadState() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
@@ -85,7 +90,7 @@ const MENUS = [
   ['_File', () => [
     { label: '_Quit', icon: 'Nome/actions/16/application-exit.svg', run: quit }]],
   ['_View', () => [
-    { label: '_Contents', check: !document.body.classList.contains('no-contents'), run: () => { document.body.classList.toggle('no-contents'); saveState(); update(); } },
+    { label: '_Contents', check: !document.body.classList.contains('no-contents'), run: () => { document.body.classList.toggle('no-contents'); saveState(); } },
     { label: '_Dark Background', check: document.body.classList.contains('dark'), run: () => { document.body.classList.toggle('dark'); saveState(); } },
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
@@ -95,36 +100,9 @@ const MENUS = [
 buildMenuBar(MENUS, 'viewer/icons/');
 installTooltips();
 
-// --- Contents: follows the reading position. The last heading above the top of the scroll box is the current
-// one; its row is selected and kept in view, the status bar names it. At the end of the page, where the last
-// headings never reach the top, the heading jumped to wins, else the last one.
-const content = $('content'), toc = $('toc'), links = [...toc.querySelectorAll('a[href^="#"]')];
-const idOf = a => decodeURIComponent(a.hash.slice(1));
-const headings = links.map(a => document.getElementById(idOf(a))).filter(Boolean);   // in reading order, as the list is
-let current = null;
-function update() {
-  const top = content.getBoundingClientRect().top;
-  let active = headings[0];
-  for (const h of headings) { if (h.getBoundingClientRect().top <= top + 24) active = h; else break; }
-  if (content.scrollTop + content.clientHeight >= content.scrollHeight - 2) {
-    const target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
-    active = target && headings.includes(target) && target.getBoundingClientRect().top >= top ? target : headings[headings.length - 1];
-  }
-  if (!active || active === current) return;
-  current = active;
-  let row = null;
-  for (const a of links) { const on = idOf(a) === active.id; a.classList.toggle('current', on); if (on) row = a; }
-  $('status').textContent = active.textContent;
-  const r = row.getBoundingClientRect(), box = toc.getBoundingClientRect();
-  if (r.top < box.top || r.bottom > box.bottom) toc.scrollTop += r.top - box.top - box.height / 2;
-}
-let queued = false;
-content.addEventListener('scroll', () => { if (!queued) { queued = true; requestAnimationFrame(() => { queued = false; update(); }); } }, { passive: true });
-addEventListener('resize', update);
-addEventListener('hashchange', update);   // a row clicked while its heading is already in view scrolls nothing
-update();
-// On a narrow window the sidebar lies over the text, so a choice puts it away (View > Contents brings it back).
-toc.addEventListener('click', e => { if (e.target.closest('a') && narrow()) { document.body.classList.add('no-contents'); saveState(); } });
+// On a narrow window the sidebar lies over the text, so a choice puts it away before the next page loads
+// (View > Contents brings it back).
+$('toc').addEventListener('click', e => { if (e.target.closest('a') && narrow()) { document.body.classList.add('no-contents'); saveState(); } });
 </script>
 </body>
 </html>

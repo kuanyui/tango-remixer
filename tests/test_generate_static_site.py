@@ -114,12 +114,16 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<p class="alert-title">Note</p>\n<p>Like this:</p>\n<pre><code>./build.py --x\n</code></pre>\n<p>The built files.</p>', html)
         self.assertNotIn("```", html)
 
-    def test_markdown_builds_a_table_of_contents_of_the_top_level_headings(self) -> None:
-        rendered = gen.render_markdown("# Top A\n\n## Mid B\n\n### Low C\n\ntext\n\n# Top E\n")
-        self.assertEqual(rendered.toc.replace("\n", ""),
-                         '<div class="toc"><ul><li><a href="#top-a">Top A</a></li><li><a href="#top-e">Top E</a></li></ul></div>')
-        self.assertIn('<h2 id="mid-b">Mid B</h2>', rendered.html)   # still an anchor, just not listed
-
+    def test_markdown_lists_the_top_level_headings_and_sections_split_there(self) -> None:
+        rendered = gen.render_markdown("banner\n\n# Top A\n\n## Mid B\n\n### Low C\n\ntext\n\n# License**s**\n\nend\n")
+        self.assertEqual([(h["id"], h["name"]) for h in rendered.headings], [("top-a", "Top A"), ("licenses", "Licenses")])
+        self.assertIn('<h2 id="mid-b">Mid B</h2>', rendered.html)   # an anchor, not a section
+        sections = gen.split_sections(rendered)
+        self.assertEqual([(s.id, s.title, s.file) for s in sections], [("top-a", "Top A", "./"), ("licenses", "Licenses", "licenses.html")])
+        self.assertTrue(sections[0].html.startswith('<p>banner</p>\n<h1 id="top-a">'))   # the banner belongs to the first section
+        self.assertIn('<h3 id="low-c">', sections[0].html)
+        self.assertTrue(sections[1].html.startswith('<h1 id="licenses">License<strong>s</strong></h1>'))
+        self.assertTrue(sections[1].html.rstrip().endswith("<p>end</p>"))
     def test_localize_copies_images_and_links_repository_files(self) -> None:
         repo = gen.Repository("https://github.com/o/r", "abc")
         html = ('<img src="banner.svg" alt=""> <a href="lsp/README.md">file</a> <a href="lsp">folder</a> <a href="https://x.y/z">web</a> '
@@ -139,27 +143,63 @@ class TestHomepage(unittest.TestCase):
     def test_panel_marks_the_window_of_the_page(self) -> None:
         panel = gen.render_panel("../", "viewer", gen.Repository("https://github.com/o/r", "abcdef0123"))
         self.assertNotIn("{{", panel)
-        self.assertIn('class="panel-button task" href="../"', panel)                  # the homepage, not pressed
+        self.assertIn('class="panel-button task" href=".././"', panel)               # the homepage, not pressed
         self.assertIn('class="panel-button task pressed" href="../viewer/"', panel)   # this page's window
         self.assertIn('<span class="mark github"></span>', panel)
         self.assertFalse(panel.endswith("\n"))
         self.assertIn('src="../viewer/icons/Tango/22x22/places/start-here.svg"', panel)
         self.assertIn("abcdef0</span>", panel)
-        self.assertIn('class="panel-button task pressed" href=""', gen.render_panel("", "home", gen.Repository("https://github.com/o/r", "abc")))
+        self.assertIn('class="panel-button task pressed" href="./"', gen.render_panel("", "home", gen.Repository("https://github.com/o/r", "abc")))
 
-    def test_homepage_fills_the_template(self) -> None:
-        page = gen.render_homepage("# Hi\n\nSee [the lsp](lsp/README.md).", gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out,
-                                   panel='<div class="panel">P</div>')
-        self.assertNotIn("{{", page)
-        self.assertIn('<div class="panel">P</div>\n<div class="window">', page)
-        self.assertIn('<nav class="menubar" id="menubar"></nav>', page)
-        self.assertIn('<nav id="toc" class="sidebar" aria-label="Contents">\n<div class="sidebar-title">Contents</div>\n<div class="toc">', page)
-        self.assertIn('<h1 id="hi">Hi</h1>', page)
-        self.assertIn('href="https://gitlab.com/g/r/-/blob/abcdef0123/lsp/README.md"', page)
-        self.assertIn('href="https://gitlab.com/g/r" target="_blank" rel="noopener">Source on GitLab</a>', page)
-        self.assertIn("commit abcdef0,", page)
-        self.assertIn('<li><a href="#hi">Hi</a></li>', page)
+    def test_pages_fill_the_template_one_per_section_with_icons_and_links_across(self) -> None:
+        icons = lambda context, name, size: f"Tango/{size}x{size}/{context}/{name}.svg"
+        pages = gen.render_pages("# Hi\n\nSee [the lsp](lsp/README.md), [why](#why) and [its part](#part).\n\n# Why\n\nBecause. [Back](#hi)\n\n## Part\n",
+                                 gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out, '<div class="panel">P</div>', icons)
+        self.assertEqual(list(pages), ["index.html", "why.html"])
+        home, why = pages["index.html"], pages["why.html"]
+        for page in (home, why):
+            self.assertNotIn("{{", page)
+            self.assertIn('<div class="panel">P</div>\n<div class="window">', page)
+            self.assertIn('<nav class="menubar" id="menubar"></nav>', page)
+            self.assertIn('href="https://gitlab.com/g/r" target="_blank" rel="noopener">Source on GitLab</a>', page)
+            self.assertIn("commit abcdef0,", page)
+            # the sidebar: every section, with its icon at 16 px (the default one for headings SECTION_ICONS does not know)
+            self.assertIn('<li><a href="./"', page)
+            self.assertIn('<img src="viewer/icons/Tango/16x16/mimetypes/text-x-generic.svg" width="16" height="16" alt=""><span>Hi</span></a></li>', page)
+            self.assertIn('<img src="viewer/icons/Tango/16x16/apps/help-browser.svg" width="16" height="16" alt=""><span>Why</span></a></li>', page)
+        self.assertIn("<title>Hi</title>", home)
+        self.assertIn('<a href="./" class="current" title="Hi">', home)
+        self.assertIn('<h1 id="hi"><img src="viewer/icons/Tango/48x48/mimetypes/text-x-generic.svg" width="48" height="48" alt="">Hi</h1>', home)
+        self.assertIn('<a href="https://gitlab.com/g/r/-/blob/abcdef0123/lsp/README.md">the lsp</a>', home)
+        self.assertIn('<a href="why.html">why</a>', home)             # another section: its page
+        self.assertIn('<a href="why.html#part">its part</a>', home)   # a heading inside it: its page, at the heading
+        self.assertIn('<a class="next" href="why.html">Next: Why<img', home)
+        self.assertIn('<span></span>', home)   # no Previous on the first page
+        self.assertIn("<title>Why - Tango Remixer</title>", why)
+        self.assertIn('<span class="wm-title">Why</span>', why)
+        self.assertIn('<span id="status">Why</span>', why)
+        self.assertIn('<a href="why.html" class="current" title="Why">', why)
+        self.assertIn('<h1 id="why"><img src="viewer/icons/Tango/48x48/apps/help-browser.svg" width="48" height="48" alt="">Why</h1>', why)
+        self.assertIn('<a href="./">Back</a>', why)   # the first section's heading: the index page
+        self.assertIn('<h2 id="part">Part</h2>', why)
+        self.assertIn('<a class="previous" href="./"><img src="viewer/icons/Tango/16x16/actions/go-previous.svg" width="16" height="16" alt="">Previous: Hi</a>', why)
+        self.assertEqual(sorted(p.name for p in self.out.iterdir()), [])   # nothing copied: no image in this README
 
+    @unittest.skipUnless(all(raw.copied_src_theme_folder.is_dir() for raw in viewer_server.BUILT_IN_RAW_ICON_THEMES_PATH),
+                         "theme submodules not checked out")
+    def test_every_section_icon_exists_in_tango_or_nome_at_both_sizes(self) -> None:
+        index = viewer_server.build_index(viewer_server.source_themes())
+        for context, name in [*gen.SECTION_ICONS.values(), gen._DEFAULT_ICON, ("actions", "go-previous"), ("actions", "go-next")]:
+            for size in (16, 48):
+                path = gen.icon_path(index, context, name, size)
+                self.assertTrue(path.startswith("Tango/"), (context, name, path))   # the chosen ones all come from Tango
+        self.assertEqual(gen.icon_path(index, "places", "start-here", 16), "Tango/16x16/places/start-here.svg")
+        self.assertEqual(gen.icon_path(index, "mimetypes", "package-x-generic", 16), "Tango/32x32/mimetypes/package-x-generic.svg")   # no 16 or 22: the next size up
+        tango = {(e["context"], e["name"]) for e in index if e["theme"] == "Tango"}
+        nome_only = next(e for e in index if e["theme"] == "Nome" and (e["context"], e["name"]) not in tango)
+        self.assertTrue(gen.icon_path(index, nome_only["context"], nome_only["name"], 48).startswith("Nome/"))   # Tango lacks it: Nome
+        with self.assertRaises(LookupError):
+            gen.icon_path(index, "apps", "no-such-icon", 16)
 
 class TestViewerExport(unittest.TestCase):
 

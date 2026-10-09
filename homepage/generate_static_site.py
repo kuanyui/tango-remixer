@@ -3,9 +3,10 @@
 """Generate the project website as plain files (no server), the way GitHub Pages
 and GitLab Pages publish it:
 
-    index.html, style.css     the homepage: README.md rendered into template.html as a Clearlooks
-                              window (viewer/static/window.*, clearlooks.css) with a Contents sidebar
-                              that follows the reading position
+    index.html, <id>.html,    the homepage: README.md rendered into template.html, one page per
+    style.css                 top-level heading, as a Clearlooks window (viewer/static/window.*,
+                              clearlooks.css) with a Contents sidebar; every section has an icon
+                              (SECTION_ICONS: Tango where it has it, else Nome)
     panel.css, panel.js,      the GNOME 2 panel above both windows (panel.html: main menu, launchers
     marks/                    with the GitHub / GitLab marks, window list, the build in the clock slot)
     tango-mixer-banner.svg    (and any other image README.md shows)
@@ -43,8 +44,9 @@ import subprocess
 import sys
 import time
 from datetime import date
+from functools import partial
 from pathlib import Path
-from typing import Dict, List, NamedTuple, Optional, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -57,9 +59,37 @@ _ALERTS: Tuple[str, ...] = ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
 
 
 class Rendered(NamedTuple):
-    """README.md as HTML, and its table of contents: a list of the top-level headings."""
+    """README.md as HTML, and its top-level headings (Python-Markdown's toc tokens: id, name, html, ...)."""
     html: str
-    toc: str
+    headings: List[Dict[str, object]]
+
+
+class Section(NamedTuple):
+    """One top-level heading of README.md with everything under it: one page of the site."""
+    id: str
+    title: str
+    """plain text"""
+    file: str
+    """index.html for the first section, <id>.html for the others"""
+    html: str
+    """the heading and what follows it; the first section also carries what comes before it (the banner)"""
+
+
+SECTION_ICONS: Dict[str, Tuple[str, str]] = {   # top-level heading id -> (context, icon name), from Tango where it has the icon, else Nome
+    "tango-remixer": ("places", "start-here"),
+    "why": ("apps", "help-browser"),
+    "used-submodules--thirdparties-tarballs": ("mimetypes", "package-x-generic"),
+    "built-in-icon-themes-and-licenses": ("apps", "preferences-desktop-theme"),
+    "how-to-use-in-qt-project": ("categories", "applications-development"),
+    "build-svg-and-qrc": ("apps", "utilities-terminal"),
+    "internal-concepts": ("categories", "preferences-system"),
+    "acknowledgments": ("emblems", "emblem-favorite"),
+    "licenses": ("mimetypes", "x-office-document"),
+}
+_DEFAULT_ICON: Tuple[str, str] = ("mimetypes", "text-x-generic")
+"""For a section SECTION_ICONS does not know."""
+IconLookup = Callable[[str, str, int], str]
+"""(context, icon name, size in px) -> `<theme>/<path>` under viewer/icons/"""
 
 
 class Repository(NamedTuple):
@@ -137,11 +167,13 @@ def clean_commit(folder: Path) -> Optional[str]:
     return None if status.strip() else repo.commit
 
 
-def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str = "") -> Tuple[int, int]:
+def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str = "",
+                  index: Optional[List[Dict[str, object]]] = None) -> Tuple[int, int]:
     """Write the viewer into `out`: index.html (with the site's `panel` above its
     window, when given) and static/ from viewer/static/, api/index.json with
     `urls[name]` as each theme's `url`, and icons/<theme>/<path> for every indexed
-    file. Returns (icons in the site, icons written this time).
+    file (`index`, built here when not given). Returns (icons in the site, icons
+    written this time).
 
     A rerun is quick: a theme whose checkout is clean and at the commit of the last
     export (noted in .versions.json; for a Blue* theme together with the colorizer's
@@ -156,7 +188,8 @@ def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str
         page = page.replace("<body>\n", "<body>\n" + panel + "\n", 1)
         page = page.replace("</body>", '<script src="../panel.js"></script>\n</body>', 1)
     (out / "index.html").write_text(page, "utf-8")
-    index = build_index(themes)
+    if index is None:
+        index = build_index(themes)
     (out / "api").mkdir(exist_ok=True)
     (out / "api" / "index.json").write_bytes(index_json(themes, index, "url", urls))
     versions_file = out / ".versions.json"
@@ -245,12 +278,37 @@ def render_markdown(text: str) -> Rendered:
         lines.append(line)
     md = markdown.Markdown(extensions=["extra", "toc"], extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1"}})
     html: str = md.convert("".join(lines))
+    headings: List[Dict[str, object]] = md.toc_tokens
 
     def alert(m: re.Match[str]) -> str:
         head = f'<blockquote class="alert {m[1].lower()}">\n<p class="alert-title">{m[1].capitalize()}</p>'
         return head if m[2] == "</p>" else head + "\n<p>"   # the marker shared its paragraph with the text after it
 
-    return Rendered(re.sub(rf"<blockquote>\s*<p>\[!({'|'.join(_ALERTS)})\](</p>|\n)", alert, html), md.toc)
+    return Rendered(re.sub(rf"<blockquote>\s*<p>\[!({'|'.join(_ALERTS)})\](</p>|\n)", alert, html), headings)
+
+
+def split_sections(rendered: Rendered) -> List[Section]:
+    """The rendered README cut at its top-level headings, one Section each, in order."""
+    parts = re.split(r'(?=<h1 id=")', rendered.html)
+    if not parts[0].startswith("<h1 "):   # what comes before the first heading (the banner) belongs to the first section
+        parts[1:2] = [parts[0] + parts[1]]
+        del parts[0]
+    assert len(parts) == len(rendered.headings), (len(parts), len(rendered.headings))
+    return [Section(str(h["id"]), str(h["name"]), "./" if k == 0 else f"{h['id']}.html", part)
+            for k, (h, part) in enumerate(zip(rendered.headings, parts))]
+
+
+def icon_path(index: List[Dict[str, object]], context: str, name: str, size: int) -> str:
+    """`<theme>/<path>` under viewer/icons/ of the icon `name` from Tango, else Nome,
+    at the smallest of its sizes that is `size` or larger (else its largest), for the
+    page to draw at `size` px. `index` is the viewer's (build_index)."""
+    for theme in ("Tango", "Nome"):
+        for entry in index:
+            if entry["theme"] == theme and entry["context"] == context and entry["name"] == name:
+                sizes = [(int(s["size"]), s["path"]) for s in entry["sizes"] if s["size"] != "scalable"]   # type: ignore[index]
+                fitting = [s for s in sizes if s[0] >= size] or [max(sizes)]
+                return f"{theme}/{min(fitting)[1]}"
+    raise LookupError(f"Neither Tango nor Nome has {context}/{name}")
 
 
 def localize(html: str, root: Path, out: Path, repo: Repository) -> str:
@@ -282,16 +340,49 @@ def render_panel(root: str, active: str, repo: Repository) -> str:
     return panel.rstrip("\n")
 
 
-def render_homepage(readme: str, repo: Repository, root: Path, out: Path, panel: str = "") -> str:
-    """index.html of the site: template.html with the panel, README.md and its table of contents rendered into it."""
-    rendered = render_markdown(readme)
-    html = localize(rendered.html, root, out, repo)
+def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: str, icons: IconLookup) -> Dict[str, str]:
+    """The pages of the site, file name -> HTML: one per top-level heading of
+    README.md, from template.html with the panel, the Contents sidebar (every
+    section with its icon, this page's selected), the section with its icon in the
+    heading, and Previous / Next links. A link to a heading of another section
+    goes to that section's page."""
+    sections = split_sections(render_markdown(readme))
+    page_of: Dict[str, str] = {}   # heading id -> file
+    for section in sections:
+        for anchor in re.findall(r' id="([^"]+)"', section.html):
+            page_of.setdefault(anchor, section.file)
+
+    def cross_link(m: re.Match[str], here: Section) -> str:
+        anchor = m[1]
+        if page_of.get(anchor, here.file) == here.file:
+            return m[0]
+        return f'href="{page_of[anchor]}"' if anchor in {s.id for s in sections} else f'href="{page_of[anchor]}#{anchor}"'
+
+    def icon(context: str, name: str, size: int) -> str:
+        return f'<img src="viewer/icons/{icons(context, name, size)}" width="{size}" height="{size}" alt="">'
+
     host = "GitHub" if "github" in repo.host else "GitLab" if "gitlab" in repo.host else repo.host
-    page = (_HOMEPAGE_DIR / "template.html").read_text("utf-8")
-    for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()),
-                       ("panel", panel), ("toc", rendered.toc), ("readme", html)]:
-        page = page.replace("{{" + key + "}}", value)
-    return page
+    template = (_HOMEPAGE_DIR / "template.html").read_text("utf-8")
+    pages: Dict[str, str] = {}
+    for k, section in enumerate(sections):
+        context, name = SECTION_ICONS.get(section.id, _DEFAULT_ICON)
+        html = re.sub(r'href="#([^"]+)"', lambda m: cross_link(m, section), localize(section.html, root, out, repo))   # localize first: "./" is a page here, not the repository's root
+        html = html.replace(f'<h1 id="{section.id}">', f'<h1 id="{section.id}">{icon(context, name, 48)}', 1)
+        sidebar = "\n".join(
+            f'<li><a href="{s.file}"{" class=\"current\"" if s is section else ""} title="{s.title}">'   # the title again as a tooltip: a long one is cut short in the list
+            f'{icon(*SECTION_ICONS.get(s.id, _DEFAULT_ICON), 16)}<span>{s.title}</span></a></li>'
+            for s in sections)
+        previous, following = (sections[k - 1] if k else None), (sections[k + 1] if k + 1 < len(sections) else None)
+        pager = "".join([
+            f'<a class="previous" href="{previous.file}">{icon("actions", "go-previous", 16)}Previous: {previous.title}</a>' if previous else "<span></span>",
+            f'<a class="next" href="{following.file}">Next: {following.title}{icon("actions", "go-next", 16)}</a>' if following else "<span></span>"])
+        page = template
+        for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()),
+                           ("page_title", section.title if k == 0 else f"{section.title} - Tango Remixer"), ("title", section.title),
+                           ("panel", panel), ("sidebar", sidebar), ("content", html), ("pager", pager)]:
+            page = page.replace("{{" + key + "}}", value)
+        pages["index.html" if k == 0 else section.file] = page
+    return pages
 
 
 def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
@@ -302,13 +393,16 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     for name in ["style.css", "panel.css", "panel.js"]:
         shutil.copyfile(_HOMEPAGE_DIR / name, out / name)
     shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
-    (out / "index.html").write_text(render_homepage((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo)), "utf-8")
     themes = source_themes()
+    index = build_index(themes)
+    pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_path, index))
+    for file, html in pages.items():
+        (out / file).write_text(html, "utf-8")
     urls: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's
     for theme in themes.values():
         urls.setdefault(theme.folder, source_url(theme.folder))
-    total, written = export_viewer(themes, out / "viewer", {name: urls[theme.folder] for name, theme in themes.items()}, render_panel("../", "viewer", repo))
-    print(f"Homepage from README.md at {repo.web} ({repo.commit[:7]}). Viewer: {total} icons of {len(themes)} themes, "
+    total, written = export_viewer(themes, out / "viewer", {name: urls[theme.folder] for name, theme in themes.items()}, render_panel("../", "viewer", repo), index)
+    print(f"{len(pages)} pages from README.md at {repo.web} ({repo.commit[:7]}). Viewer: {total} icons of {len(themes)} themes, "
           f"{written} written, the rest unchanged. {out} ready in {time.perf_counter() - started:.0f}s.", flush=True)
 
 

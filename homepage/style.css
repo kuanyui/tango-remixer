@@ -1,7 +1,7 @@
 /* The homepage: a Clearlooks window (frame and paint from viewer/static/window.css and clearlooks.css) laid out
    like GNOME 2's help browser: the Contents sidebar on the left, the README on the right in the window's own
    scroll box. Colours are the window's variables, so the Dark Background toggle covers everything. */
-.client { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 0; }
+.client { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
 body.no-contents .client { grid-template-columns: minmax(0, 1fr); }
 body.no-contents .sidebar { display: none; }
 
@@ -9,7 +9,9 @@ body.no-contents .sidebar { display: none; }
 .sidebar { overflow-y: auto; background: var(--cl-base, var(--ctl-bg)); border-right: 1px solid var(--cl-frame, var(--line)); }
 .sidebar-title { position: sticky; top: 0; padding: 4px 8px; font-weight: 600; background: var(--bg); border-bottom: 1px solid var(--line); }
 .sidebar ul { list-style: none; margin: 0; padding: 2px 0; }
-.sidebar a { display: block; padding: 3px 10px; color: var(--fg); text-decoration: none; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sidebar a { display: flex; align-items: center; gap: 8px; padding: 3px 10px; color: var(--fg); text-decoration: none; }
+.sidebar img { flex: none; }
+.sidebar a span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* a long title ends in ... */
 .sidebar a:hover { background: var(--hover); }
 .sidebar a.current, .sidebar a.current:hover { background: var(--cl-sel-grad, var(--sel)); color: var(--cl-sel-fg, var(--fg)); }
 
@@ -22,7 +24,8 @@ body.no-contents .sidebar { display: none; }
 .readme a { color: var(--link, #204a87); }
 body.dark .readme a { color: #8fb3e6; }
 .readme img { max-width: 100%; height: auto; }
-.readme h1 { font-size: 1.9rem; margin-top: 1.4em; padding-bottom: .2em; border-bottom: 1px solid var(--line); }
+.readme h1 { display: flex; align-items: center; gap: 14px; font-size: 1.9rem; margin-top: 1.4em; padding-bottom: .2em; border-bottom: 1px solid var(--line); }
+.readme h1 img { flex: none; }
 .readme h2 { font-size: 1.45rem; margin-top: 1.4em; padding-bottom: .2em; border-bottom: 1px solid var(--line); }
 .readme h3 { font-size: 1.2rem; }
 .readme code { font-size: .9em; background: var(--cl-row-alt, var(--hover)); padding: .1em .3em; border-radius: 3px; }
@@ -42,6 +45,10 @@ body.dark .readme a { color: #8fb3e6; }
 .readme .alert.important { border-color: #75507b; } .readme .important .alert-title { color: #75507b; }
 .readme .alert.warning { border-color: #f57900; } .readme .warning .alert-title { color: #f57900; }
 .readme .alert.caution { border-color: #cc0000; } .readme .caution .alert-title { color: #cc0000; }
+
+/* Previous / Next, at the end of each page */
+.pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); }
+.pager a { display: inline-flex; align-items: center; gap: 6px; }
 
 /* Narrow window: the sidebar lies over the text when shown (View > Contents; a choice puts it away). */
 @media (max-width: 900px) {
