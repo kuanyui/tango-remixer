@@ -44,7 +44,7 @@
   input[type=search]::placeholder { color: var(--muted); }
   input[type=checkbox] { accent-color: var(--accent); }
   #detail button { padding: 0.2rem 0.5rem; margin: 0 6px 4px 0; }   /* many of them per icon: compact */
-  header input[type=search] { flex: 1; max-width: 320px; }
+  header .entry { flex: 1; max-width: 320px; }   /* the search box, with its clear button (window.css) */
   header > label { white-space: nowrap; }
   #list { overflow-y: auto; }
   /* Grid view: one cell per icon, drawn at the Show-at size with the file the chosen API would pick (pickFile).
@@ -113,8 +113,8 @@
              padding: 10px; gap: 10px;   /* one spacing everywhere: window edge to block, block to block, both directions */
              grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr); overflow: hidden;
              border-bottom: none; border-right: 1px solid var(--line); }
-    header input[type=search] { grid-area: 1 / 1 / 2 / 3; max-width: none; padding-right: 3.2rem; }   /* room for the regexp toggle */
-    #re-toggle { grid-area: 1 / 1 / 2 / 3; justify-self: end; align-self: center; margin-right: 8px; }   /* inside the search box's right end */
+    header .entry { grid-area: 1 / 1 / 2 / 3; max-width: none; width: calc(100% - 45px); }   /* the row, but for the regexp toggle */
+    #re-toggle { grid-area: 1 / 1 / 2 / 3; justify-self: end; align-self: center; }   /* beside the search box, at the row's end */
     /* Reset and the Dark toggle share one full-width row, pushed to opposite ends: half a column is too
        narrow for the toggle's icon and text. */
     #reset { grid-area: 2 / 1 / 3 / 3; justify-self: start; }
@@ -141,7 +141,7 @@
     header { gap: 6px; padding: 6px 8px; }
     /* The search box claims the first row but 160 px (room for the three buttons beside it, with some to
        spare), so the filters, sorted after them, wrap to a second row; a quarter each, three of them fit. */
-    header input[type=search] { flex: 1 1 calc(100% - 160px); max-width: none; }
+    header .entry { flex: 1 1 calc(100% - 160px); max-width: none; }
     #theme-box, #context-box, #size-box { order: 1; flex: 1 1 25%; min-width: 0; }
     header .llselect-root { display: block; min-width: 0; max-width: none; font-size: 12px; }   /* fills its third */
     header .llselect-trigger { padding-left: 6px; padding-right: 6px; gap: 4px; }   /* less chrome: a third is 110 to 125 px */
@@ -190,7 +190,7 @@
 <nav class="menubar" id="menubar"></nav>
 <div class="client">
 <header>
-  <input type="search" id="q" placeholder="Search icon name…" autofocus>
+  <span class="entry"><input type="search" id="q" placeholder="Search icon name…" autofocus><button type="button" class="clear" id="q-clear" title="Clear the search box"><img src="icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
   <label id="re-toggle" title="Read the search box as a regular expression, case-insensitive. Example: ^(system-run|security-)"><input type="checkbox" id="re"> <code>.*</code></label>
   <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
@@ -758,6 +758,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   $('list').scrollTop = saved.scroll || 0;   // the list is inside its own scroll box, so the browser does not restore it
 });
 $('q').addEventListener('input', render);
+$('q-clear').addEventListener('click', () => { $('q').value = ''; render(); $('q').focus(); });
 let scrollTimer;
 $('list').addEventListener('scroll', () => { clearTimeout(scrollTimer); scrollTimer = setTimeout(saveState, 100); });
 $('re').addEventListener('change', render);

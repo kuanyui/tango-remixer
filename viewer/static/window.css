@@ -57,6 +57,14 @@ dialog::backdrop { background: transparent; }
 .about h2 { margin: 0 0 6px; font-size: 18px; }
 .about p { margin: 0 0 6px; }
 .about .buttons { text-align: right; margin-top: 16px; }
+/* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. */
+.entry { position: relative; display: flex; }
+.entry input { flex: 1; min-width: 0; padding-right: 26px; }
+.entry .clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: none; padding: 2px; line-height: 0;
+                border: 0; border-radius: 3px; background: none; box-shadow: none; cursor: pointer; }
+.entry:has(input:not(:placeholder-shown)) .clear { display: block; }
+.entry .clear:hover, .entry .clear:active { background: var(--hover); box-shadow: none; }
+.entry .clear img { display: block; margin: 0; }
 /* Check mark drawn by CSS (menu check items, the viewer's filter rows). data-state: unchecked | checked |
    indeterminate. Shares its look with the native checkboxes. */
 .check { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 2px;
