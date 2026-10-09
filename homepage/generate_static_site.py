@@ -79,13 +79,14 @@ class Section(NamedTuple):
 
 
 THEMES: Tuple[str, ...] = ("Tango", "Nome", "BlueHumanity")
-"""Where the site's own icons come from, in order of preference (BlueHumanity: Humanity with its hue shifted to blue)."""
+"""Where the site's own icons come from, in order of preference: Tango, else Nome; BlueHumanity (Humanity with
+its hue shifted to blue) only when neither has an icon."""
 SECTION_ICONS: Dict[str, Tuple[str, str, str]] = {
     # top-level heading id -> (theme, context, icon name). Drawn at 48 px in the heading and 16 px in the
     # Contents sidebar, so every one is an icon that theme draws at both sizes.
     "tango-remixer": ("Tango", "places", "start-here"),
     "why": ("Tango", "apps", "help-browser"),
-    "used-submodules": ("BlueHumanity", "places", "folder-remote"),                 # code pulled in from elsewhere
+    "used-submodules": ("Nome", "mimetypes", "package-x-generic"),                  # a package (Tango's has no 16 px drawing)
     "built-in-icon-themes-and-licenses": ("Nome", "apps", "preferences-desktop-theme"),   # the colour swatches
     "included_iconstxt-reference": ("Tango", "apps", "accessories-text-editor"),
     "how-to-use-in-qt-project": ("Nome", "categories", "applications-engineering"),
