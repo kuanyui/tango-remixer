@@ -11,7 +11,7 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 **Website:** https://kuanyui.github.io/tango-remixer/ : this README, plus the **[icon viewer](https://kuanyui.github.io/tango-remixer/viewer/)** to browse every icon of the built-in themes and copy the line for `included_icons.txt`. `make homepage-build` generates it from `homepage/` and `viewer/`; GitHub Actions (`.github/workflows/pages.yml`) and GitLab CI (`.gitlab-ci.yml`, the same site under `https://<group>.gitlab.io/tango-remixer/`) publish it on every push to `master`.
 
 > **Table of Contents**
-
+>
 > - [Tango Remixer](#tango-remixer)
 > - [Why](#why)
 > - [Used Submodules / Thirdparties Tarballs](#used-submodules--thirdparties-tarballs)
@@ -35,7 +35,7 @@ However, Tango Desktop Project has already discontinued and seems not to be prom
 
 Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Humanity](https://launchpad.net/humanity/) Project for their Ubuntu GNOME desktop, maybe in around 2006, which provides a larger amount of icons for daily usage. So I hereby express my highest respect for their work.
 
-# Used Submodules / Thirdparties Tarballs
+# Used Submodules
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
 ## Tango Icon Theme
@@ -46,7 +46,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 ## Nome Icon Theme
 - **submodules/[nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)**
   - A fork of GNOME 2/3 default XDG icon theme, provided as SVG files. Includes some fixes and new extra icons.
-  - License: LGPL v3 / CC by-sa 3.0
+  - License: LGPL v3 / CC by-sa 3.0 (includes a few exceptions)
 
 <!--
 - thirdparty/[gnome-icon-theme-2.20.0.tar.bz2](https://download.gnome.org/sources/gnome-icon-theme/2.20/gnome-icon-theme-2.20.0.tar.bz2)
@@ -102,6 +102,9 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 > - If you are going to use these icons in a Qt project, Qt community version allows LGPLv3 or GPLv3 only, so you should **never** use **any** GPL v2 icon in it.
 > - If you are going to use these icons in a GTK project, GTK itself is licensed under LGPL v2.1+, so you can choose either GPL v2 or v3 according to the license of your project. **but** still should **never** mix v2 and v3 together.
 > - LGPL is with lesser restriction, you should can embed LGPL icons statically into your executable, as long as you provide all source code or object file which can be linked.
+>
+> ### Exceptions
+> - **Even though the icon theme pack itself has license, but the license of a few icons may be differ from icon theme pack itself. In case of any discrepancy, the SPDX tag and license metadata inside the individual SVG file shall prevail.**
 
 | Theme ID        | Forked Source | License                                                        | Description                                                                                                                 |
 |-----------------|---------------|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
@@ -116,6 +119,12 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 
 # `included_icons.txt` Reference
 
+## Introduction
+
+Tango Remixer pick the icons you want via the definition in `included_icons.txt` file.
+
+In this way, you can pick only the icons in a range of sizes instead of the whole icon theme pack, to reduce the size bundled application and decrease the build time.
+
 `build_icons.py` reads this file through `--included-icon-file`:
 
 ```sh
@@ -123,15 +132,17 @@ python3 ./build_icons.py --included-icon-file ./included_icons.txt
 cat ./included_icons.txt | python3 ./build_icons.py --included-icon-file -    # `-`: the same content from standard input
 ```
 
-One icon per line. Fields are separated by a tab or by 4 or more spaces. A line takes one of these forms:
+## Syntax of `included_icons.txt`
 
-> ```
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME    [{SIZE_MATRIX}]
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [{SIZE_MATRIX}]
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME
-> ```
->
+One icon per line. Fields are separated by a tab or by 4 or more spaces. A line can be one of these forms:
+
+```included-icons
+SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME    [{SIZE_MATRIX}]
+SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME
+SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [{SIZE_MATRIX}]
+SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME
+```
+
 - Separate fields by tab, or >=4 spaces.
 - `SRC_CONTEXT` is unused currently. Can be omitted.
 - `SRC_ICON_NAME` is required. Should not contain the extension. All extensions will be ignored.
@@ -149,11 +160,20 @@ One icon per line. Fields are separated by a tab or by 4 or more spaces. A line 
   | **resize** | `16>32`       | take source size `16` and output as size `32`.  | (None)                                         |
   |            | `scalable>48` | rasterize the SVG source at size `48`.          | (None)                                         |
 
-  - Example: `{16;22-48;scalable>64}` = single `16`, range `22..48`, plus scalable rasterized to `64`.
-  - Note: If you pick `{22-48}`, but `32` is not found in icon theme, the `32` will be just ignored.
-  - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
+> [!TIP]
+>  - The "min size", "max size" on the above table, means "the min/max size of the icon of that icon file name". For example, if the icon `preferences-desktop-theme` has variations `16, 22, 24, 32, 48` in Nome Icon Theme, then its min size is `16` and max size is `48`, not `8` nor `256`.
+>  - Example: `{16;24-48;scalable>64}` = single `16`, range `24..48`, plus scalable rasterized to `64`.
+>  - Note: If you pick `{22-48}`, but `32` is not found in icon theme, the `32` will be just ignored.
+>  - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
 
-For example:
+> [!WARNING]
+> Currently, the following features are **NOT** supported for reducing the complexity:
+> - Symbolic link of an icon file. (for cross-platform)
+> - Checking for duplicated source icons (that is to say you can convert a source icon into multiple destination icons, and Tango Remixer will not dedup for you.)
+> - Alias of icon. (example: multiple alias to represent the same icon in `*.qrc`)
+
+## Example of `included_icons.txt`
+
 ```included-icons
 # Line started with `#` will be seen as comment and be ignored.
 
@@ -228,7 +248,8 @@ MyIcon    my-custom-thing
 
 > [!IMPORTANT]
 > - Paths are forward-slash only (`/`) on all OS (fuck disastrous Windows paths resolve rule). Backslashes are rejected.
-> - Relative paths resolve based on `included_icons.txt`'s directory (**not** CWD). With `--included-icon-file -` (standard input) there is no such directory, so they resolve based on CWD.
+> - Relative paths resolve based on `included_icons.txt`'s directory (**not** CWD).
+>   - With `--included-icon-file -` (read from standard input) there is no such directory, so they resolve based on CWD.
 > - `THEME_NAME` must match `[A-Za-z0-9_-]+`. Built-in theme names are reserved. Duplicate `THEME_NAME`s are rejected.
 > - `THEME_PATH` may contain inner whitespace (but not recommended); trailing whitespace is trimmed.
 > - If the same `THEME_NAME` appears in both CLI flag `--extra-icon-theme` and directive `# @extra-icon-theme`, the CLI flag's PATH **fully replaces** the directive's -- the directive's path is ignored entirely (**not** merged or searched as a fallback).
