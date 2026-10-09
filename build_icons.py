@@ -444,7 +444,8 @@ class MyHelpFormatter(argparse.ArgumentDefaultsHelpFormatter):
 class IconThemeOptions:
     """The all options of the whole build process. Specified via CLI arguments."""
     clean_before_build: bool
-    included_icon_file: Path
+    included_icon_file: Path | None
+    """None when the content came from standard input (`--included-icon-file -`)."""
     output_stamp_file: Path
     rebuild_regardless_of_stamp_file: bool
     output_png_theme_to_dir: Path | None
@@ -462,6 +463,13 @@ class IconThemeOptions:
 
     e.g. if set to `/xdg_icon_themes/`, the icon `Humanity/apps/48/totem.svg` will be accessible in C++ as `:/xdg_icon_themes/Humanity/apps/48/totem.svg`"""
     extra_icon_themes: List[ExtraIconTheme]
+    included_icons_text: str | None = None
+    """The content of included_icons.txt when it came from standard input; else it is read from the file when needed."""
+
+    @property
+    def included_icon_label(self) -> str:
+        """The file's name for messages, `<stdin>` for standard input."""
+        return str(self.included_icon_file) if self.included_icon_file is not None else "<stdin>"
 
     def __post_init__(self):
         """Validate types"""
@@ -482,15 +490,19 @@ class IconThemeOptions:
 
         # Merge in `# @extra-icon-theme NAME PATH` directives from the file.
         # CLI-supplied entries (same NAME) win. Paths are resolved relative to
-        # the included-icon-file's parent dir. Hard-errors on missing path
-        # (build-side strictness; LSP only warns).
+        # the included-icon-file's parent dir (the current directory for standard
+        # input). Hard-errors on missing path (build-side strictness; LSP only warns).
         # Skip if the file isn't there yet (some tests pass a placeholder path
         # and only write the file later, or never read it at all).
-        if not self.included_icon_file.exists():
+        if self.included_icons_text is not None:
+            text = self.included_icons_text
+            base_dir = Path.cwd()
+        elif self.included_icon_file is None or not self.included_icon_file.exists():
             return
-        text = self.included_icon_file.read_text(encoding='utf-8')
+        else:
+            text = self.included_icon_file.read_text(encoding='utf-8')
+            base_dir = self.included_icon_file.resolve().parent
         _lines, _errors, directives = parse_text(text, built_in_themes=BUILT_IN_ICON_THEMES)
-        base_dir = self.included_icon_file.resolve().parent
         cli_names = {t.id for t in self.extra_icon_themes}
         for d in directives:
             if d.name in cli_names:
@@ -498,7 +510,7 @@ class IconThemeOptions:
             resolved = (base_dir / d.path_raw).resolve()
             if not resolved.exists():
                 raise FileNotFoundError(
-                    f"[ERROR] {self.included_icon_file}:{d.line_no}: "
+                    f"[ERROR] {self.included_icon_label}:{d.line_no}: "
                     f'@extra-icon-theme path does not exist: {resolved}')
             self.extra_icon_themes.append(ExtraIconTheme(id=d.name, icon_theme_root_folder_path=resolved))
 
@@ -583,6 +595,8 @@ Rules:
 ---
 
 When this file is older than `--stamp-file`, the build will not be triggered.
+
+Pass `-` instead of a path to read the content from standard input (a pipe or a redirect). Relative paths in `# @extra-icon-theme` directives then resolve against the current directory.
 '''
         )
         parser.add_argument(
@@ -719,9 +733,18 @@ TODO: Currently the `theme.index` file under the specified path is ignored, only
         )
         args = parser.parse_args()
 
+        # `-`: the content comes from standard input, read once here (it cannot be read twice).
+        included_icons_text: str | None = None
+        if args.included_icon_file == Path("-"):
+            if sys.stdin.isatty():
+                parser.error("--included-icon-file -: nothing on standard input (pipe or redirect the content, or give a file)")
+            included_icons_text = sys.stdin.read()
+            args.included_icon_file = None
+
         return cls(
             clean_before_build=args.clean_before_build,
             included_icon_file=args.included_icon_file,
+            included_icons_text=included_icons_text,
             output_stamp_file=args.output_stamp_file,
             rebuild_regardless_of_stamp_file=args.rebuild_regardless_of_stamp_file,
             output_png_theme_to_dir=args.output_png_theme_to_dir,
@@ -970,21 +993,24 @@ class SvgToPngConverter:
                 self.logger.exception(f"Error during conversion {e}")
                 return False
 
-def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) -> List[ParsedIncludedIcon]:
-    """Read `included_icons.txt` and return parsed lines. Two stages.
+def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path | None, text: str | None = None) -> List[ParsedIncludedIcon]:
+    """Read `included_icons.txt` (`file_path`, or its content `text` when it came
+    from standard input) and return parsed lines. Two stages.
 
     1. parse_text() -- pure syntax pass. Errors collected; first one raises.
     2. icon_searcher -- confirm icon exists, resolve its actual context.
     """
-    text = file_path.read_text(encoding='utf-8')
+    if text is None:
+        assert file_path is not None, "a file or its text is needed"
+        text = file_path.read_text(encoding='utf-8')
     parsed_lines, errors, _directives = parse_text(text, built_in_themes=get_all_icon_themes_folders())
     if errors:
         if len(errors) > 1:
-            print(f"[ERROR] {len(errors)} format errors in {OPTIONS.included_icon_file}:", file=sys.stderr)
+            print(f"[ERROR] {len(errors)} format errors in {OPTIONS.included_icon_label}:", file=sys.stderr)
             for e in errors:
-                print(f"[ERROR] {OPTIONS.included_icon_file}:{e.line_no}:{e.col_start + 1}: {e.message}", file=sys.stderr)
+                print(f"[ERROR] {OPTIONS.included_icon_label}:{e.line_no}:{e.col_start + 1}: {e.message}", file=sys.stderr)
         first = errors[0]
-        raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_file}:{first.line_no}:{first.col_start + 1}: {first.message}")
+        raise first.exc_type(f"[ERROR] {OPTIONS.included_icon_label}:{first.line_no}:{first.col_start + 1}: {first.message}")
 
     fin: List[ParsedIncludedIcon] = []
     for pline in parsed_lines:
@@ -997,11 +1023,11 @@ def read_included_icons_txt(icon_searcher: IconFileSearcher, file_path: Path) ->
         if src_context:
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, src_context)
             if not found_icon:   # If combination theme+context+icon not found, raise an exception.
-                raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}" and specified context "{src_context}". (Hint: context of source icon is optional, you usually can omit it.)')
+                raise FileNotFoundError(f'{OPTIONS.included_icon_label}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}" and specified context "{src_context}". (Hint: context of source icon is optional, you usually can omit it.)')
         elif not found_icon:
             found_icon = icon_searcher.find_src_icon_of_any_size(src_theme_name, src_icon_name, None)
         if not found_icon:
-            raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}"')
+            raise FileNotFoundError(f'{OPTIONS.included_icon_label}:{line_no}: Not found icon of any size named "{src_icon_name}" in theme "{src_theme_name}"')
         # Overwrite src_context with the searcher's resolved one, and apply
         # the dst_context-falls-back-to-src rule.
         resolved_src_context = found_icon.context
@@ -1140,21 +1166,21 @@ def run_03_copy_included_icons():
     # Initialize icon searcher for colorized themes folder.
     src_icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
     global PARSED_INCLUDED_ICONS_TXT_LINES
-    PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(src_icon_searcher, OPTIONS.included_icon_file)
+    PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(src_icon_searcher, OPTIONS.included_icon_file, OPTIONS.included_icons_text)
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
             try:
                 src_icons_to_copy: List[IconSrcFileInfo] = src_icon_searcher.filter_src_icons_of_specified_sizes(pline.src_theme, pline.src_icon_name, pline.size_io_matrix.get_all_input_sizes())
             except FileNotFoundError as e:
-                raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: {e}') from None
+                raise FileNotFoundError(f'{OPTIONS.included_icon_label}:{pline.line_no}: {e}') from None
         else:
             src_icons_to_copy = src_icon_searcher.filter_src_icons_of_all_sizes(pline.src_theme, pline.src_icon_name)
             if OPTIONS.input_svg_sizes is not None:
                 existing_sizes: List[IconSizeType] = [src.size for src in src_icons_to_copy]
                 src_icons_to_copy = [i for i in src_icons_to_copy if i.size in OPTIONS.input_svg_sizes]
                 if not src_icons_to_copy:
-                    raise FileNotFoundError(f'{OPTIONS.included_icon_file}:{pline.line_no}: Icon "{pline.src_icon_name}" of {pline.src_theme} provides SVG files in {existing_sizes} only, but you request {OPTIONS.input_svg_sizes} by --input-svg-sizes.')
+                    raise FileNotFoundError(f'{OPTIONS.included_icon_label}:{pline.line_no}: Icon "{pline.src_icon_name}" of {pline.src_theme} provides SVG files in {existing_sizes} only, but you request {OPTIONS.input_svg_sizes} by --input-svg-sizes.')
 
         for src_icon in src_icons_to_copy:
             if src_icon.src_file_path_is_symlink:
@@ -1266,6 +1292,12 @@ def sha256_file_content(file_path: Path) -> str:
     with file_path.open("rb") as f:
         return hashlib.file_digest(f, "sha256").hexdigest()
 
+def sha256_included_icons() -> str:
+    """The hash the stamp file records: of the included-icon-file's bytes, or of the text from standard input."""
+    if OPTIONS.included_icon_file is not None:
+        return sha256_file_content(OPTIONS.included_icon_file)
+    return hashlib.sha256((OPTIONS.included_icons_text or "").encode("utf-8")).hexdigest()
+
 def all_icons_need_regenerate() -> bool:
     '''Return True if icons need to be regenerated (compare the SHA256 hash of `included_icon_file`).'''
     # TODO: Also record the commit hash of this repo.
@@ -1277,19 +1309,19 @@ def all_icons_need_regenerate() -> bool:
         print(f"""Stamp file "{OPTIONS.output_stamp_file}" doesn't exist, so start to build all icons.""")
         return True
     old_hash: str = OPTIONS.output_stamp_file.read_text().strip()
-    new_hash: str = sha256_file_content(OPTIONS.included_icon_file)
-    print(f"""SHA256 hash of {OPTIONS.included_icon_file}:""")
+    new_hash: str = sha256_included_icons()
+    print(f"""SHA256 hash of {OPTIONS.included_icon_label}:""")
     print(f"""Old: {old_hash}""")
     print(f"""New: {new_hash}""")
     if old_hash != new_hash:
-        print(f"""The SHA256 hash of "{OPTIONS.included_icon_file}" has been changed, start to build all icons.""")
+        print(f"""The SHA256 hash of "{OPTIONS.included_icon_label}" has been changed, start to build all icons.""")
         return True
     else:
-        print(f"""The SHA256 hash of "{OPTIONS.included_icon_file}" doesn't change, skip icon building.""")
+        print(f"""The SHA256 hash of "{OPTIONS.included_icon_label}" doesn't change, skip icon building.""")
         return False
     # This Python script should not rely on mtime of included_icons.txt. mtime is designed for other build tools such as Makefile.
     # if OPTIONS.included_icon_file.stat().st_mtime > OPTIONS.output_stamp_file.stat().st_mtime:
-    #     print(f"""The "{OPTIONS.included_icon_file}" is newer than stamp file "{OPTIONS.output_stamp_file}", so start to build all icons.""")
+    #     print(f"""The "{OPTIONS.included_icon_label}" is newer than stamp file "{OPTIONS.output_stamp_file}", so start to build all icons.""")
     #     return True
     return False
 
@@ -1332,7 +1364,7 @@ def run_extra_copy():
 def write_stamp_file():
     OPTIONS.output_stamp_file.parent.mkdir(parents=True, exist_ok=True)
     OPTIONS.output_stamp_file.touch()
-    new_hash: str = sha256_file_content(OPTIONS.included_icon_file)
+    new_hash: str = sha256_included_icons()
     OPTIONS.output_stamp_file.write_text(new_hash)
 
 def main():

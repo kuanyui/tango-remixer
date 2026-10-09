@@ -18,6 +18,10 @@ separator. Most tests below use 4 spaces for readability; the few
 tab-specific cases live in TestSeparators.
 """
 
+import contextlib
+import io
+import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -36,6 +40,7 @@ sys.argv = [
 from build_icons import (  # noqa: E402
     read_included_icons_txt,
     IconFileSearcher,
+    IconThemeOptions,
     ParsedIncludedIcon,
 )
 
@@ -467,3 +472,44 @@ class TestAllErrorsReported(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main(argv=[sys.argv[0]])
+
+
+class TestStandardInput(unittest.TestCase):
+    """`--included-icon-file -`: the content comes from standard input, read once;
+    directive paths resolve against the current directory; messages say <stdin>."""
+
+    def setUp(self) -> None:
+        self.argv, self.stdin, self.cwd = sys.argv, sys.stdin, Path.cwd()
+        self.tmp = Path(tempfile.mkdtemp(prefix="tango_stdin_")).resolve()
+        (self.tmp / "appicons").mkdir()
+
+    def tearDown(self) -> None:
+        sys.argv, sys.stdin = self.argv, self.stdin
+        os.chdir(self.cwd)
+        shutil.rmtree(self.tmp)
+
+    @unittest.skipUnless(_REAL_SEARCHER is not None, "Tango submodule not checked out")
+    def test_text_is_parsed_without_a_file(self) -> None:
+        parsed = read_included_icons_txt(_REAL_SEARCHER, None, text="Tango    folder\nTango    user-home    {16-32}\n")
+        self.assertEqual([(p.src_icon_name, p.line_no) for p in parsed], [("folder", 1), ("user-home", 2)])
+
+    def test_dash_reads_standard_input_and_resolves_directives_against_the_current_directory(self) -> None:
+        os.chdir(self.tmp)
+        sys.argv = ["build_icons.py", "--included-icon-file", "-"]
+        sys.stdin = io.StringIO("# @extra-icon-theme Mine ./appicons\nTango    folder\n")
+        options = IconThemeOptions.from_args()
+        self.assertIsNone(options.included_icon_file)
+        self.assertEqual(options.included_icons_text, "# @extra-icon-theme Mine ./appicons\nTango    folder\n")
+        self.assertEqual(options.included_icon_label, "<stdin>")
+        self.assertEqual([(t.id, t.icon_theme_root_folder_path) for t in options.extra_icon_themes], [("Mine", self.tmp / "appicons")])
+
+    def test_dash_on_a_terminal_is_refused(self) -> None:
+        class Terminal(io.StringIO):
+            def isatty(self) -> bool:
+                return True
+        sys.argv = ["build_icons.py", "--included-icon-file", "-"]
+        sys.stdin = Terminal("")
+        stderr = io.StringIO()
+        with self.assertRaises(SystemExit), contextlib.redirect_stderr(stderr):
+            IconThemeOptions.from_args()
+        self.assertIn("nothing on standard input", stderr.getvalue())
