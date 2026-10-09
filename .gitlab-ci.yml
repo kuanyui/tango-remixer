@@ -11,7 +11,7 @@ pages:
   script:
     - git config --global url."https://github.com/".insteadOf "git@github.com:"
     - git submodule update --init --depth 1
-    - pip install markdown
+    - pip install markdown pygments
     - python3 homepage/generate_static_site.py public
     - find public -type f -regex '.*\.\(html\|css\|js\|json\|svg\)$' -exec gzip -f -k {} \;
   artifacts:

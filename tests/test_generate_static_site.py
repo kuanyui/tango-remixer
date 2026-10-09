@@ -111,7 +111,8 @@ class TestHomepage(unittest.TestCase):
 
     def test_markdown_renders_a_fenced_block_inside_a_blockquote(self) -> None:
         html = gen.render_markdown("> [!NOTE]\n> Like this:\n> ```sh\n> ./build.py --x\n> ```\n> The built files.\n").html
-        self.assertIn('<p class="alert-title">Note</p>\n<p>Like this:</p>\n<pre><code>./build.py --x\n</code></pre>\n<p>The built files.</p>', html)
+        self.assertIn('<p class="alert-title">Note</p>\n<p>Like this:</p>\n<div class="highlight"><pre><span></span><code>./build.py --x\n</code></pre></div>', html)
+        self.assertIn('<p>The built files.</p>\n</blockquote>', html)
         self.assertNotIn("```", html)
 
     def test_markdown_lists_the_top_level_headings_and_sections_split_there(self) -> None:
@@ -124,6 +125,16 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<h3 id="low-c">', sections[0].html)
         self.assertTrue(sections[1].html.startswith('<h1 id="licenses">License<strong>s</strong></h1>'))
         self.assertTrue(sections[1].html.rstrip().endswith("<p>end</p>"))
+    @unittest.skipUnless(importlib.util.find_spec("pygments"), "Pygments not installed (apt install python3-pygments / pip install pygments)")
+    def test_code_blocks_are_coloured_by_pygments_under_the_names_it_knows(self) -> None:
+        html = gen.render_markdown("```cpp\nint main() { return 0; }\n```\n\n```cmakelists\ncmake_minimum_required(VERSION 3.16)\n```\n\n```conf\nTango    document-save\n```\n").html
+        self.assertIn('<div class="highlight"><pre><span></span><code><span class="kt">int</span>', html)   # C++
+        self.assertIn('<span class="nb">cmake_minimum_required</span>', html)                              # cmakelists, read as cmake
+        self.assertIn('<div class="highlight"><pre><span></span><code>Tango    document-save\n</code></pre></div>', html)   # no lexer: plain
+        css = gen.highlight_css()
+        self.assertIn(".highlight .kt {", css)
+        self.assertIn("body.dark .highlight .kt {", css)
+
     def test_localize_copies_images_and_links_repository_files(self) -> None:
         repo = gen.Repository("https://github.com/o/r", "abc")
         html = ('<img src="banner.svg" alt=""> <a href="lsp/README.md">file</a> <a href="lsp">folder</a> <a href="https://x.y/z">web</a> '
@@ -149,6 +160,11 @@ class TestHomepage(unittest.TestCase):
         self.assertFalse(panel.endswith("\n"))
         self.assertIn('src="../viewer/icons/Tango/22x22/places/start-here.svg"', panel)
         self.assertIn("abcdef0</span>", panel)
+        self.assertIn('<span>Applications</span>\n  </button>', panel)
+        self.assertLess(panel.index('class="window-list"'), panel.index('<span class="tray"'))   # launchers in the notification area, before the clock
+        self.assertLess(panel.index('<span class="tray"'), panel.index('class="panel-clock"'))
+        self.assertEqual(panel.count('class="panel-button launcher"'), 2)
+        self.assertGreater(panel.index('class="panel-button launcher"'), panel.index('<span class="tray"'))
         self.assertIn('class="panel-button task pressed" href="./"', gen.render_panel("", "home", gen.Repository("https://github.com/o/r", "abc")))
 
     def test_pages_fill_the_template_one_per_section_with_icons_and_links_across(self) -> None:
@@ -176,7 +192,8 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<a class="next" href="why.html">Next: Why<img', home)
         self.assertIn('<span></span>', home)   # no Previous on the first page
         self.assertIn("<title>Why - Tango Remixer</title>", why)
-        self.assertIn('<span class="wm-title">Why</span>', why)
+        self.assertIn('<span class="wm-title">Tango Remixer Documentation</span>', why)   # the window keeps its name
+        self.assertIn('<span class="wm-title">Tango Remixer Documentation</span>', home)
         self.assertIn('<span id="status">Why</span>', why)
         self.assertIn('<a href="why.html" class="current" title="Why">', why)
         self.assertIn('<h1 id="why"><img src="viewer/icons/Tango/48x48/apps/help-browser.svg" width="48" height="48" alt="">Why</h1>', why)

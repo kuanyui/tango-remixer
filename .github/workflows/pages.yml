@@ -34,7 +34,7 @@ jobs:
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"   # build_icons.py uses warnings.deprecated
-      - run: pip install markdown
+      - run: pip install markdown pygments
       - run: make homepage-build
       - uses: actions/upload-pages-artifact@v5
         with:

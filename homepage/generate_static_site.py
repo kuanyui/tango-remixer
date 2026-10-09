@@ -18,8 +18,9 @@ and GitLab Pages publish it:
 Run:  python3 homepage/generate_static_site.py [OUT]     (default: homepage/_build/)
       make homepage-build        the same
       make homepage-dev-server   the same, then served on port 8000, on every interface as the viewer is
-Needs Python-Markdown (the `markdown` module): `apt install python3-markdown` on
-Debian / Ubuntu, else `pip install markdown`. (`markdown2` is a different library.)
+Needs Python-Markdown (the `markdown` module) and, for coloured code blocks, Pygments:
+`apt install python3-markdown python3-pygments` on Debian / Ubuntu, else
+`pip install markdown pygments`. (`markdown2` is a different library.)
 
 The viewer part writes only the real files of the index (an alias is a symlink
 name listed with its icon; the page never requests it), so a theme weighs what
@@ -90,6 +91,8 @@ _DEFAULT_ICON: Tuple[str, str] = ("mimetypes", "text-x-generic")
 """For a section SECTION_ICONS does not know."""
 IconLookup = Callable[[str, str, int], str]
 """(context, icon name, size in px) -> `<theme>/<path>` under viewer/icons/"""
+_LANGUAGES: Dict[str, str] = {"cmakelists": "cmake"}
+"""Fence languages of README.md under the names Pygments knows them by."""
 
 
 class Repository(NamedTuple):
@@ -261,6 +264,8 @@ def render_markdown(text: str) -> Rendered:
         if rest.startswith("```"):
             if fence is None:
                 fence = prefix
+                language = rest[3:].strip()
+                line = f"{prefix}```{_LANGUAGES.get(language, language)}\n"
             else:
                 fence = None
             if prefix.strip():   # an indented code block wants a blank quoted line on each side
@@ -276,7 +281,8 @@ def render_markdown(text: str) -> Rendered:
         if line.strip():
             quoted = bool(prefix.strip())
         lines.append(line)
-    md = markdown.Markdown(extensions=["extra", "toc"], extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1"}})
+    md = markdown.Markdown(extensions=["extra", "toc", "codehilite"],   # codehilite colours the code with Pygments when it is installed
+                           extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1"}, "codehilite": {"css_class": "highlight", "guess_lang": False}})
     html: str = md.convert("".join(lines))
     headings: List[Dict[str, object]] = md.toc_tokens
 
@@ -285,6 +291,17 @@ def render_markdown(text: str) -> Rendered:
         return head if m[2] == "</p>" else head + "\n<p>"   # the marker shared its paragraph with the text after it
 
     return Rendered(re.sub(rf"<blockquote>\s*<p>\[!({'|'.join(_ALERTS)})\](</p>|\n)", alert, html), headings)
+
+
+def highlight_css() -> str:
+    """The colours of the code blocks: Pygments' tango style, and its native style for
+    View > Dark Background. Empty without Pygments, when the blocks stay plain."""
+    try:
+        from pygments.formatters import HtmlFormatter
+    except ImportError:
+        return ""
+    return ("/* Code blocks: Pygments' tango style, native for the dark background (written by generate_static_site.py) */\n"
+            f"{HtmlFormatter(style='tango').get_style_defs('.highlight')}\n{HtmlFormatter(style='native').get_style_defs('body.dark .highlight')}\n")
 
 
 def split_sections(rendered: Rendered) -> List[Section]:
@@ -392,6 +409,7 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     repo = site_repository(root)
     for name in ["style.css", "panel.css", "panel.js"]:
         shutil.copyfile(_HOMEPAGE_DIR / name, out / name)
+    (out / "highlight.css").write_text(highlight_css(), "utf-8")
     shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
     themes = source_themes()
     index = build_index(themes)

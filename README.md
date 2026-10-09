@@ -338,7 +338,7 @@ Now you can get `QIcon` via `QIcon::fromTheme()`. Setup `mainwindow.cpp` like th
 ```sh
 python3 ./build_icons.py --included-icon-file included_icons.txt   # build .svg and .qrc into dist/
 make viewer  # browse the source icon themes (submodules/, no build needed); listens on all interfaces, open one of the printed URLs
-make homepage-build       # generate the website (this README + the icon viewer) into homepage/_build/; needs python3-markdown (apt) or `pip install markdown`
+make homepage-build       # generate the website (this README + the icon viewer) into homepage/_build/; needs python3-markdown + python3-pygments (apt) or `pip install markdown pygments`
 make homepage-dev-server  # the same, then serve it on port 8000 on every interface (as make viewer): http://127.0.0.1:8000/ or http://<this machine's IP>:8000/
 make check-svg
    # list source SVGs that Inkscape draws but browsers do not (details: tools/fix_svg_for_browsers.py)

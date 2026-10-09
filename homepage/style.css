@@ -31,6 +31,9 @@ body.dark .readme a { color: #8fb3e6; }
 .readme code { font-size: .9em; background: var(--cl-row-alt, var(--hover)); padding: .1em .3em; border-radius: 3px; }
 .readme pre { background: var(--cl-row-alt, var(--hover)); border: 1px solid var(--line); padding: 12px 14px; overflow-x: auto; border-radius: 3px; line-height: 1.45; }
 .readme pre code { padding: 0; background: none; font-size: .85em; }
+/* Pygments wraps a coloured block in div.highlight, which highlight.css paints; the pre inside goes bare. */
+.readme .highlight { margin: 1em 0; border: 1px solid var(--line); border-radius: 3px; overflow-x: auto; }
+.readme .highlight pre { margin: 0; border: 0; background: transparent; }
 .readme blockquote { margin: 1em 0; padding: 2px 16px; border-left: 4px solid var(--line); color: var(--muted); }
 .readme table { display: block; max-width: 100%; overflow-x: auto; border-collapse: collapse; }
 .readme th, .readme td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }

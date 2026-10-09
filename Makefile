@@ -4,7 +4,8 @@ viewer:
 	python3 -m viewer
 
 # The website (this README + the icon viewer) as plain files in homepage/_build/, as GitHub Pages and GitLab Pages publish
-# it. Needs Python-Markdown: `apt install python3-markdown` (Debian / Ubuntu) or `pip install markdown`.
+# it. Needs Python-Markdown and Pygments: `apt install python3-markdown python3-pygments` (Debian / Ubuntu) or
+# `pip install markdown pygments`.
 homepage-build:
 	python3 homepage/generate_static_site.py homepage/_build
 
