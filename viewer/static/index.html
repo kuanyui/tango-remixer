@@ -682,7 +682,7 @@ async function showFileTip(thumb) {
   const parts = await fileCard(icon, s);
   if (tipTarget !== thumb) return;   // the pointer moved on while the file was loading
   tip.replaceChildren(...parts);
-  tip.hidden = false;
+  showTip();
   // Left of the thumbnail when there is room (the pane sits at the right edge), else right of it
   const r = thumb.getBoundingClientRect();
   placeTip(r.left - tip.offsetWidth - 8 >= 0 ? r.left - tip.offsetWidth - 8 : r.right + 8, r.top);

@@ -90,16 +90,20 @@ function placeTip(x, y) {   // top-left corner, kept on screen
   tip.style.left = Math.max(4, Math.min(x, innerWidth - tip.offsetWidth - 4)) + 'px';
   tip.style.top = Math.max(4, Math.min(y, innerHeight - tip.offsetHeight - 4)) + 'px';
 }
+// llselect opens its lists as popovers, in the top layer, which no z-index reaches: the tooltip is a popover too,
+// shown after them and so above them (a browser without popovers draws it through z-index as before).
+function showTip() { tip.hidden = false; if (tip.popover && !tip.matches(':popover-open')) tip.showPopover(); }
 function showTextTip(target, text, e) {
   tip.replaceChildren(text);
-  tip.hidden = false;
+  showTip();
   // GTK puts a tooltip under the pointer, centred on it; above the pointer when it would not fit below
   const below = e.clientY + 20;
   placeTip(e.clientX - tip.offsetWidth / 2, below + tip.offsetHeight <= innerHeight - 4 ? below : e.clientY - tip.offsetHeight - 8);
 }
-function hideTip() { tipTarget = null; if (tip) tip.hidden = true; }
+function hideTip() { tipTarget = null; if (!tip) return; tip.hidden = true; if (tip.popover && tip.matches(':popover-open')) tip.hidePopover(); }
 function installTooltips(card) {
   tip = el('div', { className: 'tooltip', hidden: true });
+  if ('showPopover' in tip) tip.popover = 'manual';
   document.body.append(tip);
   const selector = card ? `[title], [data-title], ${card.selector}` : '[title], [data-title]';
   document.addEventListener('mouseover', e => {
