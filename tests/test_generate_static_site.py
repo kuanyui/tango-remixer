@@ -194,7 +194,7 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('class="panel-button task pressed" href="./"', gen.render_panel("", "home", gen.Repository("https://github.com/o/r", "abc")))
 
     def test_pages_fill_the_template_one_per_section_with_icons_and_links_across(self) -> None:
-        icons = lambda context, name, sizes: {size: f"Tango/{size}x{size}/{context}/{name}.svg" for size in sizes}
+        icons = lambda context, name, sizes, prefer=None: {size: f"{prefer or 'Tango'}/{size}x{size}/{context}/{name}.svg" for size in sizes}
         pages = gen.render_pages("# Hi\n\nSee [the lsp](lsp/README.md), [why](#why) and [its part](#part).\n\n> [!NOTE]\n> noted\n\n# Why\n\nBecause. [Back](#hi)\n\n## Part\n",
                                  gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out, '<div class="panel">P</div>', icons)
         self.assertEqual(list(pages), ["index.html", "why.html"])
@@ -233,20 +233,20 @@ class TestHomepage(unittest.TestCase):
                          "theme submodules not checked out")
     def test_every_section_and_alert_icon_is_drawn_at_its_own_size_from_one_theme(self) -> None:
         index = viewer_server.build_index(viewer_server.source_themes())
-        nome = {("mimetypes", "package-x-generic"), ("categories", "applications-development"), ("apps", "utilities-terminal"), ("mimetypes", "application-certificate")}
-        for context, name in [*gen.SECTION_ICONS.values(), gen._DEFAULT_ICON]:
-            paths = gen.icon_paths(index, context, name, (16, 48))
-            theme = "Nome" if (context, name) in nome else "Tango"
+        for theme, context, name in [*gen.SECTION_ICONS.values(), gen._DEFAULT_ICON]:
+            paths = gen.icon_paths(index, context, name, (16, 48), theme)
             for size, path in paths.items():
-                self.assertTrue(path.startswith(theme + "/"), (context, name, path))
+                self.assertTrue(path.startswith(theme + "/"), (theme, context, name, path))   # the theme named draws it at both sizes
                 self.assertIn(f"/{size}x{size}/" if theme == "Tango" else f"/{size}/", path, (context, name, size, path))   # drawn at its size, no scaling
         for context, name in gen.ALERT_ICONS.values():
             self.assertRegex(gen.icon_paths(index, context, name, (22,))[22], r"^Nome/\w+/22/")   # Tango has these only at 32 and 48
         for name in ("go-previous", "go-next"):
             self.assertEqual(gen.icon_paths(index, "actions", name, (16,)), {16: f"Tango/16x16/actions/{name}.svg"})
-        self.assertEqual(gen.icon_paths(index, "mimetypes", "package-x-generic", (16, 48)),
-                         {16: "Nome/mimetypes/16/package-x-generic.svg", 48: "Nome/mimetypes/48/package-x-generic.svg"})   # Tango has 48 but no 16: both from Nome
-        self.assertEqual(gen.icon_paths(index, "mimetypes", "package-x-generic", (48,)), {48: "Tango/48x48/mimetypes/package-x-generic.svg"})   # alone, Tango has it
+        self.assertEqual(gen.icon_paths(index, "places", "folder-remote", (16, 48), "BlueHumanity"),
+                         {16: "BlueHumanity/places/16/folder-remote.svg", 48: "BlueHumanity/places/48/folder-remote.svg"})   # the theme asked for
+        self.assertEqual(gen.icon_paths(index, "places", "folder-remote", (16, 48))[16], "Nome/places/16/folder-remote.svg")   # else the first of THEMES that has both
+        self.assertEqual(gen.icon_paths(index, "mimetypes", "package-x-generic", (16, 48), "Tango")[16], "Nome/mimetypes/16/package-x-generic.svg")   # Tango has 48 but no 16: the next with both
+        self.assertEqual(gen.icon_paths(index, "status", "dialog-warning", (48,)), {48: "Tango/48x48/status/dialog-warning.svg"})   # Tango first when it has the size
         self.assertEqual(gen.icon_paths(index, "apps", "utilities-terminal", (20,)), {20: "Tango/22x22/apps/utilities-terminal.svg"})   # no one has 20: the next size up, Tango first
         self.assertEqual(gen.icon_paths(index, "apps", "web-browser", (48,)), {48: "Nome/apps/48/web-browser.svg"})   # not in Tango (which has internet-web-browser)
         with self.assertRaises(LookupError):
