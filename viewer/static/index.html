@@ -173,6 +173,10 @@
   #detail-window #detail > .files { flex-basis: auto; }   /* sized by its files, so the window grows to fit them, up to the screen (beside the list the pane is as tall as the window anyway) */
   #detail-window #detail h3 { display: none; }
   #detail-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
+  /* There the file card (the tooltip's, see fileCard) opens under the file on a tap, the file row wrapping. */
+  #detail-window .files::before { content: "Tap a picture for the file's license and metadata."; display: block; padding: 6px 0 2px; font-size: 12px; color: var(--muted); }
+  #detail-window .file { flex-wrap: wrap; }
+  .card { flex: 1 1 100%; display: flex; gap: 12px; padding: 6px 0 2px; font-size: 12px; line-height: 1.35; }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
 <link rel="stylesheet" href="static/clearlooks.css">
@@ -649,20 +653,35 @@ function fileThumb(icon, s) {
   image.removeAttribute('title');   // the card says it all
   const thumb = el('div', { className: 'thumb' }, image);
   fileOf.set(thumb, { icon, s });
+  // On a phone (no pointer to hover with; the pane in its window) a tap on the picture puts the card under the
+  // file, a second tap takes it away.
+  thumb.addEventListener('click', async () => {
+    if (!narrow()) return;
+    const file = thumb.parentElement, open = file.querySelector('.card');
+    if (open) { open.remove(); return; }
+    const card = el('div', { className: 'card' }, ...(await fileCard(icon, s)));
+    if (!file.querySelector('.card')) file.append(card);
+  });
   return thumb;
 }
-async function showFileTip(thumb) {
-  const { icon, s } = fileOf.get(thumb), url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
+// The card's two parts: the file at 128 px, and its license and RDF metadata.
+async function fileCard(icon, s) {
+  const url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
   const meta = await fileMeta(url);
-  if (tipTarget !== thumb) return;   // the pointer moved on while the file was loading
   const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), value);
-  tip.replaceChildren(
+  return [
     el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: url, width: 128, height: 128, alt: '' })),
     el('div', { className: 'tip-text' },
       el('div', { className: 'tip-head' }, `${icon.name}, ${s.size === 'scalable' ? 'scalable' : s.size + ' px'} file shown at 128 px`),
       el('div', { className: 'tip-path' }, s.path),
       line('License', meta.spdx ? `${meta.spdx} (SPDX-License-Identifier in the file)` : `${theme.license} (the theme's: no SPDX-License-Identifier in the file)`),
-      ...(meta.fields ? meta.fields.map(([label, value]) => line(label, value)) : [el('div', { className: 'tip-none' }, 'No RDF metadata in the file.')])));
+      ...(meta.fields ? meta.fields.map(([label, value]) => line(label, value)) : [el('div', { className: 'tip-none' }, 'No RDF metadata in the file.')]))];
+}
+async function showFileTip(thumb) {
+  const { icon, s } = fileOf.get(thumb);
+  const parts = await fileCard(icon, s);
+  if (tipTarget !== thumb) return;   // the pointer moved on while the file was loading
+  tip.replaceChildren(...parts);
   tip.hidden = false;
   // Left of the thumbnail when there is room (the pane sits at the right edge), else right of it
   const r = thumb.getBoundingClientRect();
@@ -680,6 +699,7 @@ function copyText(text, button) {
     document.execCommand('copy');
     ta.remove();
   }
+  if (!button) return;   // the context menu: the status bar says so instead
   const original = [...button.childNodes];
   button.replaceChildren(...buttonContent('copied', 'Copied'));
   setTimeout(() => button.replaceChildren(...original), 1000);
@@ -762,6 +782,21 @@ $('q').addEventListener('input', render);
 $('q-clear').addEventListener('click', () => { $('q').value = ''; render(); $('q').focus(); });
 let scrollTimer;
 $('list').addEventListener('scroll', () => { clearTimeout(scrollTimer); scrollTimer = setTimeout(saveState, 100); });
+// A right click (a long press on a phone) on a row or a cell: a popup menu to copy the icon's name, or to
+// search for it, which shows the same name in every theme that has it.
+$('list').addEventListener('contextmenu', e => {
+  const node = e.target.closest('.row, .cell');
+  if (!node) return;
+  e.preventDefault();
+  const icon = icons.find(i => keyOf(i) === node.dataset.key);
+  openContextMenu(() => [
+    { label: '_Copy Icon Name', icon: UI_ICONS.copy, run: () => { copyText(icon.name); flashStatus(`Copied ${icon.name}`); } },
+    { label: '_Search Icon Name', icon: 'Tango/16x16/actions/edit-find.svg', run: () => { $('q').value = icon.name; render(); } },
+  ], e.clientX, e.clientY);
+});
+// A short notice in the status bar, then the status text again.
+let flashTimer;
+function flashStatus(text) { $('status').textContent = text; clearTimeout(flashTimer); flashTimer = setTimeout(showStatus, 1500); }
 $('re').addEventListener('change', render);
 $('reset').addEventListener('click', () => {
   $('q').value = '';

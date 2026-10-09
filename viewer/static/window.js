@@ -21,9 +21,8 @@ function mnemonic(label) {   // '_File' -> 'F' underlined, then 'ile'
   return k < 0 ? [label] : [label.slice(0, k), el('u', {}, label[k + 1]), label.slice(k + 2)];
 }
 let openTitle = null;
-function openMenu(title, items, iconBase) {
-  closeMenu();
-  const menu = el('div', { className: 'menu' }, ...items().map(item => {
+function buildMenu(items, iconBase, close) {   // the rows of a menu; `close` runs before a chosen item's action
+  return el('div', { className: 'menu' }, ...items().map(item => {
     if (!item) return el('div', { className: 'menu-sep' });
     const slot = el('span', { className: 'slot' });
     if (item.icon) {
@@ -36,9 +35,13 @@ function openMenu(title, items, iconBase) {
     }
     const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
     if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
-    if (!item.disabled) row.addEventListener('click', () => { closeMenu(); item.run(); });
+    if (!item.disabled) row.addEventListener('click', () => { close(); item.run(); });
     return row;
   }));
+}
+function openMenu(title, items, iconBase) {
+  closeMenu();
+  const menu = buildMenu(items, iconBase, closeMenu);
   menu.style.left = title.offsetLeft + 'px';
   title.classList.add('open');
   $('menubar').append(menu);
@@ -60,6 +63,22 @@ function buildMenuBar(menus, iconBase = 'icons/') {
   document.addEventListener('mousedown', e => { if (openTitle && !e.target.closest('.menu, .menu-title')) closeMenu(); });   // titles toggle themselves
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeMenu(); });
 }
+
+// --- Context menu ---------------------------------------------------------------------------------------
+// The same rows, at the pointer (a right click, or a long press on a phone), kept on screen; Escape or a
+// click elsewhere closes it. `items` as for the menu bar.
+let contextMenu = null;
+function closeContextMenu() { if (contextMenu) { contextMenu.remove(); contextMenu = null; } }
+function openContextMenu(items, x, y, iconBase = 'icons/') {
+  closeContextMenu();
+  contextMenu = buildMenu(items, iconBase, closeContextMenu);
+  contextMenu.classList.add('context-menu');
+  document.body.append(contextMenu);
+  contextMenu.style.left = Math.max(0, Math.min(x, innerWidth - contextMenu.offsetWidth - 4)) + 'px';
+  contextMenu.style.top = Math.max(0, Math.min(y, innerHeight - contextMenu.offsetHeight - 4)) + 'px';
+}
+document.addEventListener('mousedown', e => { if (contextMenu && !e.target.closest('.context-menu')) closeContextMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContextMenu(); });
 
 // --- Tooltips ------------------------------------------------------------------------------------------
 // One tooltip element for the whole page, styled by CSS, shown without delay. Every `title` in the page is
