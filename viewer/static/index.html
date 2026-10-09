@@ -26,6 +26,7 @@
   header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   header .llselect-root { min-width: 11rem; max-width: 22rem; font-size: 13px; }
   .opt { display: inline-flex; align-items: center; gap: 6px; }   /* llselect checkbox icon + text in a row */
+  .api-opt { display: block; }   /* fills its row, so the row's tooltip shows wherever it is pointed at */
   .opt > .check, .opt > img { flex: none; }   /* fixed-size parts: never let a long label squeeze them */
   /* The filter rows' check marks (.check, decorative: llselect carries the real state in aria-selected) and the
      View menu's radio marks are drawn by window.css. */
@@ -380,7 +381,7 @@ let hitCount = 0;
 function showStatus() {
   const capped = hitCount > MAX_ROWS;
   $('status').textContent = !capped ? `${hitCount} icons` : narrow() ? `${MAX_ROWS} / ${hitCount}` : `Showing ${MAX_ROWS} of ${hitCount} icons`;
-  $('status').title = capped ? `The list stops at the first ${MAX_ROWS} matches. Search, or untick themes, contexts or sizes, to reach the rest.` : '';
+  $('status').title = capped ? `Your filters match ${hitCount} icons, but the list shows only the first ${MAX_ROWS}. To find other icons, type part of a name in the search box or untick some Themes, Contexts or Sizes filters.` : '';
 }
 function render() {
   if (!sizeSel) return;   // selects not built yet
@@ -733,7 +734,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
     createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
     createTriggerContentElFn: ({ chosenItem }) => el('span', {}, !chosenItem ? ''   // rendered once before an item is chosen
       : `As: ${tier('small') ? APIS[chosenItem].short.split(' ', 2).join(' ') : APIS[chosenItem].short}`),   // 900 px and under: just the toolkit, "Qt 6"
-    createItemContentElFn: item => el('span', {}, APIS[item].label),
+    createItemContentElFn: item => el('span', { className: 'api-opt', title: APIS[item].rules }, APIS[item].label),   // each with its rules as its tooltip
     onChange: () => { $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules; render(); },
   });
   apiSel.setItems(Object.keys(APIS));
