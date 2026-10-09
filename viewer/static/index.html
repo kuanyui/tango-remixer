@@ -135,7 +135,8 @@
      search box with Reset and the Dark toggle (icons only, the toggle drawn as a button, pressed while on),
      then the three filters in thirds, their triggers saying how many are ticked instead of which (see
      multiSelect). A row wraps its sizes under the name and drops the license; the status bar wraps, the API
-     chooser naming just the toolkit; the detail pane is hidden: there is no room for it beside the list. */
+     chooser naming just the toolkit; the detail pane is a window of its own (placeDetail): there is no room
+     for it beside the list. */
   @media (max-width: 700px) {
     header { gap: 6px; padding: 6px 8px; }
     /* The search box claims the first row but 160 px (room for the three buttons beside it, with some to
@@ -151,7 +152,7 @@
                    box-shadow: var(--cl-btn-shadow, none); cursor: pointer; }
     body.dark #dark-toggle { background: var(--cl-btn-active, var(--sel)); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
     .client { grid-template-columns: 1fr; }
-    #detail { display: none; }
+    .client > #detail { display: none; }   /* until placeDetail has moved it into its window */
     .row { flex-wrap: wrap; gap: 4px 12px; padding: 6px 10px; }
     .meta { width: 100%; }
     .row .license { display: none; }
@@ -162,6 +163,13 @@
     #grid-opts { order: 1; flex: 1 1 100%; }
     #pick-as { min-width: 0; }
   }
+  /* The detail window (a phone, see placeDetail): the pane fills it under a title bar naming the icon (so the
+     pane's own heading is dropped) and scrolls as a whole, with a Close button at the bottom as About has. */
+  #detail-window[open] { display: flex; flex-direction: column; width: calc(100% - 16px); max-width: none; }
+  #detail-window #detail { flex: 1 1 auto; min-height: 0; border-left: 0; }
+  #detail-window #detail h3 { display: none; }
+  #detail-window #detail > .files { flex: none; min-height: 0; overflow: visible; }
+  #detail-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
 <link rel="stylesheet" href="static/clearlooks.css">
@@ -211,6 +219,10 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
     <a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">github.com/kuanyui/tango-remixer</a>
     <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
   </div>
+</dialog>
+<dialog id="detail-window" aria-labelledby="detail-title">
+  <div class="titlebar"><span class="wm-title" id="detail-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
 </dialog>
 <script>
 const MAX_ROWS = 500;
@@ -402,7 +414,7 @@ function render() {
 // A list row: name block, one column per chosen size (an empty box where the icon lacks that size, so columns
 // line up), the theme's license. data-key lets a restored selection find its row again.
 function listRow(icon, sizes) {
-  const row = el('div', { className: 'row', onclick: () => showDetail(icon, row) },
+  const row = el('div', { className: 'row', onclick: () => showDetail(icon, row, true) },
     el('div', { className: 'meta', title: icon.aliases.join('\n') },
       el('div', { className: 'where' }, `${icon.theme}/${icon.context}`),
       el('div', {}, icon.name),
@@ -469,7 +481,7 @@ function cellTitle(icon, pick, size, api) {
 }
 function gridCell(icon, size, api) {
   const pick = pickFile(icon, size, api), box = Math.max(size, pick.shown);   // GTK 2 / 3 may draw a bigger file as is
-  const cell = el('div', { className: 'cell', title: cellTitle(icon, pick, size, api), onclick: () => showDetail(icon, cell) },
+  const cell = el('div', { className: 'cell', title: cellTitle(icon, pick, size, api), onclick: () => showDetail(icon, cell, true) },
     el('div', { className: 'cell-img', style: `width:${box}px;height:${box}px` },
       el('img', { src: encodeURI(`icons/${icon.theme}/${pick.file.path}`), width: pick.shown, height: pick.shown, loading: 'lazy', alt: '' })),
     el('div', { className: 'cell-name' }, icon.name),
@@ -526,9 +538,11 @@ function includedBox(icon) {
     line, copy];
 }
 
-// `row` may be missing when the icon is not among the rendered rows (restored selection).
-function showDetail(icon, row) {
+// `row` may be missing when the icon is not among the rendered rows (restored selection). `open`: a click, which
+// on a phone opens the detail window (the selection restored at start-up does not).
+function showDetail(icon, row, open = false) {
   selectedKey = keyOf(icon);
+  $('detail-title').textContent = icon.name;
   $('list').querySelector('.selected')?.classList.remove('selected');   // the previous row or grid cell
   row?.classList.add('selected');
   $('detail').replaceChildren(
@@ -544,8 +558,18 @@ function showDetail(icon, row) {
         el('strong', {}, s.size),
         el('code', {}, s.path),
         ...fileButtons(icon, s))))));
+  if (open && narrow() && !$('detail-window').open) $('detail-window').showModal();
   saveState();
 }
+
+// On a phone the detail pane lives in a window of its own (#detail-window, a dialog as About is), opened by a
+// tap on a row or a cell; it goes back beside the list when the window widens past 700 px.
+function placeDetail() {
+  const dialog = $('detail-window'), detail = $('detail');
+  if (narrow()) { if (detail.parentNode !== dialog) dialog.querySelector('.buttons').before(detail); }
+  else { if (dialog.open) dialog.close(); if (detail.parentNode === dialog) $('list').after(detail); }
+}
+placeDetail();
 
 // The buttons under a file in the detail pane. Served by viewer/server.py, the file is on the machine running
 // it and can be opened there. On the static site (homepage/generate_static_site.py; GitHub or GitLab Pages) there
@@ -699,7 +723,10 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   apiSel.setItems(Object.keys(APIS));
   apiSel.setChosenItem(APIS[saved.api] ? saved.api : 'qt6');
   $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules;
-  matchMedia('(max-width: 700px)').addEventListener('change', () => [themeSel, contextSel, sizeSel, apiSel].forEach(s => s.rerender()));   // the triggers' text depends on it
+  matchMedia('(max-width: 700px)').addEventListener('change', () => {   // the triggers' text and the pane's place depend on it
+    [themeSel, contextSel, sizeSel, apiSel].forEach(s => s.rerender());
+    placeDetail();
+  });
   if (saved.themes) themeSel.setChosenItems(saved.themes.filter(t => themes.includes(t)));
   if (saved.contexts) contextSel.setChosenItems(saved.contexts.filter(c => contexts.includes(c)));
   if (saved.sizes) sizeSel.setChosenItems(saved.sizes.filter(s => allSizes.includes(s)));
