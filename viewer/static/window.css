@@ -1,0 +1,75 @@
+/* The Clearlooks application window, shared by the icon viewer (viewer/static/index.html) and the website's
+   homepage (homepage/template.html): the desktop, the frame with its title bar, the menu bar and its menus, the
+   status bar with the resize grip, buttons, check and radio marks, the tooltip and the About dialog. This file
+   is the layout; clearlooks.css, loaded after it, is the paint. The scripted parts are in window.js. */
+:root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa;
+        --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; --desktop: #76848f; --fallback: #c01c28; }
+body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63;
+            --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654; --desktop: #23282e; --fallback: #f47067;
+            color-scheme: dark; }   /* checkboxes and scrollbars follow */
+/* The page is drawn as one application window on a desktop: title bar, menu bar, client area, status bar. The
+   Maximize button drops the desktop margin. */
+body { margin: 0; height: 100vh; box-sizing: border-box; padding: 16px; font: 13px/1.4 system-ui, sans-serif; background: var(--desktop); color: var(--fg); }
+body.maximized { padding: 0; }
+.window { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto auto 1fr auto; background: var(--bg); border: 1px solid var(--ctl-border); }
+/* Title bar: window icon, centred title, minimize / maximize / close. The button glyphs are inline SVG: each
+   `.o` shape is a dark outline behind the `.i` shape (invisible here, coloured by the Clearlooks sheet). */
+.titlebar { display: flex; align-items: center; gap: 4px; height: 23px; padding: 0 4px 0 5px; background: var(--hover);
+            border-bottom: 1px solid var(--line); font-weight: bold; user-select: none; }
+.wm-icon { flex: none; }
+.wm-title { flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wm-buttons { display: flex; gap: 2px; }
+button.wm-button { width: 19px; height: 19px; padding: 0; border: 1px solid var(--ctl-border); border-radius: 3px; background: var(--ctl-bg); color: var(--fg); }
+.wm-button svg { display: block; width: 9px; height: 9px; margin: auto; overflow: visible; }
+.wm-button .o { fill: none; stroke: var(--wm-glyph-outline, transparent); }
+.wm-button .i { fill: none; stroke: currentColor; }
+.wm-button .filled { fill: currentColor; stroke: none; }
+#wm-maximize .restore, body.maximized #wm-maximize .maximize { display: none; }   /* one glyph per state */
+body.maximized #wm-maximize .restore { display: inline; }
+/* Menu bar; the menus themselves are built by script when they open. */
+.menubar { display: flex; position: relative; padding: 0 2px; border-bottom: 1px solid var(--line); user-select: none; }
+.menu-title { padding: 2px 7px; margin: 1px 0; line-height: 17px; border-radius: 3px; cursor: default; }
+.menu-title.open { background: var(--sel); }
+.menu { position: absolute; top: 100%; z-index: 20; min-width: 12rem; padding: 3px; background: var(--ctl-bg); border: 1px solid var(--ctl-border);
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); }
+.menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 3px; white-space: nowrap; cursor: default; }
+.menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark */
+.menu-item .accel { margin-left: auto; padding-left: 24px; }
+.menu-item:hover:not(.disabled) { background: var(--sel); }
+.menu-item.disabled { color: var(--muted); }
+.menu-sep { border-top: 1px solid var(--line); margin: 3px 0; }
+/* Status bar: a message and a resize grip (drawn by the Clearlooks sheet). */
+.statusbar { display: flex; align-items: center; min-height: 22px; padding: 2px 6px; border-top: 1px solid var(--line); }
+.grip { flex: none; width: 18px; height: 18px; margin-left: 8px; align-self: flex-end; }
+/* The one tooltip of the page (script shows it for every `title`; a page may add a card of its own). */
+.tooltip { position: fixed; z-index: 30; display: flex; gap: 12px; max-width: 480px; padding: 5px 7px; font-size: 12px; line-height: 1.35;
+           white-space: pre-line; background: var(--ctl-bg); color: var(--fg); border: 1px solid var(--ctl-border); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
+           pointer-events: none; }
+.tooltip[hidden] { display: none; }
+/* About dialog: a small window of its own, with the same title bar. */
+/* overflow: the title bar overlaps the frame border, which the browser's default overflow: auto for a modal
+   dialog would turn into a scrollbar */
+dialog { padding: 0; border: 1px solid var(--ctl-border); background: var(--bg); color: var(--fg); overflow: visible; }
+dialog::backdrop { background: transparent; }
+.about { padding: 12px 24px 16px; text-align: center; }
+.about img { display: block; margin: 0 auto 8px; }
+.about h2 { margin: 0 0 6px; font-size: 18px; }
+.about p { margin: 0 0 6px; }
+.about .buttons { text-align: right; margin-top: 16px; }
+/* Check mark drawn by CSS (menu check items, the viewer's filter rows). data-state: unchecked | checked |
+   indeterminate. Shares its look with the native checkboxes. */
+.check { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 2px;
+         background: var(--ctl-bg) no-repeat center / 12px 12px; }
+.check[data-state=checked] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.4l2.6 2.7 5-6' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
+.check[data-state=indeterminate] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6h7' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
+/* Radio mark of menu radio items: a circle, a dot when chosen. */
+.radio { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 50%; background: var(--ctl-bg); }
+.radio[data-state=checked] { background: radial-gradient(circle, var(--fg) 3px, transparent 3.5px), var(--ctl-bg); }
+/* One control look for buttons, the search box and llselect: same border, radius, padding, focus ring. */
+button, input[type=search] { font: inherit; line-height: 1.4; padding: 0.4rem 0.7rem; color: var(--fg); background: var(--ctl-bg);
+                             border: 1px solid var(--ctl-border); border-radius: 4px; }
+button { cursor: pointer; user-select: none; }
+button:hover:not(:disabled) { background: var(--ctl-hover); }
+button:active:not(:disabled) { background: var(--sel); }
+button:disabled { opacity: 0.5; cursor: default; }
+button:focus-visible, input[type=search]:focus-visible, .llselect-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }

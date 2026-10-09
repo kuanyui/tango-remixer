@@ -6,52 +6,14 @@
 <!-- @llselect/core 0.0.8 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
 <link rel="stylesheet" href="static/llselect/vanilla.css">
 <script src="static/llselect/index.umd.js"></script>
+<!-- The window frame (desktop, title bar, menu bar, status bar, buttons, tooltip, About) and its script: shared
+     with the website's homepage. -->
+<link rel="stylesheet" href="static/window.css">
+<script src="static/window.js"></script>
 <style>
-  :root { --bg: #fff; --fg: #222; --line: #ddd; --muted: #777; --hover: #f2f2f2; --sel: #dce8fa;
-          --ctl-bg: #fff; --ctl-border: #888; --ctl-hover: #eef4ff; --accent: #4a90e2; --desktop: #76848f; --fallback: #c01c28; }
-  body.dark { --bg: #2b2b2b; --fg: #eee; --line: #444; --muted: #aaa; --hover: #363636; --sel: #3a4a63;
-              --ctl-bg: #353535; --ctl-border: #6a6a6a; --ctl-hover: #3d4654; --desktop: #23282e; --fallback: #f47067;
-              color-scheme: dark; }   /* checkboxes and scrollbars follow */
-  /* The page is drawn as one application window on a desktop: title bar, menu bar, client area (toolbar, icon
-     list, detail pane), status bar. The Maximize button drops the desktop margin. */
-  body { margin: 0; height: 100vh; box-sizing: border-box; padding: 16px; font: 13px/1.4 system-ui, sans-serif; background: var(--desktop); color: var(--fg); }
-  body.maximized { padding: 0; }
-  .window { height: 100%; box-sizing: border-box; display: grid; grid-template-rows: auto auto 1fr auto; background: var(--bg); border: 1px solid var(--ctl-border); }
+  /* The client area of this window: toolbar, icon list, detail pane. */
   .client { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 440px; min-height: 0; }
-  /* Title bar: window icon, centred title, minimize / maximize / close. The button glyphs are inline SVG: each
-     `.o` shape is a dark outline behind the `.i` shape (invisible here, coloured by the Clearlooks sheet). */
-  .titlebar { display: flex; align-items: center; gap: 4px; height: 23px; padding: 0 4px 0 5px; background: var(--hover);
-              border-bottom: 1px solid var(--line); font-weight: bold; user-select: none; }
-  .wm-icon { flex: none; }
-  .wm-title { flex: 1; min-width: 0; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .wm-buttons { display: flex; gap: 2px; }
-  button.wm-button { width: 19px; height: 19px; padding: 0; border: 1px solid var(--ctl-border); border-radius: 3px; background: var(--ctl-bg); color: var(--fg); }
-  .wm-button svg { display: block; width: 9px; height: 9px; margin: auto; overflow: visible; }
-  .wm-button .o { fill: none; stroke: var(--wm-glyph-outline, transparent); }
-  .wm-button .i { fill: none; stroke: currentColor; }
-  .wm-button .filled { fill: currentColor; stroke: none; }
-  #wm-maximize .restore, body.maximized #wm-maximize .maximize { display: none; }   /* one glyph per state */
-  body.maximized #wm-maximize .restore { display: inline; }
-  /* Menu bar; the menus themselves are built by script when they open. */
-  .menubar { display: flex; position: relative; padding: 0 2px; border-bottom: 1px solid var(--line); user-select: none; }
-  .menu-title { padding: 2px 7px; margin: 1px 0; line-height: 17px; border-radius: 3px; cursor: default; }
-  .menu-title.open { background: var(--sel); }
-  .menu { position: absolute; top: 100%; z-index: 20; min-width: 12rem; padding: 3px; background: var(--ctl-bg); border: 1px solid var(--ctl-border);
-          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); }
-  .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 3px; white-space: nowrap; cursor: default; }
-  .menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark */
-  .menu-item .accel { margin-left: auto; padding-left: 24px; }
-  .menu-item:hover:not(.disabled) { background: var(--sel); }
-  .menu-item.disabled { color: var(--muted); }
-  .menu-sep { border-top: 1px solid var(--line); margin: 3px 0; }
-  /* Status bar: the row count (or the regexp error) and a resize grip (drawn by the Clearlooks sheet). */
-  .statusbar { display: flex; align-items: center; min-height: 22px; padding: 2px 6px; border-top: 1px solid var(--line); }
-  .grip { flex: none; width: 18px; height: 18px; margin-left: 8px; align-self: flex-end; }
-  /* The one tooltip of the page (script shows it for every `title` and for the detail pane's thumbnails). */
-  .tooltip { position: fixed; z-index: 30; display: flex; gap: 12px; max-width: 480px; padding: 5px 7px; font-size: 12px; line-height: 1.35;
-             white-space: pre-line; background: var(--ctl-bg); color: var(--fg); border: 1px solid var(--ctl-border); box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25);
-             pointer-events: none; }
-  .tooltip[hidden] { display: none; }
+  /* The file card the tooltip shows for the detail pane's thumbnails (the tooltip itself is window.css's). */
   .tip-img { flex: none; padding: 8px; background: #fff; border: 1px solid var(--line); }
   .tip-img.on-dark { background: #3c3b37; }   /* panel glyphs are light */
   .tip-img img { display: block; }
@@ -60,29 +22,12 @@
   .tip-head { font-weight: 600; }
   .tip-path, .tip-none { color: var(--muted); }
   .tip-path { font-family: monospace; }
-  /* About dialog: a small window of its own, with the same title bar. */
-  /* overflow: the title bar overlaps the frame border, which the browser's default overflow: auto for a modal
-     dialog would turn into a scrollbar */
-  dialog { padding: 0; border: 1px solid var(--ctl-border); background: var(--bg); color: var(--fg); overflow: visible; }
-  dialog::backdrop { background: transparent; }
-  .about { padding: 12px 24px 16px; text-align: center; }
-  .about img { display: block; margin: 0 auto 8px; }
-  .about h2 { margin: 0 0 6px; font-size: 18px; }
-  .about p { margin: 0 0 6px; }
-  .about .buttons { text-align: right; margin-top: 16px; }
   header { grid-column: 1 / 3; display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 8px 12px; border-bottom: 1px solid var(--line); }
   header .llselect-root { min-width: 11rem; max-width: 22rem; font-size: 13px; }
   .opt { display: inline-flex; align-items: center; gap: 6px; }   /* llselect checkbox icon + text in a row */
   .opt > .check, .opt > img { flex: none; }   /* fixed-size parts: never let a long label squeeze them */
-  /* Check mark drawn by CSS for the filter rows (decorative: llselect carries the real state in aria-selected).
-     data-state: unchecked | checked | indeterminate. Shares its look with the native checkboxes. */
-  .check { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 2px;
-           background: var(--ctl-bg) no-repeat center / 12px 12px; }
-  .check[data-state=checked] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.2 6.4l2.6 2.7 5-6' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); }
-  .check[data-state=indeterminate] { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M2.5 6h7' fill='none' stroke='%234a90e2' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E"); }
-  /* Radio mark of the View menu's List / Grid items: a circle, a dot when chosen. */
-  .radio { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 50%; background: var(--ctl-bg); }
-  .radio[data-state=checked] { background: radial-gradient(circle, var(--fg) 3px, transparent 3.5px), var(--ctl-bg); }
+  /* The filter rows' check marks (.check, decorative: llselect carries the real state in aria-selected) and the
+     View menu's radio marks are drawn by window.css. */
   .theme-opt img.on-dark { box-sizing: border-box; padding: 2px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
   .theme-opt small { display: block; color: var(--muted); }
   /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
@@ -95,13 +40,6 @@
   .llselect-item:hover, .llselect-item-focused { background: var(--ctl-hover); color: var(--fg); }
   .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }
   .llselect-choose-all-row, .llselect-group-label { background: var(--hover); color: var(--muted); }
-  button, input[type=search] { font: inherit; line-height: 1.4; padding: 0.4rem 0.7rem; color: var(--fg); background: var(--ctl-bg);
-                               border: 1px solid var(--ctl-border); border-radius: 4px; }
-  button { cursor: pointer; user-select: none; }
-  button:hover:not(:disabled) { background: var(--ctl-hover); }
-  button:active:not(:disabled) { background: var(--sel); }
-  button:disabled { opacity: 0.5; cursor: default; }
-  button:focus-visible, input[type=search]:focus-visible, .llselect-trigger:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
   input[type=search]::placeholder { color: var(--muted); }
   input[type=checkbox] { accent-color: var(--accent); }
   #detail button { padding: 0.2rem 0.5rem; margin: 0 6px 4px 0; }   /* many of them per icon: compact */
@@ -245,7 +183,6 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 <script>
 const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
-const $ = id => document.getElementById(id);
 const DEFAULT_SIZES = ['16', '22', '24', '32', '48', 'scalable'];   // scalable: the FLOSS application themes have nothing else
 // Grid view: the API whose lookup and drawing the cells imitate. `rules` is the chooser's tooltip.
 const APIS = {
@@ -295,11 +232,6 @@ let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], 
 let view = 'list';   // 'list' | 'grid'
 const keyOf = icon => `${icon.theme}/${icon.context}/${icon.name}`;
 
-function el(tag, props, ...children) {
-  const node = Object.assign(document.createElement(tag), props);
-  node.append(...children);
-  return node;
-}
 const buttonContent = (icon, label) => [el('img', { src: `icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
 function iconButton(icon, label, onclick, title) {
   return el('button', { onclick, title }, ...buttonContent(icon, label));
@@ -602,11 +534,9 @@ function fileButtons(icon, s) {
       'Copy the absolute path of this source SVG on the machine running the viewer.')];
 }
 
-// --- Tooltips ------------------------------------------------------------------------------------------
-// One tooltip element for the whole page, styled by CSS, shown without delay. Every `title` in the page is
-// shown through it instead of by the browser: on first hover the attribute moves to data-title, so the
-// browser's own tooltip never appears (code that sets a new title later is picked up the same way). The
-// detail pane's thumbnails show a card instead: the file at 128 px with its license and its RDF metadata
+// --- File cards ----------------------------------------------------------------------------------------
+// The tooltip is window.js's (every `title` goes through it). The detail pane's thumbnails show a card
+// instead: the file at 128 px with its license and its RDF metadata
 // (the block Inkscape writes: title, creator, date, keywords, ...), the way GNOME 2's image viewer described
 // its thumbnails. The license is the file's own SPDX-License-Identifier comment when it has one, else the
 // theme's. The SVG text is fetched once per file (the server sends the source file, colorized for Blue*).
@@ -636,27 +566,14 @@ function parseMeta(text) {
   ].filter(([, value]) => value);
   return meta;
 }
-const tip = el('div', { className: 'tooltip', hidden: true });
-document.body.append(tip);
 const fileOf = new WeakMap();   // detail pane thumbnail -> { icon, s }
-let tipTarget = null;
+installTooltips({ selector: '.thumb', show: showFileTip });
 function fileThumb(icon, s) {
   const image = img(icon, s, rowPx(s.size));
   image.removeAttribute('title');   // the card says it all
   const thumb = el('div', { className: 'thumb' }, image);
   fileOf.set(thumb, { icon, s });
   return thumb;
-}
-function placeTip(x, y) {   // top-left corner, kept on screen
-  tip.style.left = Math.max(4, Math.min(x, innerWidth - tip.offsetWidth - 4)) + 'px';
-  tip.style.top = Math.max(4, Math.min(y, innerHeight - tip.offsetHeight - 4)) + 'px';
-}
-function showTextTip(target, text, e) {
-  tip.replaceChildren(text);
-  tip.hidden = false;
-  // GTK puts a tooltip under the pointer, centred on it; above the pointer when it would not fit below
-  const below = e.clientY + 20;
-  placeTip(e.clientX - tip.offsetWidth / 2, below + tip.offsetHeight <= innerHeight - 4 ? below : e.clientY - tip.offsetHeight - 8);
 }
 async function showFileTip(thumb) {
   const { icon, s } = fileOf.get(thumb), url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
@@ -675,21 +592,6 @@ async function showFileTip(thumb) {
   const r = thumb.getBoundingClientRect();
   placeTip(r.left - tip.offsetWidth - 8 >= 0 ? r.left - tip.offsetWidth - 8 : r.right + 8, r.top);
 }
-function hideTip() { tipTarget = null; tip.hidden = true; }
-document.addEventListener('mouseover', e => {
-  const target = e.target.closest('[title], [data-title], .thumb');
-  if (!target || target === tipTarget) return;
-  hideTip();
-  tipTarget = target;
-  if (fileOf.has(target)) { showFileTip(target); return; }
-  if (target.hasAttribute('title')) { target.dataset.title = target.getAttribute('title'); target.removeAttribute('title'); }
-  if (target.dataset.title) showTextTip(target, target.dataset.title, e);
-});
-document.addEventListener('mouseout', e => { if (tipTarget && !tipTarget.contains(e.relatedTarget)) hideTip(); });
-document.addEventListener('mousedown', hideTip);
-document.addEventListener('keydown', hideTip);
-document.addEventListener('scroll', () => { if (!tip.hidden) hideTip(); }, true);   // any scrolling box; a card still loading is left alone
-
 // navigator.clipboard only exists in secure contexts (https or localhost). Viewed over plain
 // http from another machine it is undefined, so fall back to the old execCommand route.
 function copyText(text, button) {
@@ -803,9 +705,7 @@ function quit() {
 }
 
 // --- Menu bar -------------------------------------------------------------------------------------------
-// GNOME 2 layout: File, Edit, View, Help; `_` marks the underlined letter, as in GTK. A menu is rebuilt each
-// time it opens, so its check items and disabled items always show the current state. Click opens a menu;
-// while one is open, pointing at another title switches to it; Escape or a click elsewhere closes it.
+// GNOME 2 layout: File, Edit, View, Help; built and run by window.js.
 const focusSearch = () => { $('q').focus(); $('q').select(); };
 const copyLineButton = () => $('detail').querySelector('.included button');   // the detail pane's Copy line
 const MENUS = [
@@ -831,47 +731,8 @@ const MENUS = [
   ['_Help', () => [
     { label: '_About', icon: 'Nome/actions/16/help-about.svg', run: () => $('about').showModal() }]],
 ];
-function mnemonic(label) {   // '_File' -> 'F' underlined, then 'ile'
-  const k = label.indexOf('_');
-  return k < 0 ? [label] : [label.slice(0, k), el('u', {}, label[k + 1]), label.slice(k + 2)];
-}
-let openTitle = null;
-function openMenu(title, items) {
-  closeMenu();
-  const menu = el('div', { className: 'menu' }, ...items().map(item => {
-    if (!item) return el('div', { className: 'menu-sep' });
-    const slot = el('span', { className: 'slot' });
-    if ('check' in item || 'radio' in item) {
-      const mark = el('span', { className: 'check' in item ? 'check' : 'radio' });
-      mark.dataset.state = (item.check ?? item.radio) ? 'checked' : 'unchecked';
-      slot.append(mark);
-    }
-    else if (item.icon) slot.append(el('img', { src: `icons/${item.icon}`, width: 16, height: 16, alt: '' }));
-    const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, slot, el('span', {}, ...mnemonic(item.label)));
-    if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
-    if (!item.disabled) row.addEventListener('click', () => { closeMenu(); item.run(); });
-    return row;
-  }));
-  menu.style.left = title.offsetLeft + 'px';
-  title.classList.add('open');
-  $('menubar').append(menu);
-  openTitle = title;
-}
-function closeMenu() {
-  if (!openTitle) return;
-  openTitle.classList.remove('open');
-  $('menubar').querySelector('.menu').remove();
-  openTitle = null;
-}
-for (const [label, items] of MENUS) {
-  const title = el('div', { className: 'menu-title' }, ...mnemonic(label));
-  title.addEventListener('mousedown', e => { e.preventDefault(); openTitle === title ? closeMenu() : openMenu(title, items); });
-  title.addEventListener('mouseenter', () => { if (openTitle && openTitle !== title) openMenu(title, items); });
-  $('menubar').append(title);
-}
-document.addEventListener('mousedown', e => { if (openTitle && !e.target.closest('.menu, .menu-title')) closeMenu(); });   // titles toggle themselves
+buildMenuBar(MENUS);
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeMenu();
   if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); focusSearch(); }   // Edit > Find
 });
 </script>
