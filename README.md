@@ -16,8 +16,8 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 > - [Why](#why)
 > - [Used Submodules / Thirdparties Tarballs](#used-submodules--thirdparties-tarballs)
 > - [Built-in Icon Themes and Licenses](#built-in-icon-themes-and-licenses)
-> - [How to Use in Qt Project?](#how-to-use-in-qt-project)
 > - [included_icons.txt Reference](#included_iconstxt-reference)
+> - [How to Use in Qt Project?](#how-to-use-in-qt-project)
 > - [Build .svg and .qrc](#build-svg-and-qrc)
 > - [Internal Concepts](#internal-concepts)
 > - [Acknowledgments](#acknowledgments)
@@ -113,6 +113,126 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 | `GimpLegacy`    | GIMP          | `GPL v3+`                                                      |                                                                                                                             |
 | `GimpDefault`   | GIMP          | `CC by-sa 3.0`                                                 | This license is actually somewhat unreasonable, because **the compatibility between `GPL` and `CC by-sa`is controversial**. |
 | `InkscapeTango` | Inkscape      | `GPL v2`                                                       |                                                                                                                             |
+
+# `included_icons.txt` Reference
+
+`build_icons.py` reads this file through `--included-icon-file`:
+
+```sh
+python3 ./build_icons.py --included-icon-file ./included_icons.txt
+cat ./included_icons.txt | python3 ./build_icons.py --included-icon-file -    # `-`: the same content from standard input
+```
+
+One icon per line. Fields are separated by a tab or by 4 or more spaces. A line takes one of these forms:
+
+> ```
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME    [{SIZE_MATRIX}]
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [{SIZE_MATRIX}]
+> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME
+> ```
+>
+- Separate fields by tab, or >=4 spaces.
+- `SRC_CONTEXT` is unused currently. Can be omitted.
+- `SRC_ICON_NAME` is required. Should not contain the extension. All extensions will be ignored.
+- `DST_CONTEXT` is optional. Default is same with the context of the source icon.
+- `DST_ICON_NAME` is optional, which can be used to rename the outputted icon name.
+- All `*_ICON_NAME` should not contain the extension. All extensions will be ignored.
+- `{SIZE_MATRIX}` is optional. Restricts which input sizes are picked / how they map to output sizes. If omitted, the sizes listed in `--input-svg-sizes` are used, or every found size when that option is not given. Segments separated by `;`. Each segment is one of:
+
+  | Segment    | Expression    | Expression Meaning                              | Other Equivalents                              |
+  |------------|---------------|-------------------------------------------------|------------------------------------------------|
+  | **single** | `16`          | pick `16` in source, and output same size `16`. | `16>16`                                        |
+  | **range**  | `16-32`       | pick every available size in the range .        | `16;22;24;32`, `16>16;22>22;24>24;32>32`       |
+  |            | `-32`         | Open ranges, means "min size ~ `32`"            | `8;16;22;24;32`, `8>8;16>16;22>22;24>24;32>32` |
+  |            | `32-`         | Open ranges, means "`32` ~ max size"            | (Too long, omitted.)                           |
+  | **resize** | `16>32`       | take source size `16` and output as size `32`.  | (None)                                         |
+  |            | `scalable>48` | rasterize the SVG source at size `48`.          | (None)                                         |
+
+  - Example: `{16;22-48;scalable>64}` = single `16`, range `22..48`, plus scalable rasterized to `64`.
+  - Note: If you pick `{22-48}`, but `32` is not found in icon theme, the `32` will be just ignored.
+  - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
+
+For example:
+```included-icons
+# Line started with `#` will be seen as comment and be ignored.
+
+# Include the icon named `application-exit` in icon theme `Nome`.
+Nome     application-exit
+
+# Include the icon named `preferences-desktop-theme` in icon theme `Nome`, and rename it in our outputted new icon theme.
+Nome     preferences-desktop-theme      apps/palettes
+
+# The following two lines have same meaning. (`devices` is context, can be omitted.)
+Nome     devices/computer
+Nome     computer
+
+# Include the icon named `folder`, `folder-open`, `folder-new` in icon theme `Tango`.
+Tango    folder
+Tango    folder-open
+Tango    folder-new
+
+# ======================================================
+# Restrict / convert sizes via the {SIZE_MATRIX} field
+# ======================================================
+
+# Only build sizes 16, 22, and 48 of this icon (skip 24, 32, ...).
+Tango    folder    {16;22;48}
+
+# Include every source size in range 16..48 (each maps to itself).
+Tango    folder-open    {16-48}
+
+# Open range: from the smallest available size up to 48.
+Tango    document-save    {-48}
+
+# Take the scalable source and rasterize it as size 64.
+Tango    document-open    {scalable>64}
+
+# Resize: take the 16-size source and output it as 32.
+Tango    go-up    {16>32}
+
+# Mix: single + range + scalable->fixed, separated by `;`.
+Tango    user-home    {16;22-48;scalable>64}
+
+# Rename + size matrix combined.
+Tango    folder    folder-blue    {16;22;48}
+```
+
+## Add Extra XDG-Compatible SVG Icon Themes
+You can add extra XDG-compatible SVG icon theme(s) two ways:
+
+### **A. CLI Flag**
+
+Highest priority (over in-file directive). Good for ad-hoc / CI overrides.
+
+**Syntax: `--extra-icon-theme "THEME_NAME:THEME_PATH"`**
+
+```sh
+--extra-icon-theme "MyIcon:./relative/path/to/my_icon_theme"
+--extra-icon-theme "AnotherIcon:../relative/path/to/another_icon_theme"
+--extra-icon-theme "YetAnotherIcon:C:/absolute/path/on/windows/yet_another_icon_theme"
+```
+>
+### **B. In-File Directive**
+This is the recommended way -- self-describing, also **recognizable by the LSP server** (see [`lsp/README.md`](lsp/README.md)).
+
+**Syntax: `# @extra-icon-theme THEME_NAME THEME_PATH`**
+
+```included-icons
+# @extra-icon-theme MyIcon       ../appicons
+# @extra-icon-theme AnotherIcon  /opt/themes/another
+# @extra-icon-theme YetAnotherIcon  C:/absolute/path/on/windows/yet_another_icon_theme
+Tango    document-save
+MyIcon    my-custom-thing
+```
+
+> [!IMPORTANT]
+> - Paths are forward-slash only (`/`) on all OS (fuck disastrous Windows paths resolve rule). Backslashes are rejected.
+> - Relative paths resolve based on `included_icons.txt`'s directory (**not** CWD). With `--included-icon-file -` (standard input) there is no such directory, so they resolve based on CWD.
+> - `THEME_NAME` must match `[A-Za-z0-9_-]+`. Built-in theme names are reserved. Duplicate `THEME_NAME`s are rejected.
+> - `THEME_PATH` may contain inner whitespace (but not recommended); trailing whitespace is trimmed.
+> - If the same `THEME_NAME` appears in both CLI flag `--extra-icon-theme` and directive `# @extra-icon-theme`, the CLI flag's PATH **fully replaces** the directive's -- the directive's path is ignored entirely (**not** merged or searched as a fallback).
+> - Build fails hard if a directive's path doesn't exist. The LSP only warns (so you can edit without triggering errors).
 
 # How to Use in Qt Project?
 
@@ -234,121 +354,6 @@ Now you can get `QIcon` via `QIcon::fromTheme()`. Setup `mainwindow.cpp` like th
     QIcon::setThemeName("CustomizedTango");    // `--output-theme-name`
     setWindowIcon(QIcon::fromTheme("palettes"));    // The included icon name.
 ```
-# `included_icons.txt` Reference
-
-The file `build_icons.py --included-icon-file` reads (`-` reads the same content from standard input).
-
-One icon per line. Fields are separated by a tab or by 4 or more spaces. A line takes one of these forms:
-
-> ```
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME    [{SIZE_MATRIX}]
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [DST_CONTEXT/]DST_ICON_NAME
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME    [{SIZE_MATRIX}]
-> SRC_THEME_NAME    [SRC_CONTEXT/]SRC_ICON_NAME
-> ```
->
-- Separate fields by tab, or >=4 spaces.
-- `SRC_CONTEXT` is unused currently. Can be omitted.
-- `SRC_ICON_NAME` is required. Should not contain the extension. All extensions will be ignored.
-- `DST_CONTEXT` is optional. Default is same with the context of the source icon.
-- `DST_ICON_NAME` is optional, which can be used to rename the outputted icon name.
-- All `*_ICON_NAME` should not contain the extension. All extensions will be ignored.
-- `{SIZE_MATRIX}` is optional. Restricts which input sizes are picked / how they map to output sizes. If omitted, the sizes listed in `--input-svg-sizes` are used, or every found size when that option is not given. Segments separated by `;`. Each segment is one of:
-
-  | Segment    | Expression    | Expression Meaning                              | Other Equivalents                              |
-  |------------|---------------|-------------------------------------------------|------------------------------------------------|
-  | **single** | `16`          | pick `16` in source, and output same size `16`. | `16>16`                                        |
-  | **range**  | `16-32`       | pick every available size in the range .        | `16;22;24;32`, `16>16;22>22;24>24;32>32`       |
-  |            | `-32`         | Open ranges, means "min size ~ `32`"            | `8;16;22;24;32`, `8>8;16>16;22>22;24>24;32>32` |
-  |            | `32-`         | Open ranges, means "`32` ~ max size"            | (Too long, omitted.)                           |
-  | **resize** | `16>32`       | take source size `16` and output as size `32`.  | (None)                                         |
-  |            | `scalable>48` | rasterize the SVG source at size `48`.          | (None)                                         |
-
-  - Example: `{16;22-48;scalable>64}` = single `16`, range `22..48`, plus scalable rasterized to `64`.
-  - Note: If you pick `{22-48}`, but `32` is not found in icon theme, the `32` will be just ignored.
-  - `scalable` is only valid as a resize input (`scalable>N`). `{scalable}`, `{N>scalable}`, and ranges with `scalable` are rejected.
-
-For example:
-```included-icons
-# Line started with `#` will be seen as comment and be ignored.
-
-# Include the icon named `application-exit` in icon theme `Nome`.
-Nome     application-exit
-
-# Include the icon named `preferences-desktop-theme` in icon theme `Nome`, and rename it in our outputted new icon theme.
-Nome     preferences-desktop-theme      apps/palettes
-
-# The following two lines have same meaning. (`devices` is context, can be omitted.)
-Nome     devices/computer
-Nome     computer
-
-# Include the icon named `folder`, `folder-open`, `folder-new` in icon theme `Tango`.
-Tango    folder
-Tango    folder-open
-Tango    folder-new
-
-# ======================================================
-# Restrict / convert sizes via the {SIZE_MATRIX} field
-# ======================================================
-
-# Only build sizes 16, 22, and 48 of this icon (skip 24, 32, ...).
-Tango    folder    {16;22;48}
-
-# Include every source size in range 16..48 (each maps to itself).
-Tango    folder-open    {16-48}
-
-# Open range: from the smallest available size up to 48.
-Tango    document-save    {-48}
-
-# Take the scalable source and rasterize it as size 64.
-Tango    document-open    {scalable>64}
-
-# Resize: take the 16-size source and output it as 32.
-Tango    go-up    {16>32}
-
-# Mix: single + range + scalable->fixed, separated by `;`.
-Tango    user-home    {16;22-48;scalable>64}
-
-# Rename + size matrix combined.
-Tango    folder    folder-blue    {16;22;48}
-```
-
-## Add Extra XDG-Compatible SVG Icon Themes
-You can add extra XDG-compatible SVG icon theme(s) two ways:
-
-### **A. CLI Flag**
-
-Highest priority (over in-file directive). Good for ad-hoc / CI overrides.
-
-**Syntax: `--extra-icon-theme "THEME_NAME:THEME_PATH"`**
-
-```sh
---extra-icon-theme "MyIcon:./relative/path/to/my_icon_theme"
---extra-icon-theme "AnotherIcon:../relative/path/to/another_icon_theme"
---extra-icon-theme "YetAnotherIcon:C:/absolute/path/on/windows/yet_another_icon_theme"
-```
->
-### **B. In-File Directive**
-This is the recommended way -- self-describing, also **recognizable by the LSP server** (see [`lsp/README.md`](lsp/README.md)).
-
-**Syntax: `# @extra-icon-theme THEME_NAME THEME_PATH`**
-
-```included-icons
-# @extra-icon-theme MyIcon       ../appicons
-# @extra-icon-theme AnotherIcon  /opt/themes/another
-# @extra-icon-theme YetAnotherIcon  C:/absolute/path/on/windows/yet_another_icon_theme
-Tango    document-save
-MyIcon    my-custom-thing
-```
-
-> [!IMPORTANT]
-> - Paths are forward-slash only (`/`) on all OS (fuck disastrous Windows paths resolve rule). Backslashes are rejected.
-> - Relative paths resolve based on `included_icons.txt`'s directory (**not** CWD).
-> - `THEME_NAME` must match `[A-Za-z0-9_-]+`. Built-in theme names are reserved. Duplicate `THEME_NAME`s are rejected.
-> - `THEME_PATH` may contain inner whitespace (but not recommended); trailing whitespace is trimmed.
-> - If the same `THEME_NAME` appears in both CLI flag `--extra-icon-theme` and directive `# @extra-icon-theme`, the CLI flag's PATH **fully replaces** the directive's -- the directive's path is ignored entirely (**not** merged or searched as a fallback).
-> - Build fails hard if a directive's path doesn't exist. The LSP only warns (so you can edit without triggering errors).
-
 # Build .svg and .qrc
 ```sh
 python3 ./build_icons.py --included-icon-file included_icons.txt   # build .svg and .qrc into dist/
