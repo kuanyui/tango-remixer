@@ -113,8 +113,14 @@ class TestHomepage(unittest.TestCase):
         html = gen.render_markdown("> [!IMPORTANT]\n> - one\n> - two\n\nIntro:\n1. first\n2. second\n\nAnd:\n- a\n  - nested\n- b\n").html
         self.assertIn('<p class="alert-title">Important</p>\n<ul>\n<li>one</li>\n<li>two</li>\n</ul>', html)   # as GitHub renders it
         self.assertIn("<p>Intro:</p>\n<ol>\n<li>first</li>\n<li>second</li>\n</ol>", html)
-        self.assertIn("<li>a<ul>\n<li>nested</li>\n</ul>\n</li>\n<li>b</li>", html)   # a nested list stays tight
+        self.assertIn("<li>a<ul>\n<li>nested</li>\n</ul>\n</li>\n<li>b</li>", html)   # two spaces nest, as on GitHub
         self.assertNotIn("- one", html)
+        quoted = gen.render_markdown("> Note:\n> - a\n>   - nested\n> - b\n").html
+        self.assertIn("<p>Note:</p>\n<ul>\n<li>a<ul>\n<li>nested</li>\n</ul>\n</li>\n<li>b</li>\n</ul>", quoted)   # the same inside a blockquote
+        indented = gen.render_markdown("> Note:\n>   - a\n>   - b\n").html
+        self.assertIn("<p>Note:</p>\n<ul>\n<li>a</li>\n<li>b</li>\n</ul>", indented)   # indented after text: a list, not nested, not code
+        siblings = gen.render_markdown("- a\n  - n1\n  - n2\n- b\n  - n3\n").html
+        self.assertIn("<li>a<ul>\n<li>n1</li>\n<li>n2</li>\n</ul>\n</li>\n<li>b<ul>\n<li>n3</li>\n</ul>\n</li>", siblings)
 
     def test_markdown_renders_a_fenced_block_inside_a_blockquote(self) -> None:
         html = gen.render_markdown("> [!NOTE]\n> Like this:\n> ```sh\n> ./build.py --x\n> ```\n> The built files.\n").html

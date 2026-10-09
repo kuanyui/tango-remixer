@@ -256,8 +256,9 @@ def render_markdown(text: str) -> Rendered:
     `extra` set (tables, fenced code, ...), plus what GitHub renders and it does not: `~~gone~~`, the
     `> [!NOTE]` alert blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION), a
     fenced code block inside a blockquote (made an indented one), two blockquotes
-    separated by a blank line (kept apart), and a list right after a line of text
-    (given the blank line Python-Markdown wants). An `included-icons` fence is
+    separated by a blank line (kept apart), a list right after a line of text
+    (given the blank line Python-Markdown wants), and a nested list indented by two
+    spaces (made four, which Python-Markdown wants). An `included-icons` fence is
     coloured by highlight_included_icons instead of Pygments."""
     try:
         import markdown
@@ -269,8 +270,25 @@ def render_markdown(text: str) -> Rendered:
     quoted = False                # the last non-blank line was a blockquote line
     example: Optional[List[str]] = None   # the lines of an included-icons fence, coloured here and passed on as HTML
     last = ""                             # the text of the previous source line, after its blockquote marks
+    items: List[Tuple[int, int]] = []     # the open list items, for nesting
     for line in text.splitlines(keepends=True):
-        prefix, rest = re.match(r"(\s*(?:>\s*)*)(.*\n?)", line).groups()
+        quote, indent, rest = re.match(r"((?:\s*>)*)( *)(.*\n?)", line).groups()   # blockquote marks, indentation, text
+        depth = max(len(indent) - (1 if quote else 0), 0)   # indentation after an optional space of a `> ` mark
+        if fence is None and _LIST_ITEM.match(rest):
+            # GitHub nests an item two spaces in under the item above; Python-Markdown wants four per level.
+            # `items` holds the open items as (depth written, depth Python-Markdown needs): a deeper item
+            # goes four in from its parent, a shallower one closes what it outdents. The first item of a
+            # list keeps its indentation (an item after a line of text is a list, not a nested one).
+            while items and items[-1][0] >= depth:
+                items.pop()
+            wanted = items[-1][1] + 4 if items else depth
+            items.append((depth, wanted))
+            if wanted != depth:
+                indent = " " * (wanted + (1 if quote else 0))
+                line = quote + indent + rest
+        elif fence is None and rest.strip() and depth == 0:
+            items.clear()   # a line of text at the base ends the list
+        prefix = quote + indent
         if rest.startswith("```"):
             if fence is None:
                 fence = prefix
