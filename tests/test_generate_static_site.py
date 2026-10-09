@@ -109,6 +109,13 @@ class TestHomepage(unittest.TestCase):
         self.assertIn("~~kept~~", html)   # inside a code fence
         self.assertNotIn("[!", html)
 
+    def test_a_list_straight_after_a_line_of_text_is_a_list(self) -> None:
+        html = gen.render_markdown("> [!IMPORTANT]\n> - one\n> - two\n\nIntro:\n1. first\n2. second\n\nAnd:\n- a\n  - nested\n- b\n").html
+        self.assertIn('<p class="alert-title">Important</p>\n<ul>\n<li>one</li>\n<li>two</li>\n</ul>', html)   # as GitHub renders it
+        self.assertIn("<p>Intro:</p>\n<ol>\n<li>first</li>\n<li>second</li>\n</ol>", html)
+        self.assertIn("<li>a<ul>\n<li>nested</li>\n</ul>\n</li>\n<li>b</li>", html)   # a nested list stays tight
+        self.assertNotIn("- one", html)
+
     def test_markdown_renders_a_fenced_block_inside_a_blockquote(self) -> None:
         html = gen.render_markdown("> [!NOTE]\n> Like this:\n> ```sh\n> ./build.py --x\n> ```\n> The built files.\n").html
         self.assertIn('<p class="alert-title">Note</p>\n<p>Like this:</p>\n<div class="highlight"><pre><span></span><code>./build.py --x\n</code></pre></div>', html)

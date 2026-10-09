@@ -97,6 +97,7 @@ IconLookup = Callable[[str, str, int], str]
 _LANGUAGES: Dict[str, str] = {"cmakelists": "cmake"}
 """Fence languages of README.md under the names Pygments knows them by."""
 INCLUDED_ICONS_LANGUAGE: str = "included-icons"
+_LIST_ITEM = re.compile(r"([-*+]|\d+[.)]) ")
 """The fence language of an included_icons.txt example: coloured by this project's own tokenizer, not Pygments."""
 
 
@@ -254,9 +255,10 @@ def render_markdown(text: str) -> Rendered:
     """Markdown to HTML (and its table of contents) with Python-Markdown and its
     `extra` set (tables, fenced code, ...), plus what GitHub renders and it does not: `~~gone~~`, the
     `> [!NOTE]` alert blockquotes (NOTE, TIP, IMPORTANT, WARNING, CAUTION), a
-    fenced code block inside a blockquote (made an indented one), and two
-    blockquotes separated by a blank line (kept apart). An `included-icons` fence
-    is coloured by highlight_included_icons instead of Pygments."""
+    fenced code block inside a blockquote (made an indented one), two blockquotes
+    separated by a blank line (kept apart), and a list right after a line of text
+    (given the blank line Python-Markdown wants). An `included-icons` fence is
+    coloured by highlight_included_icons instead of Pygments."""
     try:
         import markdown
     except ImportError:
@@ -266,6 +268,7 @@ def render_markdown(text: str) -> Rendered:
     fence: Optional[str] = None   # inside a fenced block: the blockquote prefix it was opened with ("" outside a quote)
     quoted = False                # the last non-blank line was a blockquote line
     example: Optional[List[str]] = None   # the lines of an included-icons fence, coloured here and passed on as HTML
+    last = ""                             # the text of the previous source line, after its blockquote marks
     for line in text.splitlines(keepends=True):
         prefix, rest = re.match(r"(\s*(?:>\s*)*)(.*\n?)", line).groups()
         if rest.startswith("```"):
@@ -281,6 +284,7 @@ def render_markdown(text: str) -> Rendered:
                 if example is not None:
                     lines.append("\n" + highlight_included_icons("".join(example)) + "\n\n")
                     example = None
+                    last = ""
                     continue
             if prefix.strip():   # an indented code block wants a blank quoted line on each side
                 lines.append(prefix.rstrip() + "\n")
@@ -294,10 +298,13 @@ def render_markdown(text: str) -> Rendered:
         elif fence is None:
             if prefix.strip() and quoted and lines and not lines[-1].strip():
                 lines.append("<!-- -->\n")   # a blockquote after a blank line after a blockquote: keep it a second one
+            if _LIST_ITEM.match(rest) and last.strip() and not _LIST_ITEM.match(last) and not last.startswith((" ", "|")):
+                lines.append(prefix.rstrip() + "\n")   # a list straight after a line of text: GitHub starts the list, Python-Markdown wants a blank line first
             line = re.sub(r"~~(?=\S)(.+?)(?<=\S)~~", r"<del>\1</del>", line)
         if line.strip():
             quoted = bool(prefix.strip())
         lines.append(line)
+        last = rest
     md = markdown.Markdown(extensions=["extra", "toc", "codehilite"],   # codehilite colours the code with Pygments when it is installed
                            extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1"}, "codehilite": {"css_class": "highlight", "guess_lang": False}})
     html: str = md.convert("".join(lines))
