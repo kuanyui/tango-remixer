@@ -35,10 +35,15 @@
 </div>
 <nav class="menubar" id="menubar"></nav>
 <div class="client">
-<!-- On a narrow window the sidebar gives way to this toolbar: a combo box naming the section, whose menu
-     lists them all (built by the script from the sidebar's entries). -->
-<div class="toolbar" id="contents-bar">
+<!-- The toolbar: the find bar (a search box, Previous / Next through the matches in this page) and, on a
+     narrow window where the sidebar gives way, a combo box naming the section, whose menu lists them all
+     (built by the script from the sidebar's entries). -->
+<div class="toolbar" id="toolbar">
   <button type="button" class="combo" id="contents-combo" aria-haspopup="menu" aria-expanded="false" title="Contents: the sections of the documentation">{{section_icon}}<span class="combo-text">{{title}}</span><span class="combo-arrow"><span class="arrow"></span></span></button>
+  <span class="entry"><input type="search" id="find" placeholder="Find in this page…" aria-label="Find in this page"><button type="button" class="clear" id="find-clear" title="Clear the search box"><img src="viewer/icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
+  <button type="button" id="find-previous" title="The previous match (Shift+Enter in the box)" disabled><img src="viewer/icons/Tango/16x16/actions/go-up.svg" width="16" height="16" alt=""><span>Previous</span></button>
+  <button type="button" id="find-next" title="The next match (Enter in the box)" disabled><img src="viewer/icons/Tango/16x16/actions/go-down.svg" width="16" height="16" alt=""><span>Next</span></button>
+  <span id="find-count"></span>
 </div>
 <nav id="toc" class="sidebar" aria-label="Contents">
 <div class="sidebar-title">Contents</div>
@@ -115,7 +120,7 @@ installTooltips();
 
 // --- The toolbar's combo box (narrow windows): its menu lists the sections, from the sidebar's entries, the
 // page's own in bold. A choice loads that page; a click elsewhere or Escape closes the menu.
-const combo = $('contents-combo'), bar = $('contents-bar');
+const combo = $('contents-combo'), bar = $('toolbar');
 let comboMenu = null;
 function closeCombo() {
   if (!comboMenu) return;
@@ -135,6 +140,54 @@ function openCombo() {
 combo.addEventListener('click', () => comboMenu ? closeCombo() : openCombo());
 document.addEventListener('mousedown', e => { if (comboMenu && !e.target.closest('.contents-menu, #contents-combo')) closeCombo(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCombo(); });
+
+// --- The find bar: the matches of the box's text in this page, highlighted through the CSS Custom Highlight API
+// (a browser without it still steps through them), Enter / Next and Shift+Enter / Previous stepping through
+// them, around the ends, the current one scrolled to the middle of the page.
+const findBox = $('find'), content = $('content');
+let found = [], at = -1;
+function textNodes(root) {
+  const out = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+  for (let n = walk.nextNode(); n; n = walk.nextNode()) out.push(n);
+  return out;
+}
+function runFind() {
+  const needle = findBox.value.trim().toLowerCase();
+  found = []; at = -1;
+  if (needle) {
+    const nodes = textNodes(content), starts = [];   // the page's text as one string, each node's start in it
+    let text = '';
+    for (const n of nodes) { starts.push(text.length); const low = n.data.toLowerCase(); text += low.length === n.data.length ? low : n.data; }
+    const locate = k => { let i = starts.length - 1; while (starts[i] > k) i--; return [nodes[i], k - starts[i]]; };
+    for (let k = text.indexOf(needle); k >= 0; k = text.indexOf(needle, k + 1)) {
+      const range = new Range(), [sn, so] = locate(k), [en, eo] = locate(k + needle.length - 1);
+      range.setStart(sn, so);
+      range.setEnd(en, eo + 1);
+      found.push(range);
+    }
+  }
+  if (CSS.highlights) CSS.highlights.set('find', new Highlight(...found));
+  $('find-previous').disabled = $('find-next').disabled = !found.length;
+  $('find-count').textContent = needle && !found.length ? 'Not found' : '';
+  if (found.length) step(1);
+}
+function step(by) {
+  if (!found.length) return;
+  at = (at + by + found.length) % found.length;
+  const range = found[at];
+  if (CSS.highlights) CSS.highlights.set('find-current', new Highlight(range));
+  const r = range.getBoundingClientRect(), c = content.getBoundingClientRect();
+  content.scrollTop += r.top - c.top - c.height / 2 + r.height / 2;
+  $('find-count').textContent = `${at + 1} of ${found.length}`;
+}
+findBox.addEventListener('input', runFind);
+findBox.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1); }
+  else if (e.key === 'Escape') { findBox.value = ''; runFind(); }
+});
+$('find-clear').addEventListener('click', () => { findBox.value = ''; runFind(); findBox.focus(); });
+$('find-previous').addEventListener('click', () => step(-1));
+$('find-next').addEventListener('click', () => step(1));
 </script>
 </body>
 </html>

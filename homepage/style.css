@@ -1,10 +1,19 @@
 /* The homepage: a Clearlooks window (frame and paint from viewer/static/window.css and clearlooks.css) laid out
    like GNOME 2's help browser: the Contents sidebar on the left, the README on the right in the window's own
    scroll box. Colours are the window's variables, so the Dark Background toggle covers everything. */
-.client { display: grid; grid-template-columns: 250px minmax(0, 1fr); min-height: 0; }
+.client { display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
 body.no-contents .client { grid-template-columns: minmax(0, 1fr); }
 body.no-contents .sidebar { display: none; }
-.toolbar { display: none; }   /* narrow windows only, see the end of this file */
+
+/* The toolbar, across the window: the find bar (its matches painted through the Custom Highlight API, in
+   Tango's Butter and Orange) and, on a narrow window only, the Contents combo box (the end of this file). */
+.toolbar { grid-column: 1 / -1; position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 4px 6px; border-bottom: 1px solid var(--line); }
+.toolbar button { display: inline-flex; align-items: center; gap: 4px; }
+.toolbar .entry { flex: 1 1 160px; max-width: 320px; }
+#find-count { color: var(--muted); white-space: nowrap; }
+::highlight(find) { background: #fce94f; color: #000; }
+::highlight(find-current) { background: #f57900; color: #fff; }
+.toolbar .combo { display: none; }   /* (.toolbar button would show it) */
 
 /* Sidebar: a GTK tree view with one selected row */
 .sidebar { overflow-y: auto; background: var(--cl-base, var(--ctl-bg)); border-right: 1px solid var(--cl-frame, var(--line)); }
@@ -67,8 +76,9 @@ body.dark .readme .warning .alert-title { color: #fcaf3e; }
 @media (max-width: 700px) {
   .client { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
   .sidebar { display: none; }
-  .toolbar { display: block; position: relative; padding: 4px 6px; border-bottom: 1px solid var(--line); }
-  .combo { display: flex; align-items: center; gap: 6px; width: 100%; padding: 4px 6px; text-align: left; }
+  .toolbar .combo { order: 1; flex: 1 1 100%; display: flex; align-items: center; gap: 6px; padding: 4px 6px; text-align: left; }   /* its own row, under the find bar, its menu right below it */
+  .toolbar .entry { max-width: none; }
+  #find-previous span, #find-next span { display: none; }   /* icons only */
   .combo img { flex: none; }
   .combo-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .combo-arrow { flex: none; align-self: stretch; display: flex; align-items: center; margin: -4px 0; padding-left: 8px;
