@@ -114,12 +114,11 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<p class="alert-title">Note</p>\n<p>Like this:</p>\n<pre><code>./build.py --x\n</code></pre>\n<p>The built files.</p>', html)
         self.assertNotIn("```", html)
 
-    def test_markdown_builds_a_table_of_contents_of_headings_1_to_3(self) -> None:
-        rendered = gen.render_markdown("# Top A\n\n## Mid B\n\n### Low C\n\n#### Deep D\n\ntext\n\n# Top E\n")
+    def test_markdown_builds_a_table_of_contents_of_the_top_level_headings(self) -> None:
+        rendered = gen.render_markdown("# Top A\n\n## Mid B\n\n### Low C\n\ntext\n\n# Top E\n")
         self.assertEqual(rendered.toc.replace("\n", ""),
-                         '<div class="toc"><ul><li><a href="#top-a">Top A</a><ul><li><a href="#mid-b">Mid B</a>'
-                         '<ul><li><a href="#low-c">Low C</a></li></ul></li></ul></li><li><a href="#top-e">Top E</a></li></ul></div>')
-        self.assertIn('<h4 id="deep-d">Deep D</h4>', rendered.html)   # still an anchor, just not listed
+                         '<div class="toc"><ul><li><a href="#top-a">Top A</a></li><li><a href="#top-e">Top E</a></li></ul></div>')
+        self.assertIn('<h2 id="mid-b">Mid B</h2>', rendered.html)   # still an anchor, just not listed
 
     def test_localize_copies_images_and_links_repository_files(self) -> None:
         repo = gen.Repository("https://github.com/o/r", "abc")

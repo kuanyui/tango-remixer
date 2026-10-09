@@ -54,7 +54,7 @@ _ALERTS: Tuple[str, ...] = ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
 
 
 class Rendered(NamedTuple):
-    """README.md as HTML, and its table of contents: headings 1 to 3 as nested lists."""
+    """README.md as HTML, and its table of contents: a list of the top-level headings."""
     html: str
     toc: str
 
@@ -234,7 +234,7 @@ def render_markdown(text: str) -> Rendered:
         if line.strip():
             quoted = bool(prefix.strip())
         lines.append(line)
-    md = markdown.Markdown(extensions=["extra", "toc"], extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1-3"}})
+    md = markdown.Markdown(extensions=["extra", "toc"], extension_configs={"toc": {"slugify": github_slug, "toc_depth": "1"}})
     html: str = md.convert("".join(lines))
 
     def alert(m: re.Match[str]) -> str:
