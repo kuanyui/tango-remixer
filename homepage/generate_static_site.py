@@ -78,22 +78,34 @@ class Section(NamedTuple):
     """the heading and what follows it; the first section also carries what comes before it (the banner)"""
 
 
-SECTION_ICONS: Dict[str, Tuple[str, str]] = {   # top-level heading id -> (context, icon name), from Tango where it has the icon, else Nome
-    "tango-remixer": ("places", "start-here"),
-    "why": ("apps", "help-browser"),
-    "used-submodules--thirdparties-tarballs": ("mimetypes", "package-x-generic"),
-    "built-in-icon-themes-and-licenses": ("apps", "preferences-desktop-theme"),
-    "how-to-use-in-qt-project": ("categories", "applications-development"),
-    "included_iconstxt-reference": ("apps", "accessories-text-editor"),
-    "build-svg-and-qrc": ("apps", "utilities-terminal"),
-    "internal-concepts": ("categories", "preferences-system"),
-    "acknowledgments": ("emblems", "emblem-favorite"),
-    "licenses": ("mimetypes", "x-office-document"),
+SECTION_ICONS: Dict[str, Tuple[str, str]] = {
+    # top-level heading id -> (context, icon name). Drawn at 48 px in the heading and 16 px in the Contents
+    # sidebar, so every one is an icon that exists at both sizes: from Tango where it has such an icon that
+    # fits, else from Nome (which has every size).
+    "tango-remixer": ("places", "start-here"),                                    # Tango
+    "why": ("apps", "help-browser"),                                              # Tango
+    "used-submodules--thirdparties-tarballs": ("mimetypes", "package-x-generic"),  # Nome
+    "built-in-icon-themes-and-licenses": ("categories", "preferences-desktop"),   # Tango
+    "included_iconstxt-reference": ("apps", "accessories-text-editor"),           # Tango
+    "how-to-use-in-qt-project": ("categories", "applications-development"),      # Nome
+    "build-svg-and-qrc": ("apps", "utilities-terminal"),                          # Nome
+    "internal-concepts": ("actions", "info"),                                     # Tango
+    "acknowledgments": ("emblems", "emblem-favorite"),                            # Tango
+    "licenses": ("mimetypes", "application-certificate"),                         # Nome
 }
 _DEFAULT_ICON: Tuple[str, str] = ("mimetypes", "text-x-generic")
 """For a section SECTION_ICONS does not know."""
-IconLookup = Callable[[str, str, int], str]
-"""(context, icon name, size in px) -> `<theme>/<path>` under viewer/icons/"""
+ALERT_ICONS: Dict[str, Tuple[str, str]] = {
+    # GitHub's alert kinds -> the dialog icons GNOME 2 documents and dialogs show, drawn at 22 px by the title.
+    # Nome has them at that size (Tango only at 32 and 48); the colours in style.css follow the icons.
+    "note": ("status", "dialog-information"),   # the light bulb
+    "tip": ("emblems", "emblem-default"),       # the green check
+    "important": ("emblems", "emblem-important"),
+    "warning": ("status", "dialog-warning"),
+    "caution": ("status", "dialog-error"),
+}
+IconLookup = Callable[[str, str, Tuple[int, ...]], Dict[int, str]]
+"""(context, icon name, sizes in px) -> size -> `<theme>/<path>` under viewer/icons/, all from one theme"""
 _LANGUAGES: Dict[str, str] = {"cmakelists": "cmake"}
 """Fence languages of README.md under the names Pygments knows them by."""
 INCLUDED_ICONS_LANGUAGE: str = "included-icons"
@@ -376,16 +388,25 @@ def split_sections(rendered: Rendered) -> List[Section]:
             for k, (h, part) in enumerate(zip(rendered.headings, parts))]
 
 
-def icon_path(index: List[Dict[str, object]], context: str, name: str, size: int) -> str:
-    """`<theme>/<path>` under viewer/icons/ of the icon `name` from Tango, else Nome,
-    at the smallest of its sizes that is `size` or larger (else its largest), for the
-    page to draw at `size` px. `index` is the viewer's (build_index)."""
+def icon_paths(index: List[Dict[str, object]], context: str, name: str, sizes: Tuple[int, ...]) -> Dict[int, str]:
+    """`<theme>/<path>` under viewer/icons/ of the icon `name` for each of `sizes`
+    (px), all from one theme: the first of Tango and Nome that draws it at every
+    one of those sizes, so a section's 16 px sidebar entry and its 48 px heading
+    show the same drawing; failing that, the first that has the icon at all, at
+    the smallest of its sizes that is the wanted one or larger (else its largest).
+    `index` is the viewer's (build_index)."""
+    found: List[Tuple[str, Dict[int, str]]] = []   # (theme, its sizes of the icon), in order of preference
     for theme in ("Tango", "Nome"):
         for entry in index:
             if entry["theme"] == theme and entry["context"] == context and entry["name"] == name:
-                sizes = [(int(s["size"]), s["path"]) for s in entry["sizes"] if s["size"] != "scalable"]   # type: ignore[index]
-                fitting = [s for s in sizes if s[0] >= size] or [max(sizes)]
-                return f"{theme}/{min(fitting)[1]}"
+                found.append((theme, {int(s["size"]): str(s["path"]) for s in entry["sizes"] if s["size"] != "scalable"}))   # type: ignore[index]
+                break
+    for theme, have in found:
+        if all(size in have for size in sizes):
+            return {size: f"{theme}/{have[size]}" for size in sizes}
+    if found:
+        theme, have = found[0]
+        return {size: f"{theme}/{have[min(s for s in have if s >= size) if any(s >= size for s in have) else max(have)]}" for size in sizes}
     raise LookupError(f"Neither Tango nor Nome has {context}/{name}")
 
 
@@ -436,8 +457,9 @@ def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: st
             return m[0]
         return f'href="{page_of[anchor]}"' if anchor in {s.id for s in sections} else f'href="{page_of[anchor]}#{anchor}"'
 
-    def icon(context: str, name: str, size: int) -> str:
-        return f'<img src="viewer/icons/{icons(context, name, size)}" width="{size}" height="{size}" alt="">'
+    def icon(context: str, name: str, size: int, sizes: Tuple[int, ...] = (16, 48)) -> str:
+        """The icon's <img> at `size`, from the theme that draws it at all of `sizes` (a section's two)."""
+        return f'<img src="viewer/icons/{icons(context, name, sizes)[size]}" width="{size}" height="{size}" alt="">'
 
     host = "GitHub" if "github" in repo.host else "GitLab" if "gitlab" in repo.host else repo.host
     template = (_HOMEPAGE_DIR / "template.html").read_text("utf-8")
@@ -446,14 +468,16 @@ def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: st
         context, name = SECTION_ICONS.get(section.id, _DEFAULT_ICON)
         html = re.sub(r'href="#([^"]+)"', lambda m: cross_link(m, section), localize(section.html, root, out, repo))   # localize first: "./" is a page here, not the repository's root
         html = html.replace(f'<h1 id="{section.id}">', f'<h1 id="{section.id}">{icon(context, name, 48)}', 1)
+        for kind, (alert_context, alert_name) in ALERT_ICONS.items():   # the alerts' titles get their dialog icon
+            html = html.replace(f'<p class="alert-title">{kind.capitalize()}</p>', f'<p class="alert-title">{icon(alert_context, alert_name, 22, (22,))}{kind.capitalize()}</p>')
         sidebar = "\n".join(
             f'<li><a href="{s.file}"{" class=\"current\"" if s is section else ""} title="{s.title}">'   # the title again as a tooltip: a long one is cut short in the list
             f'{icon(*SECTION_ICONS.get(s.id, _DEFAULT_ICON), 16)}<span>{s.title}</span></a></li>'
             for s in sections)
         previous, following = (sections[k - 1] if k else None), (sections[k + 1] if k + 1 < len(sections) else None)
         pager = "".join([
-            f'<a class="previous" href="{previous.file}">{icon("actions", "go-previous", 16)}Previous: {previous.title}</a>' if previous else "<span></span>",
-            f'<a class="next" href="{following.file}">Next: {following.title}{icon("actions", "go-next", 16)}</a>' if following else "<span></span>"])
+            f'<a class="previous" href="{previous.file}">{icon("actions", "go-previous", 16, (16,))}Previous: {previous.title}</a>' if previous else "<span></span>",
+            f'<a class="next" href="{following.file}">Next: {following.title}{icon("actions", "go-next", 16, (16,))}</a>' if following else "<span></span>"])
         page = template
         for key, value in [("repo_url", repo.web), ("repo_host", host), ("commit", repo.commit[:7]), ("date", date.today().isoformat()),
                            ("page_title", section.title if k == 0 else f"{section.title} - Tango Remixer"), ("title", section.title),
@@ -474,7 +498,7 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
     themes = source_themes()
     index = build_index(themes)
-    pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_path, index))
+    pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_paths, index))
     for file, html in pages.items():
         (out / file).write_text(html, "utf-8")
     urls: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's

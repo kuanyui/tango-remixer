@@ -194,8 +194,8 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('class="panel-button task pressed" href="./"', gen.render_panel("", "home", gen.Repository("https://github.com/o/r", "abc")))
 
     def test_pages_fill_the_template_one_per_section_with_icons_and_links_across(self) -> None:
-        icons = lambda context, name, size: f"Tango/{size}x{size}/{context}/{name}.svg"
-        pages = gen.render_pages("# Hi\n\nSee [the lsp](lsp/README.md), [why](#why) and [its part](#part).\n\n# Why\n\nBecause. [Back](#hi)\n\n## Part\n",
+        icons = lambda context, name, sizes: {size: f"Tango/{size}x{size}/{context}/{name}.svg" for size in sizes}
+        pages = gen.render_pages("# Hi\n\nSee [the lsp](lsp/README.md), [why](#why) and [its part](#part).\n\n> [!NOTE]\n> noted\n\n# Why\n\nBecause. [Back](#hi)\n\n## Part\n",
                                  gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out, '<div class="panel">P</div>', icons)
         self.assertEqual(list(pages), ["index.html", "why.html"])
         home, why = pages["index.html"], pages["why.html"]
@@ -213,6 +213,7 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<a href="./" class="current" title="Hi">', home)
         self.assertIn('<h1 id="hi"><img src="viewer/icons/Tango/48x48/mimetypes/text-x-generic.svg" width="48" height="48" alt="">Hi</h1>', home)
         self.assertIn('<a href="https://gitlab.com/g/r/-/blob/abcdef0123/lsp/README.md">the lsp</a>', home)
+        self.assertIn('<p class="alert-title"><img src="viewer/icons/Tango/22x22/status/dialog-information.svg" width="22" height="22" alt="">Note</p>', home)
         self.assertIn('<a href="why.html">why</a>', home)             # another section: its page
         self.assertIn('<a href="why.html#part">its part</a>', home)   # a heading inside it: its page, at the heading
         self.assertIn('<a class="next" href="why.html">Next: Why<img', home)
@@ -230,19 +231,26 @@ class TestHomepage(unittest.TestCase):
 
     @unittest.skipUnless(all(raw.copied_src_theme_folder.is_dir() for raw in viewer_server.BUILT_IN_RAW_ICON_THEMES_PATH),
                          "theme submodules not checked out")
-    def test_every_section_icon_exists_in_tango_or_nome_at_both_sizes(self) -> None:
+    def test_every_section_and_alert_icon_is_drawn_at_its_own_size_from_one_theme(self) -> None:
         index = viewer_server.build_index(viewer_server.source_themes())
-        for context, name in [*gen.SECTION_ICONS.values(), gen._DEFAULT_ICON, ("actions", "go-previous"), ("actions", "go-next")]:
-            for size in (16, 48):
-                path = gen.icon_path(index, context, name, size)
-                self.assertTrue(path.startswith("Tango/"), (context, name, path))   # the chosen ones all come from Tango
-        self.assertEqual(gen.icon_path(index, "places", "start-here", 16), "Tango/16x16/places/start-here.svg")
-        self.assertEqual(gen.icon_path(index, "mimetypes", "package-x-generic", 16), "Tango/32x32/mimetypes/package-x-generic.svg")   # no 16 or 22: the next size up
-        tango = {(e["context"], e["name"]) for e in index if e["theme"] == "Tango"}
-        nome_only = next(e for e in index if e["theme"] == "Nome" and (e["context"], e["name"]) not in tango)
-        self.assertTrue(gen.icon_path(index, nome_only["context"], nome_only["name"], 48).startswith("Nome/"))   # Tango lacks it: Nome
+        nome = {("mimetypes", "package-x-generic"), ("categories", "applications-development"), ("apps", "utilities-terminal"), ("mimetypes", "application-certificate")}
+        for context, name in [*gen.SECTION_ICONS.values(), gen._DEFAULT_ICON]:
+            paths = gen.icon_paths(index, context, name, (16, 48))
+            theme = "Nome" if (context, name) in nome else "Tango"
+            for size, path in paths.items():
+                self.assertTrue(path.startswith(theme + "/"), (context, name, path))
+                self.assertIn(f"/{size}x{size}/" if theme == "Tango" else f"/{size}/", path, (context, name, size, path))   # drawn at its size, no scaling
+        for context, name in gen.ALERT_ICONS.values():
+            self.assertRegex(gen.icon_paths(index, context, name, (22,))[22], r"^Nome/\w+/22/")   # Tango has these only at 32 and 48
+        for name in ("go-previous", "go-next"):
+            self.assertEqual(gen.icon_paths(index, "actions", name, (16,)), {16: f"Tango/16x16/actions/{name}.svg"})
+        self.assertEqual(gen.icon_paths(index, "mimetypes", "package-x-generic", (16, 48)),
+                         {16: "Nome/mimetypes/16/package-x-generic.svg", 48: "Nome/mimetypes/48/package-x-generic.svg"})   # Tango has 48 but no 16: both from Nome
+        self.assertEqual(gen.icon_paths(index, "mimetypes", "package-x-generic", (48,)), {48: "Tango/48x48/mimetypes/package-x-generic.svg"})   # alone, Tango has it
+        self.assertEqual(gen.icon_paths(index, "apps", "utilities-terminal", (20,)), {20: "Tango/22x22/apps/utilities-terminal.svg"})   # no one has 20: the next size up, Tango first
+        self.assertEqual(gen.icon_paths(index, "apps", "web-browser", (48,)), {48: "Nome/apps/48/web-browser.svg"})   # not in Tango (which has internet-web-browser)
         with self.assertRaises(LookupError):
-            gen.icon_path(index, "apps", "no-such-icon", 16)
+            gen.icon_paths(index, "apps", "no-such-icon", (16,))
 
 class TestViewerExport(unittest.TestCase):
 

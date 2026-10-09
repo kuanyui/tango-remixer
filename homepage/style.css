@@ -40,14 +40,22 @@ body.dark .readme a { color: #8fb3e6; }
 .readme th { background: var(--bg); }
 .readme hr { border: 0; border-top: 1px solid var(--line); }
 .readme del { color: var(--muted); }
-/* GitHub's `> [!NOTE]` alerts: the kind as a coloured title and left border (Tango's blue, green, plum, orange, red). */
+/* GitHub's `> [!NOTE]` alerts, drawn like GNOME 2's documentation notes: the kind's dialog icon by the title
+   (ALERT_ICONS in the generator), and the title and left border in the icon's own colour from the Tango palette:
+   Sky Blue for the note, Chameleon for the tip's check, Scarlet Red for the important mark, Orange for the
+   warning triangle, a deeper Scarlet Red plus a tint for the caution sign. */
 .readme blockquote.alert { color: inherit; }
-.readme .alert-title { font-weight: 700; margin: .5em 0; }
+.readme .alert-title { display: flex; align-items: center; gap: 7px; font-weight: 700; margin: .5em 0; }
+.readme .alert-title img { flex: none; }
 .readme .alert.note { border-color: #3465a4; } .readme .note .alert-title { color: #3465a4; }
 .readme .alert.tip { border-color: #4e9a06; } .readme .tip .alert-title { color: #4e9a06; }
-.readme .alert.important { border-color: #75507b; } .readme .important .alert-title { color: #75507b; }
-.readme .alert.warning { border-color: #f57900; } .readme .warning .alert-title { color: #f57900; }
-.readme .alert.caution { border-color: #cc0000; } .readme .caution .alert-title { color: #cc0000; }
+.readme .alert.important { border-color: #cc0000; } .readme .important .alert-title { color: #cc0000; }
+.readme .alert.warning { border-color: #f57900; } .readme .warning .alert-title { color: #ce5c00; }
+.readme .alert.caution { border-color: #a40000; background: rgba(204, 0, 0, 0.06); } .readme .caution .alert-title { color: #a40000; }
+body.dark .readme .note .alert-title { color: #729fcf; }
+body.dark .readme .tip .alert-title { color: #8ae234; }
+body.dark .readme .important .alert-title, body.dark .readme .caution .alert-title { color: #ef2929; }
+body.dark .readme .warning .alert-title { color: #fcaf3e; }
 
 /* Previous / Next, at the end of each page */
 .pager { display: flex; justify-content: space-between; gap: 16px; margin-top: 40px; padding-top: 12px; border-top: 1px solid var(--line); }
