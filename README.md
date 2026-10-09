@@ -14,9 +14,9 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 >
 > - [Tango Remixer](#tango-remixer)
 > - [Why](#why)
-> - [Used Submodules / Thirdparties Tarballs](#used-submodules--thirdparties-tarballs)
+> - [Used Submodules](#used-submodules)
 > - [Built-in Icon Themes and Licenses](#built-in-icon-themes-and-licenses)
-> - [included_icons.txt Reference](#included_iconstxt-reference)
+> - [`included_icons.txt` Reference](#included_iconstxt-reference)
 > - [How to Use in Qt Project?](#how-to-use-in-qt-project)
 > - [Build .svg and .qrc](#build-svg-and-qrc)
 > - [Internal Concepts](#internal-concepts)
@@ -25,15 +25,24 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 
 # Why
 
-I personally strongly believe that **flat design + monotone icon since the 2010s is completely a disastrous regression in the field of UI/UX designing**, at least for me who am somewhat dyslexia and rely on colorful and distinguishing icon. The monotone icons in UI **significantly** decrease my reaction speed when interacting with an UI.
+I personally strongly believe that **flat design + monotone icon since the 2010s is completely a disastrous regression in the field of UI/UX designing**, at least for me who am somewhat dyslexia and heavily rely on colorful and distinguishing icon when using GUI application. The monotone icons in UI **significantly** decrease my reaction speed when interacting with an UI.
+
+> [!NOTE]
+> Don't defend flat-design + monotone icon or argue with me about it, **"monotone icons (or even completely omitting icons) significantly decreases my reaction speed when using GUI"** is just a **statement of fact** which really happens on me and has been annoying me for years.
+>
+> Firefox removing lots of icons from its menu since many years ago is a representative example which causes me permanent headache, and result to lactose intolerance and make me allergic to life.
 
 So when I need to add icons into a GUI application (ex: Qt), I always perfer my favorite icon style [Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons), I adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
 
-However, Tango Desktop Project has already discontinued and seems not to be promoted anymore ([official site](http://tango.freedesktop.org/Tango_Desktop_Project) has been down... an archive in [2007](https://web.archive.org/web/20070314003558/http://tango.freedesktop.org/Tango_Desktop_Project) and [2021](https://web.archive.org/web/20211002063126/http://tango.freedesktop.org/Tango_Desktop_Project)), and itself contains only a very limited amounts of icons which are hardly able to satisfy the requirements of desktop application development.
+However, Tango Desktop Project has already discontinued and seems not to be promoted anymore ([official site](http://tango.freedesktop.org/Tango_Desktop_Project) has been down... an archive in [2007](https://web.archive.org/web/20070314003558/http://tango.freedesktop.org/Tango_Desktop_Project) and [2021](https://web.archive.org/web/20211002063126/http://tango.freedesktop.org/Tango_Desktop_Project)). I finally found out the version-control repository containing source SVG files and try to fork it as [Tango Icon Theme](https://github.com/kuanyui/tango-icon-theme), but itself contains only a very limited amounts of icons which are hardly able to satisfy the requirements of desktop application development.
 
-> Nowadays, it seems that the original version of tango-icon is only available on some places like distros' official package repository (e.g. [Archlinux](https://aur.archlinux.org/packages/tango-icon-theme))
+<!-- Nowadays, it seems that the original version of tango-icon is only available on some places like distros' official package repository (e.g. [Archlinux](https://aur.archlinux.org/packages/tango-icon-theme)) -->
 
-Fortuantely, Canonical / Ubuntu followed Tango Style Guidelines and created [Humanity](https://launchpad.net/humanity/) Project for their Ubuntu GNOME desktop, maybe in around 2006, which provides a larger amount of icons for daily usage. So I hereby express my highest respect for their work.
+In GNOME 2.10 ~ 3.12 era, GNOME also took Tango Design Guideline to draw their GNOME Icon Theme, but it was also deprecated since GNOME 3.12 and redesigned the style as Adwaita Icon Theme, so I also forked GNOME Icon Theme from version `3.12` into [Nome Icon Theme](https://github.com/kuanyui/nome-icon-theme).
+
+Canonical / Ubuntu also followed Tango Style Guidelines and created [Humanity](https://launchpad.net/humanity/) Project for their Ubuntu GNOME desktop, maybe in around 2006, which provides a larger amount of icons for daily usage. I also migrated it from Bazaar repository to Git repository [Humanity Icon Theme](https://github.com/kuanyui/humanity-icon-theme), and add some missing icons, do some fixes...etc.
+
+I hereby express my highest respect for their works, and wish such digital art heritage from the 2000s ~ 2010s can be well preserved (with commit history) and long live, even can be adopted on new projects nowadays.
 
 # Used Submodules
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
