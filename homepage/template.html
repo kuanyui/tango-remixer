@@ -130,6 +130,7 @@ function closeCombo() {
   combo.setAttribute('aria-expanded', 'false');
 }
 function openCombo() {
+  closeFindMenu();
   comboMenu = el('div', { className: 'menu contents-menu', role: 'menu' }, ...[...$('toc').querySelectorAll('li a')].map(link =>
     el('a', { className: link.classList.contains('current') ? 'menu-item current' : 'menu-item', href: link.getAttribute('href'), role: 'menuitem' },
       el('span', { className: 'slot' }, link.querySelector('img').cloneNode()), el('span', {}, link.querySelector('span').textContent))));
@@ -141,19 +142,25 @@ combo.addEventListener('click', () => comboMenu ? closeCombo() : openCombo());
 document.addEventListener('mousedown', e => { if (comboMenu && !e.target.closest('.contents-menu, #contents-combo')) closeCombo(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCombo(); });
 
-// --- The find bar: the matches of the box's text in this page, highlighted through the CSS Custom Highlight API
-// (a browser without it still steps through them), Enter / Next and Shift+Enter / Previous stepping through
-// them, around the ends, the current one scrolled to the middle of the page.
-const findBox = $('find'), content = $('content');
-let found = [], at = -1;
-function textNodes(root) {
-  const out = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+// --- The find bar: the matches of the box's text across the whole documentation. This page's are found in its
+// own text and highlighted through the CSS Custom Highlight API (a browser without it still steps through
+// them); the other pages' are counted in search-index.json (every page's text, written by the generator) and
+// the pages with any are listed under the box, each with its count. Next and Previous (Enter, Shift+Enter)
+// step through the matches, the current one scrolled to the middle of the page, and past this page's last one
+// go on to the next page that has any (`?find=` carries the text over, `&at=last` lands on its last match),
+// around the ends; the counter numbers the matches across the pages.
+const findBox = $('find'), content = $('content'), here = $('toc').querySelector('a.current').getAttribute('href');
+let pages = null, found = [], counts = [], at = -1, findMenu = null;
+function textNodes(root) {   // the page's text, the Previous / Next links left out (the index has them not)
+  const out = [], walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, n => n.parentElement.closest('.pager') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT);
   for (let n = walk.nextNode(); n; n = walk.nextNode()) out.push(n);
   return out;
 }
-function runFind() {
+function countIn(text, needle) { let n = 0; for (let k = text.indexOf(needle); k >= 0; k = text.indexOf(needle, k + 1)) n++; return n; }
+const total = () => counts.reduce((a, b) => a + b, 0);
+async function runFind(landing, quiet) {   // quiet: arrived from another page's find bar, the list kept until the box is focused
   const needle = findBox.value.trim().toLowerCase();
-  found = []; at = -1;
+  found = []; counts = []; at = -1;
   if (needle) {
     const nodes = textNodes(content), starts = [];   // the page's text as one string, each node's start in it
     let text = '';
@@ -165,29 +172,63 @@ function runFind() {
       range.setEnd(en, eo + 1);
       found.push(range);
     }
+    pages ??= (await (await fetch('search-index.json')).json()).map(p => ({ ...p, text: p.text.toLowerCase() }));
+    if (findBox.value.trim().toLowerCase() !== needle) return;   // typed on while the index was loading
+    counts = pages.map(p => p.href === here ? found.length : countIn(p.text, needle));
   }
   if (CSS.highlights) CSS.highlights.set('find', new Highlight(...found));
-  $('find-previous').disabled = $('find-next').disabled = !found.length;
-  $('find-count').textContent = needle && !found.length ? 'Not found' : '';
-  if (found.length) step(1);
+  $('find-previous').disabled = $('find-next').disabled = !total();
+  $('find-count').textContent = !needle ? '' : !total() ? 'Not found' : found.length ? '' : `${total()} on other pages`;
+  if (quiet) closeFindMenu(); else listPages();
+  if (found.length) show(landing === 'last' ? found.length - 1 : 0);
 }
-function step(by) {
-  if (!found.length) return;
-  at = (at + by + found.length) % found.length;
+function show(k) {   // the k-th match of this page the current one
+  at = k;
   const range = found[at];
   if (CSS.highlights) CSS.highlights.set('find-current', new Highlight(range));
   const r = range.getBoundingClientRect(), c = content.getBoundingClientRect();
   content.scrollTop += r.top - c.top - c.height / 2 + r.height / 2;
-  $('find-count').textContent = `${at + 1} of ${found.length}`;
+  const before = counts.slice(0, pages.findIndex(p => p.href === here)).reduce((a, b) => a + b, 0);
+  $('find-count').textContent = `${before + at + 1} of ${total()}`;
 }
-findBox.addEventListener('input', runFind);
+function step(by) {
+  if (!total()) return;
+  if (at + by >= 0 && at + by < found.length) return show(at + by);
+  const n = pages.length, k = pages.findIndex(p => p.href === here);   // the next (or previous) page with a match, around the ends
+  for (let i = 1; i <= n; i++) {
+    const j = (k + by * i + n * n) % n;
+    if (!counts[j]) continue;
+    if (j === k) return show(by > 0 ? 0 : found.length - 1);   // this page alone has any
+    location.href = `${pages[j].href}?find=${encodeURIComponent(findBox.value.trim())}${by < 0 ? '&at=last' : ''}`;
+    return;
+  }
+}
+function listPages() {   // under the box: the pages with matches, each with its count, this one in bold
+  findMenu?.remove();
+  findMenu = null;
+  if (!total()) return;
+  closeCombo();
+  const rows = [...$('toc').querySelectorAll('li a')];   // the sidebar's rows: each page's icon, in order
+  findMenu = el('div', { className: 'menu find-menu', role: 'menu' }, ...pages.flatMap((p, i) => !counts[i] ? [] : [
+    el('a', { className: p.href === here ? 'menu-item current' : 'menu-item', href: `${p.href}?find=${encodeURIComponent(findBox.value.trim())}`, role: 'menuitem' },
+      el('span', { className: 'slot' }, rows.find(a => a.getAttribute('href') === p.href).querySelector('img').cloneNode()),
+      el('span', {}, p.title), el('span', { className: 'accel' }, String(counts[i])))]));
+  bar.append(findMenu);
+}
+function closeFindMenu() { findMenu?.remove(); findMenu = null; }
+findBox.addEventListener('input', () => runFind());
+findBox.addEventListener('focus', () => { if (total() && !findMenu) listPages(); });
 findBox.addEventListener('keydown', e => {
   if (e.key === 'Enter') { e.preventDefault(); step(e.shiftKey ? -1 : 1); }
-  else if (e.key === 'Escape') { findBox.value = ''; runFind(); }
+  else if (e.key === 'Escape') { if (findMenu) closeFindMenu(); else { findBox.value = ''; runFind(); } }
 });
+document.addEventListener('mousedown', e => { if (findMenu && !e.target.closest('.find-menu, .entry')) closeFindMenu(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFindMenu(); });
 $('find-clear').addEventListener('click', () => { findBox.value = ''; runFind(); findBox.focus(); });
 $('find-previous').addEventListener('click', () => step(-1));
 $('find-next').addEventListener('click', () => step(1));
+const params = new URLSearchParams(location.search);   // arrived from another page's find bar
+if (params.get('find')) { findBox.value = params.get('find'); runFind(params.get('at'), true); }
 </script>
 </body>
 </html>

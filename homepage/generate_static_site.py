@@ -441,12 +441,20 @@ def render_panel(root: str, active: str, repo: Repository) -> str:
     return panel.rstrip("\n")
 
 
+def page_text(html_: str) -> str:
+    """A page's text as the find bar reads it in the page: tags dropped (the
+    line breaks between blocks keep their words apart), entities read,
+    whitespace folded."""
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", "", html_)).split())
+
+
 def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: str, icons: IconLookup) -> Dict[str, str]:
     """The pages of the site, file name -> HTML: one per top-level heading of
     README.md, from template.html with the panel, the Contents sidebar (every
     section with its icon, this page's selected), the section with its icon in the
     heading, and Previous / Next links. A link to a heading of another section
-    goes to that section's page."""
+    goes to that section's page. Plus search-index.json: every page's link, title
+    and text, for the find bar to search the whole documentation."""
     sections = split_sections(render_markdown(readme))
     page_of: Dict[str, str] = {}   # heading id -> file
     for section in sections:
@@ -470,6 +478,7 @@ def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: st
     host = "GitHub" if "github" in repo.host else "GitLab" if "gitlab" in repo.host else repo.host
     template = (_HOMEPAGE_DIR / "template.html").read_text("utf-8")
     pages: Dict[str, str] = {}
+    index: List[Dict[str, str]] = []
     for k, section in enumerate(sections):
         html = re.sub(r'href="#([^"]+)"', lambda m: cross_link(m, section), localize(section.html, root, out, repo))   # localize first: "./" is a page here, not the repository's root
         html = html.replace(f'<h1 id="{section.id}">', f'<h1 id="{section.id}">{section_icon(section, 48)}', 1)
@@ -489,6 +498,8 @@ def render_pages(readme: str, repo: Repository, root: Path, out: Path, panel: st
                            ("panel", panel), ("section_icon", section_icon(section, 16)), ("sidebar", sidebar), ("content", html), ("pager", pager)]:
             page = page.replace("{{" + key + "}}", value)
         pages["index.html" if k == 0 else section.file] = page
+        index.append({"href": section.file, "title": section.title, "text": page_text(html)})
+    pages["search-index.json"] = json.dumps(index, ensure_ascii=False)
     return pages
 
 
@@ -519,7 +530,7 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     for theme in themes.values():
         urls.setdefault(theme.folder, source_url(theme.folder))
     total, written = export_viewer(themes, out / "viewer", {name: urls[theme.folder] for name, theme in themes.items()}, render_panel("../", "viewer", repo), index)
-    print(f"{len(pages)} pages from README.md at {repo.web} ({repo.commit[:7]}). Viewer: {total} icons of {len(themes)} themes, "
+    print(f"{sum(file.endswith('.html') for file in pages)} pages from README.md at {repo.web} ({repo.commit[:7]}). Viewer: {total} icons of {len(themes)} themes, "
           f"{written} written, the rest unchanged. {out} ready in {time.perf_counter() - started:.0f}s.", flush=True)
 
 

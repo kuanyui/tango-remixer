@@ -206,7 +206,7 @@ class TestHomepage(unittest.TestCase):
         icons = lambda context, name, sizes, prefer=None: {size: f"{prefer or 'Tango'}/{size}x{size}/{context}/{name}.svg" for size in sizes}
         pages = gen.render_pages("# Hi\n\nSee [the lsp](lsp/README.md), [why](#why) and [its part](#part).\n\n> [!NOTE]\n> noted\n\n# Why\n\nBecause. [Back](#hi)\n\n## Part\n",
                                  gen.Repository("https://gitlab.com/g/r", "abcdef0123"), self.root, self.out, '<div class="panel">P</div>', icons)
-        self.assertEqual(list(pages), ["index.html", "why.html"])
+        self.assertEqual(list(pages), ["index.html", "why.html", "search-index.json"])
         home, why = pages["index.html"], pages["why.html"]
         for page in (home, why):
             self.assertNotIn("{{", page)
@@ -242,6 +242,14 @@ class TestHomepage(unittest.TestCase):
 
     @unittest.skipUnless(all(raw.copied_src_theme_folder.is_dir() for raw in viewer_server.BUILT_IN_RAW_ICON_THEMES_PATH),
                          "theme submodules not checked out")
+    def test_the_search_index_holds_every_page_with_its_text(self) -> None:
+        icons = lambda context, name, sizes, prefer=None: {size: f"Tango/{size}x{size}/{context}/{name}.svg" for size in sizes}
+        pages = gen.render_pages("# Hi\n\nSee [why](#why) &amp; `x < y`.\n\n# Why\n\nBecause.\n", gen.Repository("https://github.com/o/r", "abc"), self.root, self.out, "", icons)
+        index = json.loads(pages["search-index.json"])
+        self.assertEqual([(p["href"], p["title"]) for p in index], [("./", "Hi"), ("why.html", "Why")])
+        self.assertEqual(index[0]["text"], "Hi See why & x < y.")   # tags dropped, entities read, whitespace folded
+        self.assertEqual(index[1]["text"], "Why Because.")
+
     def test_every_section_and_alert_icon_is_drawn_at_its_own_size_from_one_theme(self) -> None:
         index = viewer_server.build_index(viewer_server.source_themes())
         for theme, context, name in [*gen.SECTION_ICONS.values(), gen._DEFAULT_ICON]:
