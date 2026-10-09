@@ -157,12 +157,11 @@
     .row { flex-wrap: wrap; gap: 4px 12px; padding: 6px 10px; }
     .meta { width: 100%; }
     .row .license { display: none; }
-    /* Status bar: one row where it fits; else the zoom and the API chooser (grid view) wrap to a second row,
-       the grip last (display: contents makes the four parts siblings, so they wrap one by one). */
+    /* Status bar: one row where it fits; else List | Grid (with the grip) wraps to a second row, still at the
+       right end (display: contents makes the four parts siblings, so they wrap one by one). */
     .statusbar { flex-wrap: wrap; }
     .view-controls { display: contents; }
-    #grid-opts { order: 1; }
-    .grip { order: 2; }
+    .view-switch { margin-left: auto; }
   }
   /* The detail window (a phone, see placeDetail): the pane fills it under a title bar naming the icon (so the
      pane's own heading is dropped), its file list scrolling as it does beside the list, with a Close button at
