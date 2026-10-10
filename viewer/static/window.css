@@ -58,16 +58,18 @@ dialog::backdrop { background: transparent; }
 .about p { margin: 0 0 6px; }
 .about .buttons { text-align: right; margin-top: 16px; }
 /* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. The button
-   (a 16 px icon in 2 px of padding) is centred in the entry's height, which leaves the input's border and vertical
-   padding above and below it, less the half pixel by which 20 px outgrows the 1.4 em text line; it sits the same
-   distance from the right edge, and the input keeps its text 4 px clear of it. */
+   is a square inside the entry's border, as tall as the entry is inside it, with the icon centred in it: so the icon
+   is as far from the top and bottom edges as from the right one, whatever the font. The input keeps its text 4 px
+   clear of the square (line height plus the vertical padding wide). */
 .entry { position: relative; display: flex; }
-.entry input { flex: 1; min-width: 0; padding-right: calc(0.4rem + 24px); }
-.entry .clear { position: absolute; right: calc(1px + 0.4rem - (20px - 1.4em) / 2); top: 50%; transform: translateY(-50%); display: none; padding: 2px;
-                line-height: 0; border: 0; border-radius: 3px; background: none; box-shadow: none; cursor: pointer; }
-.entry:has(input:not(:placeholder-shown)) .clear { display: block; }
+.entry input { flex: 1; min-width: 0; padding-right: calc(1.4em + 0.8rem + 4px); }
+.entry .clear { position: absolute; inset: 1px 1px 1px auto; aspect-ratio: 1; display: none; align-items: center; justify-content: center;
+                padding: 0; border: 0; border-radius: 3px; background: none; box-shadow: none; cursor: pointer; }
+.entry:has(input:not(:placeholder-shown)) .clear { display: flex; }
 .entry .clear:hover, .entry .clear:active { background: var(--hover); box-shadow: none; }
 .entry .clear img { display: block; margin: 0; }
+/* The browser's own clear button of a search box (Chrome draws one) would double the entry's: hidden. */
+input[type=search]::-webkit-search-cancel-button, input[type=search]::-webkit-search-decoration { -webkit-appearance: none; appearance: none; }
 /* Check mark drawn by CSS (menu check items, the viewer's filter rows). data-state: unchecked | checked |
    indeterminate. Shares its look with the native checkboxes. */
 .check { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 2px;

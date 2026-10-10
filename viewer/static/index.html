@@ -78,8 +78,11 @@
   .meta { width: 252px; flex: none; }
   .meta > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .meta .where, .meta .aliases { color: var(--muted); font-size: 12px; }
-  .sizes { display: flex; align-items: flex-end; gap: 12px; }
-  .row .license { margin-left: auto; max-width: 200px; text-align: right; color: var(--muted); font-size: 12px; }
+  /* The sizes wrap when the row is too narrow for them all; every row has the same figure widths (an empty box where
+     an icon lacks a size), so they wrap at the same place and the columns keep lining up. The license column is a
+     fixed width for the same reason. */
+  .sizes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 12px; }
+  .row .license { margin-left: auto; flex: none; width: 200px; text-align: right; color: var(--muted); font-size: 12px; }
   .sizes figure { margin: 0; text-align: center; }
   .sizes figcaption { font-size: 10px; color: var(--muted); }
   .sizes .empty { box-sizing: border-box; border: 1px dashed var(--line); }
@@ -136,9 +139,24 @@
   /* A phone (700 px and under): the window is maximized (see the script) and the toolbar is two rows: the
      search box with Reset and the Dark toggle (icons only, the toggle drawn as a button, pressed while on),
      then the three filters in thirds, their triggers saying how many are ticked instead of which (see
-     multiSelect). A row wraps its sizes under the name and drops the license; the status bar wraps; the detail
-     pane is a window of its own (placeDetail): there is no room for it beside the list. */
-  @media (max-width: 900px) { #pick-as { min-width: 0; } }   /* the API chooser, naming just the toolkit (see apiSel), shrinks to it */
+     multiSelect). The status bar wraps; the detail pane is a window of its own (placeDetail): there is no room for
+     it beside the list. (The rows wrap and lose the license column from the wider tiers above.) */
+  /* A laptop (1366 px and under): the detail pane gives up 80 px and the list its license column (the theme's
+     license is in the detail pane and under Help > Icon Themes), so a row with the default sizes fits beside the
+     pane down to about 1000 px. */
+  @media (max-width: 1366px) {
+    .client { grid-template-columns: 1fr 360px; }
+    .meta { width: 220px; }
+    .row .license { display: none; }
+  }
+  /* Smaller (900 px and under): a row wraps its sizes under the name, the pane gives up 40 px more, and the API
+     chooser, naming just the toolkit (see apiSel), shrinks to it. */
+  @media (max-width: 900px) {
+    .client { grid-template-columns: 1fr 320px; }
+    .row { flex-wrap: wrap; gap: 4px 12px; }
+    .meta { width: 100%; }
+    #pick-as { min-width: 0; }
+  }
   @media (max-width: 700px) {
     header { gap: 6px; padding: 6px 8px; }
     /* The search box claims the first row but 160 px (room for the three buttons beside it, with some to
@@ -155,9 +173,7 @@
     body.dark #dark-toggle { background: var(--cl-btn-active, var(--sel)); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
     .client { grid-template-columns: 1fr; }
     .client > #detail { display: none; }   /* until placeDetail has moved it into its window */
-    .row { flex-wrap: wrap; gap: 4px 12px; padding: 6px 10px; }
-    .meta { width: 100%; }
-    .row .license { display: none; }
+    .row { padding: 6px 10px; }
     /* Status bar: one row where it fits; else List | Grid (with the grip) wraps to a second row, still at the
        right end (display: contents makes the four parts siblings, so they wrap one by one). */
     .statusbar { flex-wrap: wrap; }
@@ -212,7 +228,7 @@
 <nav class="menubar" id="menubar"></nav>
 <div class="client">
 <header>
-  <span class="entry"><input type="search" id="q" placeholder="Search icon name…" autofocus><button type="button" class="clear" id="q-clear" title="Clear the search box"><img src="icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
+  <span class="entry"><input type="search" id="q" placeholder="Search icon name…" autofocus><button type="button" class="clear" id="q-clear" title="Clear the search box (Esc)"><img src="icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
   <label id="re-toggle" title="Read the search box as a regular expression, case-insensitive. Example: ^(system-run|security-)"><input type="checkbox" id="re"> <code>.*</code></label>
   <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
@@ -257,8 +273,9 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
 // Width tiers, matching the media queries at the end of the style sheet: on a laptop (1366 px and under) the
-// filter triggers say how many are ticked instead of which; at 900 px and under the API chooser names just the
-// toolkit; 700 px and under is the phone layout (`narrow`).
+// filter triggers say how many are ticked instead of which, the list drops its license column and the detail pane
+// narrows; at 900 px and under the API chooser names just the toolkit and a row wraps its sizes under the name;
+// 700 px and under is the phone layout (`narrow`).
 const TIERS = { laptop: '(max-width: 1366px)', small: '(max-width: 900px)', phone: '(max-width: 700px)' };
 const tier = name => matchMedia(TIERS[name]).matches;
 const narrow = () => tier('phone');
@@ -867,6 +884,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
 });
 $('q').addEventListener('input', render);
 $('q-clear').addEventListener('click', () => { $('q').value = ''; render(); $('q').focus(); });
+$('q').addEventListener('keydown', e => { if (e.key === 'Escape') { $('q').value = ''; render(); } });   // as the button; browsers differ on Esc in a search box
 let scrollTimer;
 $('list').addEventListener('scroll', () => { clearTimeout(scrollTimer); scrollTimer = setTimeout(saveState, 100); });
 // A right click (a long press on a phone) on a row or a cell: a popup menu to copy the icon's name, or to
