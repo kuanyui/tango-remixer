@@ -18,6 +18,7 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 import urllib.error
 import urllib.request
@@ -386,6 +387,42 @@ class TestSiteServer(unittest.TestCase):
             server.shutdown()
             server.server_close()
             shutil.rmtree(out)
+
+
+class TestWatch(unittest.TestCase):
+    """The dev server's watch: which files count, and a settled change calling for a rebuild."""
+
+    def setUp(self) -> None:
+        self.root = Path(tempfile.mkdtemp()).resolve()
+        for rel in ["README.md", "lib/color_converter.py", "homepage/style.css", "homepage/marks/x.svg", "homepage/_build/index.html",
+                    "homepage/__pycache__/x.pyc", "homepage/site/index.html", "viewer/static/window.css", "viewer/static/llselect/a.js",
+                    "viewer/server.py", "build_icons.py"]:
+            (self.root / rel).parent.mkdir(parents=True, exist_ok=True)
+            (self.root / rel).write_text("x", "utf-8")
+        self.out = self.root / "homepage" / "site"   # a site written inside homepage/ is not a source either
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.root)
+
+    def test_watched_sources_are_what_the_pages_are_made_from(self) -> None:
+        found = {p.relative_to(self.root).as_posix() for p in gen.watched_sources(self.root, self.out)}
+        self.assertEqual(found, {"README.md", "lib/color_converter.py", "homepage/style.css", "homepage/marks/x.svg",
+                                 "viewer/static/window.css", "viewer/static/llselect/a.js"})
+
+    def test_a_settled_change_calls_for_a_rebuild_with_the_changed_files(self) -> None:
+        calls, done, stop = [], threading.Event(), threading.Event()
+
+        def rebuild(changed):
+            calls.append(changed)
+            done.set()
+
+        threading.Thread(target=gen.watch, args=(self.root, self.out, rebuild, 0.05, stop), daemon=True).start()
+        time.sleep(0.3)   # the first snapshot is taken
+        (self.root / "homepage" / "style.css").write_text("changed", "utf-8")
+        (self.out / "index.html").write_text("the output changing is not a change", "utf-8")
+        self.assertTrue(done.wait(5))
+        stop.set()
+        self.assertEqual(calls, [[self.root / "homepage" / "style.css"]])
 
 
 if __name__ == "__main__":

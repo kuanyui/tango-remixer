@@ -71,9 +71,10 @@ homepage-build:    ## Generate the website (README.md + the icon viewer) into `H
 	python3 homepage/generate_static_site.py $(HOMEPAGE_OUT)
 
 # The same, then served on every interface (as `make viewer`), so the host of a VM can open it too. The URLs to
-# open are printed, this machine's LAN addresses among them. Ctrl-C stops it; run again after edits.
+# open are printed, this machine's LAN addresses among them. A change to README.md, homepage/, viewer/static/
+# or lib/color_converter.py rebuilds the site while it is served (reload the page). Ctrl-C stops it.
 .PHONY: homepage-dev-server
-homepage-dev-server:    ## Generate the website, then serve it on port `HOMEPAGE_PORT` on every interface; the URLs to open are printed, LAN addresses included. Ctrl-C stops it; run again after edits.
+homepage-dev-server:    ## Generate the website, serve it on port `HOMEPAGE_PORT` on every interface (the URLs to open are printed, LAN addresses included) and rebuild it when README.md, homepage/ or viewer/static/ change. Ctrl-C stops it.
 	python3 homepage/generate_static_site.py $(HOMEPAGE_OUT) --serve $(HOMEPAGE_PORT)
 
 ###

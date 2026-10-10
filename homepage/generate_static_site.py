@@ -18,7 +18,9 @@ and GitLab Pages publish it:
 Run:  python3 homepage/generate_static_site.py [OUT] [--serve [PORT]]     (default: homepage/_build/)
       make homepage-build        the same
       make homepage-dev-server   the same, then --serve: OUT served on PORT (8000 by default) on every interface, as
-                                 the viewer is, the URLs to open printed, this machine's LAN addresses among them
+                                 the viewer is, the URLs to open printed, this machine's LAN addresses among them;
+                                 a change to README.md, homepage/, viewer/static/ or lib/color_converter.py
+                                 rebuilds the site while it is served (reload the page)
 Needs Python-Markdown (the `markdown` module) and, for coloured code blocks, Pygments:
 `apt install python3-markdown python3-pygments` on Debian / Ubuntu, else
 `pip install markdown pygments`. (`markdown2` is a different library.)
@@ -46,6 +48,7 @@ import re
 import shutil
 import subprocess
 import sys
+import threading
 import time
 from datetime import date
 from functools import partial
@@ -193,19 +196,10 @@ def clean_commit(folder: Path) -> Optional[str]:
     return None if status.strip() else repo.commit
 
 
-def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str = "",
-                  index: Optional[List[Dict[str, object]]] = None) -> Tuple[int, int]:
-    """Write the viewer into `out`: index.html (with the site's `panel` above its
-    window, when given) and static/ from viewer/static/, api/index.json with
-    `urls[name]` as each theme's `url`, and icons/<theme>/<path> for every indexed
-    file (`index`, built here when not given). Returns (icons in the site, icons
-    written this time).
-
-    A rerun is quick: a theme whose checkout is clean and at the commit of the last
-    export (noted in .versions.json; for a Blue* theme together with the colorizer's
-    mtime) is left as it is. Any other theme is compared file by file: an icon is
-    rewritten when its source (or, for a Blue* theme, the colorizer) changed, and
-    dropped when no longer indexed."""
+def write_viewer_page(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str, index: List[Dict[str, object]]) -> None:
+    """The viewer's page and assets into `out`: index.html (with the site's `panel`
+    above its window, when given), static/ from viewer/static/, and api/index.json
+    with `urls[name]` as each theme's `url`."""
     shutil.rmtree(out / "static", ignore_errors=True)
     shutil.copytree(_STATIC_DIR, out / "static", ignore=shutil.ignore_patterns("index.html"))   # llselect, window.*, clearlooks.css
     page = (_STATIC_DIR / "index.html").read_text("utf-8")
@@ -214,10 +208,19 @@ def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str
         page = page.replace("<body>\n", "<body>\n" + panel + "\n", 1)
         page = page.replace("</body>", '<script src="../panel.js"></script>\n</body>', 1)
     (out / "index.html").write_text(page, "utf-8")
-    if index is None:
-        index = build_index(themes)
     (out / "api").mkdir(exist_ok=True)
     (out / "api" / "index.json").write_bytes(index_json(themes, index, "url", urls))
+
+
+def write_viewer_icons(themes: Dict[str, SourceTheme], out: Path, index: List[Dict[str, object]]) -> Tuple[int, int]:
+    """icons/<theme>/<path> under `out` for every file of `index`. Returns (icons
+    in the site, icons written this time).
+
+    A rerun is quick: a theme whose checkout is clean and at the commit of the last
+    export (noted in .versions.json; for a Blue* theme together with the colorizer's
+    mtime) is left as it is. Any other theme is compared file by file: an icon is
+    rewritten when its source (or, for a Blue* theme, the colorizer) changed, and
+    dropped when no longer indexed."""
     versions_file = out / ".versions.json"
     exported: Dict[str, str] = json.loads(versions_file.read_text("utf-8")) if versions_file.is_file() else {}
     colorizer_mtime: int = _COLOR_CONVERTER.stat().st_mtime_ns
@@ -257,6 +260,17 @@ def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str
             exported.pop(name, None)
     versions_file.write_text(json.dumps(exported, indent=1), "utf-8")
     return total, written
+
+
+def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str = "",
+                  index: Optional[List[Dict[str, object]]] = None) -> Tuple[int, int]:
+    """The whole viewer into `out`: its page and assets (write_viewer_page), then its
+    icons (write_viewer_icons, whose count this returns). `index` is built here when
+    not given."""
+    if index is None:
+        index = build_index(themes)
+    write_viewer_page(themes, out, urls, panel, index)
+    return write_viewer_icons(themes, out, index)
 
 
 # --- The homepage -------------------------------------------------------------------------------------
@@ -516,25 +530,108 @@ def write_pages(out: Path, pages: Dict[str, str]) -> None:
         (out / file).write_text(html, "utf-8")
 
 
+class Site:
+    """The site in `out`, from the checkout at `root`. The slow inputs are read once,
+    when the object is made: the theme scan (build_index) and the submodules'
+    repository URLs (git), seconds each on a slow mount. build() writes the site and
+    can run again (the dev server's watch does): in well under a second when the
+    icons are left alone."""
+
+    def __init__(self, out: Path, root: Path = _PROJECT_ROOT) -> None:
+        self.out: Path = out
+        self.root: Path = root
+        self.themes: Dict[str, SourceTheme] = source_themes()
+        self.index: List[Dict[str, object]] = build_index(self.themes)
+        by_folder: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's
+        for theme in self.themes.values():
+            by_folder.setdefault(theme.folder, source_url(theme.folder))
+        self.urls: Dict[str, str] = {name: by_folder[theme.folder] for name, theme in self.themes.items()}
+
+    def build(self, icons: bool = True) -> str:
+        """Write the site: the pages, the viewer's page and, unless `icons` is False,
+        the viewer's icons (write_viewer_icons rewrites only what changed). Returns a
+        line saying what was done."""
+        started = time.perf_counter()
+        out, root = self.out, self.root
+        out.mkdir(parents=True, exist_ok=True)
+        repo = site_repository(root)
+        for name in ["style.css", "panel.css", "panel.js"]:
+            shutil.copyfile(_HOMEPAGE_DIR / name, out / name)
+        (out / "highlight.css").write_text(highlight_css(), "utf-8")
+        shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
+        pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_paths, self.index))
+        write_pages(out, pages)
+        write_viewer_page(self.themes, out / "viewer", self.urls, render_panel("../", "viewer", repo), self.index)
+        about_icons = ""
+        if icons:
+            total, written = write_viewer_icons(self.themes, out / "viewer", self.index)
+            about_icons = f" Viewer: {total} icons of {len(self.themes)} themes, {written} written, the rest unchanged."
+        return (f"{sum(file.endswith('.html') for file in pages)} pages from README.md at {repo.web} ({repo.commit[:7]})."
+                f"{about_icons} {out} ready in {time.perf_counter() - started:.1f}s.")
+
+
 def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
     """The whole site into `out`."""
-    started = time.perf_counter()
-    out.mkdir(parents=True, exist_ok=True)
-    repo = site_repository(root)
-    for name in ["style.css", "panel.css", "panel.js"]:
-        shutil.copyfile(_HOMEPAGE_DIR / name, out / name)
-    (out / "highlight.css").write_text(highlight_css(), "utf-8")
-    shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
-    themes = source_themes()
-    index = build_index(themes)
-    pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_paths, index))
-    write_pages(out, pages)
-    urls: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's
-    for theme in themes.values():
-        urls.setdefault(theme.folder, source_url(theme.folder))
-    total, written = export_viewer(themes, out / "viewer", {name: urls[theme.folder] for name, theme in themes.items()}, render_panel("../", "viewer", repo), index)
-    print(f"{sum(file.endswith('.html') for file in pages)} pages from README.md at {repo.web} ({repo.commit[:7]}). Viewer: {total} icons of {len(themes)} themes, "
-          f"{written} written, the rest unchanged. {out} ready in {time.perf_counter() - started:.0f}s.", flush=True)
+    print(Site(out, root).build(), flush=True)
+
+
+# --- The dev server -----------------------------------------------------------------------------------
+
+def watched_sources(root: Path, out: Path) -> Dict[Path, Tuple[int, int]]:
+    """The files the pages are made from, each with its (mtime, size): README.md,
+    everything under homepage/ (but a _build folder, the site in `out` and
+    __pycache__) and under viewer/static/, and the colorizer lib/color_converter.py.
+    The theme folders are not among them: thousands of files, slow to poll on a slow
+    mount, and `make viewer` shows an edited SVG without any build."""
+    found: Dict[Path, Tuple[int, int]] = {}
+
+    def note(path: Path) -> None:
+        try:
+            stat = path.stat()
+        except OSError:   # gone between the listing and here
+            return
+        found[path] = (stat.st_mtime_ns, stat.st_size)
+
+    for file in [root / "README.md", root / "lib" / "color_converter.py"]:
+        note(file)
+    skipped = {out.resolve(), (root / "homepage" / "_build").resolve()}
+    pending: List[Path] = [root / "homepage", root / "viewer" / "static"]
+    while pending:
+        folder = pending.pop()
+        if folder.name == "__pycache__" or folder.resolve() in skipped:
+            continue
+        try:
+            entries = list(os.scandir(folder))
+        except OSError:
+            continue
+        for entry in entries:
+            if entry.is_dir(follow_symlinks=False):
+                pending.append(Path(entry.path))
+            elif entry.is_file():
+                note(Path(entry.path))
+    return found
+
+
+def watch(root: Path, out: Path, rebuild: Callable[[List[Path]], None], interval: float = 1.0,
+          stop: Optional[threading.Event] = None) -> None:
+    """Poll watched_sources every `interval` seconds until `stop` is set. When they
+    changed, wait for the change to settle (a poll that finds nothing new: editors
+    save in bursts), then call rebuild() with the files that changed, came or went."""
+    stop = stop or threading.Event()
+    before = watched_sources(root, out)
+    while not stop.wait(interval):
+        now = watched_sources(root, out)
+        if now == before:
+            continue
+        while not stop.wait(interval):
+            again = watched_sources(root, out)
+            if again == now:
+                break
+            now = again
+        if stop.is_set():
+            return
+        rebuild(sorted(path for path in set(before) | set(now) if before.get(path) != now.get(path)))
+        before = now
 
 
 class _QuietHandler(SimpleHTTPRequestHandler):
@@ -549,16 +646,31 @@ def site_server(out: Path, port: int = 0) -> ThreadingHTTPServer:
     return ThreadingHTTPServer(("0.0.0.0", port), partial(_QuietHandler, directory=str(out)))
 
 
-def serve(out: Path, port: int) -> None:
+def serve(out: Path, port: int, site: Optional[Site] = None) -> None:
     """`--serve`: the site over HTTP until Ctrl-C, the URLs to open printed first,
     this machine's LAN addresses among them (local_urls), so a browser on another
-    machine (the host of a VM) can open it too."""
+    machine (the host of a VM) can open it too. Given the `site`, a change to one of
+    watched_sources rebuilds it while it is served (the Blue* icons too when the
+    colorizer changed); reload the page to see it."""
     try:
         server = site_server(out, port)
     except OSError as e:
         sys.exit(f"Cannot listen on port {port} ({e.strerror}). Is another server still running? Stop it first.")
+    if site:
+        colorizer = site.root / "lib" / "color_converter.py"
+
+        def rebuild(changed: List[Path]) -> None:
+            names = ", ".join(str(p.relative_to(site.root)) if p.is_relative_to(site.root) else str(p) for p in changed[:3])
+            try:
+                print(f"{names}{', …' if len(changed) > 3 else ''} changed. " + site.build(icons=colorizer in changed), flush=True)
+            except Exception as e:   # a half-written README, a section icon that is not there, ...: the last build stays
+                print(f"[ERROR] Rebuild failed, the site is as it was: {e}", file=sys.stderr, flush=True)
+
+        threading.Thread(target=watch, args=(site.root, out, rebuild), daemon=True).start()
     print("Website listening on all interfaces (Ctrl-C to stop). Open one of:\n  " + "\n  ".join(local_urls(port))
-          + "\nThe icon viewer is at viewer/ under each.", flush=True)
+          + "\nThe icon viewer is at viewer/ under each."
+          + ("\nWatching README.md, homepage/, viewer/static/ and lib/color_converter.py: a change rebuilds the site, then reload the page." if site else ""),
+          flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
@@ -569,12 +681,13 @@ def main(argv: List[str]) -> None:
     parser = argparse.ArgumentParser(description="Generate the project website as plain files (see the module docstring).")
     parser.add_argument("out", nargs="?", default=_HOMEPAGE_DIR / "_build", type=Path, help="where the site is written (default: homepage/_build)")
     parser.add_argument("--serve", nargs="?", const=8000, type=int, metavar="PORT",
-                        help="then serve OUT on PORT (default 8000) on every interface, printing the URLs to open")
+                        help="then serve OUT on PORT (default 8000) on every interface, printing the URLs to open, and rebuild it when its sources change")
     args = parser.parse_args(argv)
     out: Path = args.out.resolve()
-    generate(out)
+    site = Site(out)
+    print(site.build(), flush=True)
     if args.serve is not None:
-        serve(out, args.serve)
+        serve(out, args.serve, site)
 
 
 if __name__ == "__main__":
