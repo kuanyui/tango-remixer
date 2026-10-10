@@ -33,10 +33,35 @@
   --mc-unf-inset: inset 0 1px 0 #ffffff, inset 1px 0 0 #ffffff, inset -1px 0 0 #d2d0cd, inset 0 -1px 0 #d2d0cd;
   --mc-unf-btn: linear-gradient(#edeceb, #d7d5d2); --mc-unf-btn-border: #85827e;
   --mc-unf-btn-inset: inset 0 1px 0 #ffffff, inset 1px 0 0 #ffffff, inset 0 -1px 0 #cbc9c6;
+  /* The focused title bar and its buttons: Metacity's shades of the selection colour, as the frame section below
+     spells out. The dark background (body.dark) starts from a deeper selection colour and shades it the same way. */
+  --mc-foc-grad: linear-gradient(#8bafdb 1px, #759dce 7px, #6c95c9 14px, #5d87bc 20px); --mc-foc-outline: #262b32; --mc-foc-line: #41556f;
+  --mc-foc-inset: inset 0 1px 0 #b7d0ee, inset 1px 0 0 #b7d0ee, inset -1px 0 0 #537eb4, inset 0 -1px 0 #537eb4;
+  --mc-foc-text-shadow: 1px 1px 0 #384555, 2px 2px 0 #4e76a8, 1px 2px 0 #537eb4;
+  --mc-btn-grad: linear-gradient(#92b4df, #6690c4); --mc-btn-border: #455e7c;
+  --mc-btn-inset: inset 0 1px 0 #b7d0ee, inset 1px 0 0 #92b4df, inset 0 -1px 0 #5d87bc, 1px 0 0 #9dbde5, 0 1px 0 #86abd9;
+  --mc-btn-active-grad: linear-gradient(#6690c4, #5d87bc);
+  --mc-btn-active-inset: inset 0 1px 0 #5d87bc, inset 1px 0 0 #537eb4, 1px 0 0 #9dbde5, 0 1px 0 #86abd9;
+  /* Scrollbar sliders: the menu item's Gummy gradient across the slider, lighter under the pointer. */
+  --cl-thumb-stops: #a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%; --cl-thumb-hover-stops: #b8d0ef 0%, #a7c4e8 50%, #a1c0e6 50%, #91b4df 100%;
 }
 body.dark {   /* a "Darklooks"-style counterpart for the Dark background toggle */
-  --bg: #3f3e3a; --fg: #e8e6e2; --line: #2a2926; --muted: #aeaba5; --hover: #4a4945; --sel: #86abd9;
+  --bg: #3f3e3a; --fg: #e8e6e2; --line: #2a2926; --muted: #aeaba5; --hover: #4a4945;
   --ctl-bg: #2f2e2b; --ctl-border: #1f1e1c; --ctl-hover: #3a3936;
+  /* A deeper selection blue (#456fa8: the light one is pale on a dark background, and white text on it hard to read);
+     the selection and menu gradients, the title bar and its buttons and the scrollbar sliders are its shades, by the
+     same factors as the light ones are shades of #86abd9. */
+  --sel: #456fa8; --accent: #456fa8;
+  --cl-sel-grad: linear-gradient(#4777b9 0%, #4571ac 50%, #456fa8 50%, #44699b 100%);
+  --cl-menu-grad: linear-gradient(#4d7ebf 0%, #4676b7 50%, #4674b3 50%, #456da5 100%); --cl-sel-border: #384a62;
+  --mc-foc-grad: linear-gradient(#4571ac 1px, #436797 7px, #42628f 14px, #3f5a7e 20px); --mc-foc-outline: #1b1d21; --mc-foc-line: #2f3948;
+  --mc-foc-inset: inset 0 1px 0 #5686c7, inset 1px 0 0 #5686c7, inset -1px 0 0 #3d5474, inset 0 -1px 0 #3d5474;
+  --mc-foc-text-shadow: 1px 1px 0 #272e37, 2px 2px 0 #3b4f6b, 1px 2px 0 #3d5474;
+  --mc-btn-grad: linear-gradient(#4674b3, #415f88); --mc-btn-border: #323f50;
+  --mc-btn-inset: inset 0 1px 0 #5686c7, inset 1px 0 0 #4674b3, inset 0 -1px 0 #3f5a7e, 1px 0 0 #497abc, 0 1px 0 #456fa8;
+  --mc-btn-active-grad: linear-gradient(#415f88, #3f5a7e);
+  --mc-btn-active-inset: inset 0 1px 0 #3f5a7e, inset 1px 0 0 #3d5474, 1px 0 0 #497abc, 0 1px 0 #456fa8;
+  --cl-thumb-stops: #4d7ebf 0%, #4676b7 50%, #4674b3 50%, #456da5 100%; --cl-thumb-hover-stops: #5686c7 0%, #4e7ec0 50%, #4b7bbd 50%, #4674b2 100%;
   --cl-base: #2f2e2b; --cl-row-alt: #353431; --cl-frame: #1f1e1c; --cl-shine: #55534e;
   --cl-btn: linear-gradient(#5c5a54 0%, #57554f 50%, #55534e 50%, #504e4a 100%);
   --cl-btn-hover: linear-gradient(#64615a 0%, #5e5c56 50%, #5c5a54 50%, #56544f 100%);
@@ -63,24 +88,21 @@ body { font-family: "DejaVu Sans", "Bitstream Vera Sans", "Liberation Sans", Ver
 .window, dialog { border: 1px solid var(--mc-frame-outline); border-radius: 5px 5px 0 0; padding: 0 4px 4px;
                   box-shadow: inset 1px 0 0 var(--mc-frame-light), inset -1px 0 0 var(--mc-frame-dark), inset 0 -1px 0 var(--mc-frame-dark),
                               0 4px 14px rgba(0, 0, 0, 0.4); }
-.titlebar { box-sizing: border-box; height: 23px; margin: -1px -5px 0; padding: 0 4px; border: 1px solid #262b32; border-bottom-color: #41556f;
+.titlebar { box-sizing: border-box; height: 23px; margin: -1px -5px 0; padding: 0 4px; border: 1px solid var(--mc-foc-outline); border-bottom-color: var(--mc-foc-line);
             border-radius: 5px 5px 0 0; color: #ffffff;
-            background: linear-gradient(#8bafdb 1px, #759dce 7px, #6c95c9 14px, #5d87bc 20px);
-            text-shadow: 1px 1px 0 #384555, 2px 2px 0 #4e76a8, 1px 2px 0 #537eb4;
-            box-shadow: inset 0 1px 0 #b7d0ee, inset 1px 0 0 #b7d0ee, inset -1px 0 0 #537eb4, inset 0 -1px 0 #537eb4; }
+            background: var(--mc-foc-grad); text-shadow: var(--mc-foc-text-shadow); box-shadow: var(--mc-foc-inset); }
 /* Buttons: fill sel x1.05-0.85, outline x0.55, inside highlight x1.2 (top) and x1.05 (left), inside shadow x0.8, a light
    line outside on the right and below (x1.1, x1.0). White glyphs. Prelight adds a 20 % white tint; pressed: fill
    x0.85-0.8 with x0.8 / x0.75 inside shadows. */
 button.wm-button, button.wm-button:hover:not(:disabled), button.wm-button:active:not(:disabled), button.wm-button:focus-visible {
-  border: 1px solid #455e7c; border-radius: 3px; color: #ffffff; --wm-glyph-outline: transparent; text-shadow: none; outline: none;
-  background: linear-gradient(#92b4df, #6690c4);
-  box-shadow: inset 0 1px 0 #b7d0ee, inset 1px 0 0 #92b4df, inset 0 -1px 0 #5d87bc, 1px 0 0 #9dbde5, 0 1px 0 #86abd9;
+  border: 1px solid var(--mc-btn-border); border-radius: 3px; color: #ffffff; --wm-glyph-outline: transparent; text-shadow: none; outline: none;
+  background: var(--mc-btn-grad); box-shadow: var(--mc-btn-inset);
 }
 button.wm-button:hover:not(:disabled) {
-  background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)), linear-gradient(#92b4df, #6690c4);
+  background: linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)), var(--mc-btn-grad);
 }
 button.wm-button:active:not(:disabled) {
-  background: linear-gradient(#6690c4, #5d87bc); box-shadow: inset 0 1px 0 #5d87bc, inset 1px 0 0 #537eb4, 1px 0 0 #9dbde5, 0 1px 0 #86abd9;
+  background: var(--mc-btn-active-grad); box-shadow: var(--mc-btn-active-inset);
 }
 /* Maximized: no side frame, no rounded corners (Metacity's normal_maximized geometry). */
 body.maximized .window { border-radius: 0; border-left: 0; border-right: 0; padding: 0; box-shadow: none; }
@@ -223,7 +245,7 @@ code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation 
 * { scrollbar-color: var(--sel) var(--cl-trough); }
 ::-webkit-scrollbar { width: 14px; height: 14px; }
 ::-webkit-scrollbar-track { background: var(--cl-trough); box-shadow: inset 1px 0 2px rgba(0, 0, 0, 0.25); }
-::-webkit-scrollbar-thumb { background: linear-gradient(90deg, #a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
-::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(#a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%); }
-::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, #b8d0ef 0%, #a7c4e8 50%, #a1c0e6 50%, #91b4df 100%); }
-::-webkit-scrollbar-thumb:horizontal:hover { background: linear-gradient(#b8d0ef 0%, #a7c4e8 50%, #a1c0e6 50%, #91b4df 100%); }
+::-webkit-scrollbar-thumb { background: linear-gradient(90deg, var(--cl-thumb-stops)); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(var(--cl-thumb-stops)); }
+::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, var(--cl-thumb-hover-stops)); }
+::-webkit-scrollbar-thumb:horizontal:hover { background: linear-gradient(var(--cl-thumb-hover-stops)); }
