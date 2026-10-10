@@ -109,20 +109,19 @@
 <script src="panel.js"></script>
 <script>
 // The homepage as a GNOME 2 help-browser window: one page per section, the Contents sidebar with this page's
-// section selected, the text in the window's own scroll box. State (Contents shown, maximized) lives in
-// localStorage and carries over from page to page; the dark background is the site's one setting (window.js).
+// section selected, the text in the window's own scroll box. Maximized or not lives in localStorage and carries
+// over from page to page; the dark background is the site's one setting (window.js).
 const STORAGE_KEY = 'tango-remixer-homepage';
 function loadState() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 }
 function saveState() {
-  const state = { sidebar: !document.body.classList.contains('no-contents'), maximized };
+  const state = { maximized };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
 const saved = loadState(), narrow = () => matchMedia('(max-width: 700px)').matches;
 let maximized = !!saved.maximized;   // the user's choice
 setDark(savedDark(!!saved.dark));   // a build before the setting was shared kept it here: carried over once
-document.body.classList.toggle('no-contents', saved.sidebar === false);   // `sidebar`, not the earlier `contents`: builds before 2613ba9 saved that false on every narrow window
 
 // --- Window frame: Maximize drops the desktop margin; a narrow window (a phone) has no room for it and is maximized
 // whatever the choice, the button only drawn there, as Minimize and Close are; File > Quit closes the tab
@@ -147,8 +146,6 @@ const MENUS = [
   ['_File', () => [
     { label: '_Quit', icon: 'Nome/actions/16/application-exit.svg', run: quit }]],
   ['_View', () => [
-    ...(narrow() ? [] : [   // the sidebar: on a narrow window the toolbar's combo box stands in for it
-      { label: '_Contents', check: !document.body.classList.contains('no-contents'), run: () => { document.body.classList.toggle('no-contents'); saveState(); } }]),
     { label: '_Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: isDark(), run: () => setDark(!isDark()) },
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],

@@ -2,8 +2,6 @@
    like GNOME 2's help browser: the Contents sidebar on the left, the README on the right in the window's own
    scroll box. Colours are the window's variables, so the Dark Background toggle covers everything. */
 .client { display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
-body.no-contents .client { grid-template-columns: minmax(0, 1fr); }
-body.no-contents .sidebar { display: none; }
 
 /* The toolbar, across the window: the find bar (its matches painted through the Custom Highlight API, in
    Tango's Butter and Orange) and, on a narrow window only, the Contents combo box (the end of this file). */
