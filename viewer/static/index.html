@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Tango Remixer Icon Viewer</title>
+<!-- Tango's own Start Here icon (two footprints, by Jakub Steiner), the project's mark, in every size the theme draws it at; the
+     largest serves any other size. -->
+<link rel="icon" href="icons/Tango/16x16/places/start-here.svg" sizes="16x16" type="image/svg+xml">
+<link rel="icon" href="icons/Tango/22x22/places/start-here.svg" sizes="22x22" type="image/svg+xml">
+<link rel="icon" href="icons/Tango/32x32/places/start-here.svg" sizes="32x32" type="image/svg+xml">
+<link rel="icon" href="icons/Tango/48x48/places/start-here.svg" sizes="48x48" type="image/svg+xml">
+<link rel="icon" href="icons/Tango/48x48/places/start-here.svg" sizes="any" type="image/svg+xml">
 <!-- @llselect/core 0.0.8 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
 <link rel="stylesheet" href="static/llselect/vanilla.css">
 <script src="static/llselect/index.umd.js"></script>
@@ -196,28 +203,6 @@
   #detail-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
   /* There a file's window (openFileWindow) is the way to its details: no pointer to hover the card with. */
   #detail-window .files::before { content: "Tap a file for its details."; display: block; padding: 6px 0 2px; font-size: 12px; color: var(--muted); }
-  /* Tool windows (Help > Icon Themes, a file's properties): a title bar, a body that scrolls when the window would
-     outgrow the screen, a Close button; laid out like the detail window on a phone. */
-  .tool-window[open] { display: flex; flex-direction: column; box-sizing: border-box; width: 600px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
-  /* The file's window is as wide as its preview row: the eight sizes (590 px) in their cards (18 px of padding and
-     border each) with 10 px between, plus the body's and the frame's padding; narrower screens wrap the row. */
-  #file-window[open] { width: calc(590px + 8 * 18px + 7 * 10px + 24px + 10px); }
-  .tool-window > .titlebar, .tool-window > .buttons { flex: none; }
-  .tool-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
-  .tool-window .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
-  /* Help > Icon Themes: every source theme as the Themes filter lists them, plus what the filter has no room for
-     (how many icons and files, where the files are). */
-  .themes .group { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
-  .themes .theme { display: grid; grid-template-columns: 32px 1fr; column-gap: 10px; align-items: start; padding: 6px 0; border-top: 1px solid var(--line); }
-  .themes .theme.derived { margin-left: 42px; border-top-style: dashed; }   /* a Blue* variant, under the theme whose files it colorizes */
-  .themes .theme > img { grid-row: 1 / 4; display: block; box-sizing: border-box; }
-  .themes .theme > img.on-dark { padding: 3px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
-  .themes .name { font-weight: 600; }
-  .themes .name small { font-weight: normal; color: var(--muted); }
-  .themes .blurb, .themes .source { font-size: 12px; color: var(--muted); }
-  .themes .source a { margin-right: 10px; }
-  .themes .source code { overflow-wrap: anywhere; }
-  .themes .more { margin-top: 12px; font-size: 12px; color: var(--muted); }
   /* A file's properties (a click on a size in the detail pane, its picture or its size line): the picture, then
      label / value rows under group titles, as GNOME 2's Properties dialogs had them. */
   .file-props .head { display: flex; gap: 14px; align-items: center; margin: 8px 0 4px; }
@@ -271,6 +256,8 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
   </div>
   <span class="grip"></span></div>
 </div>
+<!-- GTK 2's GtkAboutDialog: Credits and License are buttons that open windows of their own (installAbout in window.js),
+     each a list of rows with an icon, as Help > Icon Themes is. -->
 <dialog id="about" aria-labelledby="about-name">
   <div class="titlebar"><span class="wm-title">About Tango Remixer Icon Viewer</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
   <div class="about">
@@ -278,22 +265,46 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
     <h2 id="about-name">Tango Remixer Icon Viewer</h2>
     <p>Browse the source icon themes and copy lines for <code>included_icons.txt</code>.</p>
     <a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">github.com/kuanyui/tango-remixer</a>
-    <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+    <div class="buttons"><button type="button" data-open="credits"><img src="icons/Nome/apps/16/system-users.svg" width="16" height="16" alt="">Credits</button><button type="button" data-open="license"><img src="icons/Nome/mimetypes/16/application-certificate.svg" width="16" height="16" alt="">License</button><button type="button" class="close" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
   </div>
 </dialog>
-<dialog id="themes" class="tool-window" aria-labelledby="themes-title">
-  <div class="titlebar"><span class="wm-title" id="themes-title">Icon Themes</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
-  <div class="themes body" id="themes-list"></div>
-  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+<dialog id="credits" class="tool-window" aria-labelledby="credits-title">
+  <div class="titlebar"><span class="wm-title" id="credits-title">Credits</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="body rows">
+    <div class="group">Written by</div>
+    <div class="item"><img src="icons/Tango/32x32/apps/system-users.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui (ono ono)</a></div><div class="blurb"><ul>
+      <li><a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">Tango Remixer</a>: 80% are written manually, the rests are assisted by some LLMs. 100% fully-reviewed by human.</li>
+      <li>LSP server: 100% code are by LLM agent, with rough manual code review.</li>
+      <li>Homepage, Icon viewer: 100% code are written by LLM agent.</li>
+      <li><a href="https://github.com/kuanyui/llselect" target="_blank" rel="noopener">llselect</a> (<a href="https://www.npmjs.com/package/@llselect/core" target="_blank" rel="noopener">@llselect/core</a>): the combo boxes in the Icon Viewer.</li>
+    </ul></div></div>
+    <div class="group">Artwork by</div>
+    <div class="item"><img src="icons/Tango/32x32/categories/applications-graphics.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui (ono ono)</a></div><div class="blurb">Some extra icons and fixes in the forks the icons come from: <a href="https://github.com/kuanyui/tango-icon-theme" target="_blank" rel="noopener">Tango</a>, <a href="https://github.com/kuanyui/nome-icon-theme" target="_blank" rel="noopener">Nome</a>, <a href="https://github.com/kuanyui/humanity-icon-theme" target="_blank" rel="noopener">Humanity</a>.</div></div>
+    <div class="item"><img src="icons/Tango/32x32/apps/preferences-desktop-theme.svg" width="32" height="32" alt=""><div class="name">The icon themes' authors</div><div class="blurb">Each theme, with where its files are: <button type="button" data-open="themes"><img src="icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">Icon Themes…</button></div></div>
+    <div class="item"><img src="icons/Tango/32x32/categories/preferences-desktop.svg" width="32" height="32" alt=""><div class="name"><a href="https://en.wikipedia.org/wiki/Clearlooks" target="_blank" rel="noopener">Clearlooks</a>: Richard Stellingwerff, Daniel Borgmann</div><div class="blurb">GNOME 2's theme and its Metacity window frame, redrawn here in CSS.</div></div>
+    <div class="item"><img src="icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name"><a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">DMZ-White</a>: Novell, Inc.</div><div class="blurb">The mouse cursors, 2007&ndash;2010 (static/cursors/).</div></div>
+  </div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
+</dialog>
+<dialog id="license" class="tool-window" aria-labelledby="license-title">
+  <div class="titlebar"><span class="wm-title" id="license-title">License</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="body rows">
+    <div class="item"><img src="icons/Tango/32x32/mimetypes/application-certificate.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">Tango Remixer</a>: GNU General Public License, version 3</div><div class="blurb">This viewer, the build and README.md. <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">gnu.org/licenses/gpl-3.0</a></div></div>
+    <div class="group">Parts of this page under licenses of their own</div>
+    <div class="item"><img src="icons/Tango/32x32/apps/preferences-desktop-theme.svg" width="32" height="32" alt=""><div class="name">The icons: each theme's own license</div><div class="blurb">A file's SPDX-License-Identifier where it has one (its window shows it). <button type="button" data-open="themes"><img src="icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">Icon Themes…</button></div></div>
+    <div class="item"><img src="icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name">Mouse cursors, DMZ-White: <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0 Unported</a></div><div class="blurb">&copy; 2007&ndash;2010 Novell, Inc.; Debian's <a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">dmz-cursor-theme</a> package. <details class="expander" data-license="static/cursors/LICENSE"><summary>License text</summary><pre></pre></details></div></div>
+    <div class="item"><img src="icons/Tango/32x32/actions/format-justify-fill.svg" width="32" height="32" alt=""><div class="name">Combo boxes, <a href="https://github.com/kuanyui/llselect" target="_blank" rel="noopener">llselect</a> (@llselect/core): MIT</div><div class="blurb">By <a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui</a>. <details class="expander" data-license="static/llselect/LICENSE"><summary>License text</summary><pre></pre></details></div></div>
+  </div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <dialog id="detail-window" aria-labelledby="detail-title">
   <div class="titlebar"><span class="wm-title" id="detail-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
-  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <dialog id="file-window" class="tool-window" aria-labelledby="file-title">
   <div class="titlebar"><span class="wm-title" id="file-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
   <div class="body file-props" id="file-props"></div>
-  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <script>
 const MAX_ROWS = 500;
@@ -866,52 +877,10 @@ async function openPath(theme, path, action) {
   if (!res.ok) alert(`${action} failed (HTTP ${res.status}):\n${await res.text()}`);
 }
 
-// --- Help > Icon Themes ---------------------------------------------------------------------------------
-// The source themes as the Themes filter lists them (same order, same groups), a Blue* variant under the theme
-// whose files it colorizes (`base`), with what the filter has no room for: how many icons a theme has and in
-// which sizes (the files per size in the tooltip), and where its files are: the folder on the machine running
-// viewer/server.py, or two short links on the static site, the repository and the exported commit (index.json
-// tells the two apart, see fileButtons). The license is the theme's default; a file's own SPDX-License-Identifier
-// wins, which the file cards show.
-function fillThemes(themes) {
-  const site = !!themes[0]?.url;
-  const row = (t, derived) => {
-    const parts = [el('img', { src: encodeURI(`icons/${t.name}/${t.icon}`), width: 32, height: 32, alt: '', className: t.on_dark ? 'on-dark' : '' })];
-    if (derived) {
-      parts.push(el('div', { className: 'name' }, t.name), el('div', { className: 'blurb' }, t.about));
-    } else {
-      const mine = icons.filter(i => i.theme === t.name), perSize = {};
-      for (const i of mine) for (const s of i.sizes) perSize[s.size] = (perSize[s.size] || 0) + 1;
-      const sizes = Object.keys(perSize).sort((a, b) => (a === 'scalable') - (b === 'scalable') || a - b);
-      const files = Object.values(perSize).reduce((a, b) => a + b, 0);
-      const host = site && (t.repo.includes('gitlab') ? 'GitLab' : 'GitHub');
-      parts.push(
-        el('div', { className: 'name' }, t.name, ' ',
-          el('small', { title: 'Icon names with a real SVG file, each counted once across its sizes: one row of the list each.\nSymlink aliases are not counted.' }, `${mine.length} icons`), ' · ',
-          el('small', { title: `Icons with an SVG file in each size folder:\n${sizes.map(s => `${s}: ${perSize[s]}`).join('\n')}\n${files} SVG files in all (aliases not counted).` }, `sizes ${sizes.join(', ')}`)),
-        el('div', { className: 'blurb' }, `${t.about} · ${t.license}`),
-        el('div', { className: 'source' }, ...(site
-          ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `This theme's repository on ${host}:\n${t.repo}\nOpens in a new tab.` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
-             el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener',
-                       title: `The commit the site's copies of these icons come from:\n${t.commit}\nOpens this theme's folder at that commit, in a new tab.` }, t.commit.slice(0, 7))]
-          : [el('code', { title: "The folder on the machine running the local server, where this theme's icons are read directly." }, t.folder)])));
-    }
-    return el('div', { className: derived ? 'theme derived' : 'theme' }, ...parts);
-  };
-  const rows = [];
-  themes.forEach((t, k) => {
-    if (t.base) return;   // listed under its base theme
-    if (k === 0 || themes[k - 1].group !== t.group) rows.push(el('div', { className: 'group' }, t.group));
-    rows.push(row(t, false), ...themes.filter(d => d.base === t.name).map(d => row(d, true)));
-  });
-  const docs = site ? '../built-in-icon-themes-and-licenses.html' : 'https://github.com/kuanyui/tango-remixer#built-in-icon-themes-and-licenses';
-  $('themes-list').replaceChildren(...rows,
-    el('div', { className: 'more' }, "A theme's license applies to its files unless an SVG has an SPDX-License-Identifier comment specifying a different license. Hover a thumbnail in the detail pane (tap it on a phone) for the file card with that file's license and metadata. See also ",
-      el('a', { href: docs, ...(site ? {} : { target: '_blank', rel: 'noopener' }),
-                title: "Each theme's license, and warnings about mixing GPL v2, GPL v3 and CC BY-SA.\n"
-                  + (site ? 'A page of this site.' : 'The README on GitHub, in a new tab.') },
-        'Built-in Icon Themes and Licenses'), '.'));
-}
+// --- Help > Icon Themes (F1): openThemesWindow in window.js, from index.json once it is in ---------------
+let indexData = null;
+const showThemes = () => indexData && openThemesWindow(indexData, { base: '',
+  docs: indexData.themes[0]?.url ? '../built-in-icon-themes-and-licenses.html' : 'https://github.com/kuanyui/tango-remixer#built-in-icon-themes-and-licenses' });
 
 fetch('api/index.json').then(r => r.json()).then(data => {
   icons = data.icons;
@@ -974,7 +943,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   const selected = icons.find(i => keyOf(i) === saved.selected);
   if (selected) showDetail(selected, [...$('list').children].find(r => r.dataset.key === saved.selected));
   $('list').scrollTop = saved.scroll || 0;   // the list is inside its own scroll box, so the browser does not restore it
-  try { fillThemes(data.themes); } catch (error) { console.error('Help > Icon Themes could not be filled:', error); }   // a side window: never in the way of the list
+  indexData = data;   // Help > Icon Themes can be built now
 });
 $('q').addEventListener('input', render);
 $('q-clear').addEventListener('click', () => { $('q').value = ''; render(); $('q').focus(); });
@@ -1051,14 +1020,15 @@ const MENUS = [
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
   ['_Help', () => [
-    { label: 'Icon _Themes', accel: 'F1', icon: 'Nome/apps/16/preferences-desktop-theme.svg', run: () => $('themes').showModal() },
+    { label: 'Icon _Themes', accel: 'F1', icon: 'Nome/apps/16/preferences-desktop-theme.svg', disabled: !indexData, run: showThemes },
     null,
     { label: '_About', icon: 'Nome/actions/16/help-about.svg', run: () => $('about').showModal() }]],
 ];
 buildMenuBar(MENUS);
+installAbout({ themes: showThemes });
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); focusSearch(); }   // Edit > Find
-  else if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); $('themes').showModal(); }   // Help > Icon Themes
+  else if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); showThemes(); }   // Help > Icon Themes
 });
 </script>
 </body>

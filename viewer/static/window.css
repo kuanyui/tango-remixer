@@ -56,7 +56,42 @@ dialog::backdrop { background: transparent; }
 .about img { display: block; margin: 0 auto 8px; }
 .about h2 { margin: 0 0 6px; font-size: 18px; }
 .about p { margin: 0 0 6px; }
-.about .buttons { text-align: right; margin-top: 16px; }
+/* GTK 2's GtkAboutDialog: Credits and License buttons at the left of the button row, Close at the right, each of
+   the two opening a tool window (installAbout). */
+.about .buttons { display: flex; gap: 6px; margin-top: 16px; }
+.about .buttons .close { margin-left: auto; }
+/* A button's icon sits on its text line, never on a line of its own (a flex item may be squeezed to its min-content). */
+.buttons button { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.buttons button img { margin: 0; }
+/* Tool windows (Help > Icon Themes, Credits, License, a file's properties): a title bar, a body that scrolls when the
+   window would outgrow the screen, a Close button; laid out like the detail window on a phone. */
+.tool-window[open] { display: flex; flex-direction: column; box-sizing: border-box; width: 600px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
+.tool-window > .titlebar, .tool-window > .buttons { flex: none; }
+.tool-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
+.tool-window .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
+/* Rows with an icon (the Icon Themes, Credits and License windows): a 32 px icon, a name, a line or two under it,
+   group titles between; a row marked `derived` hangs under the one before it (a Blue* theme under its base). */
+.rows .group { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.rows .item { display: grid; grid-template-columns: 32px 1fr; column-gap: 10px; align-items: start; padding: 6px 0; border-top: 1px solid var(--line); }
+.rows .item.derived { margin-left: 42px; border-top-style: dashed; }
+.rows .item > img { grid-row: 1 / 4; display: block; box-sizing: border-box; }
+.rows .item > img.on-dark { padding: 3px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
+.rows .name { font-weight: 600; }
+.rows .name small { font-weight: normal; color: var(--muted); }
+.rows .blurb, .rows .source { font-size: 12px; color: var(--muted); }
+.rows .blurb ul { margin: 2px 0 0; padding-left: 16px; }   /* a few short points under a name */
+.rows .blurb li { margin: 1px 0; }
+.rows .source a { margin-right: 10px; }
+.rows .source code { overflow-wrap: anywhere; }
+.rows .more { margin-top: 12px; font-size: 12px; color: var(--muted); }
+.rows button { display: inline-flex; align-items: center; gap: 5px; vertical-align: middle; padding: 0.1rem 0.5rem; font-size: 11px; }   /* a small button in a row's text, with its icon */
+.rows button img { margin: 0; }
+/* A GtkExpander: a triangle before its label, turned when open; here the License window's texts. */
+details.expander > summary { list-style: none; cursor: pointer; margin-top: 4px; color: var(--fg); }
+details.expander > summary::-webkit-details-marker { display: none; }
+details.expander > summary::before { content: "\25B8"; display: inline-block; width: 12px; }
+details.expander[open] > summary::before { content: "\25BE"; }
+details.expander pre { max-height: 240px; overflow: auto; margin: 6px 0 0; padding: 8px; border: 1px solid var(--line); background: var(--ctl-bg); color: var(--fg); font-size: 11px; white-space: pre-wrap; }
 /* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. The button
    is a square inside the entry's border, as tall as the entry is inside it, with the icon centred in it: so the icon
    is as far from the top and bottom edges as from the right one, whatever the font. Its width is written out (the

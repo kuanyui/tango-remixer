@@ -5,8 +5,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{page_title}}</title>
 <meta name="description" content="Remix Tango-flavoured icon themes (Tango, GNOME, Humanity, ...) into one XDG icon theme for Qt and GTK applications.">
-<!-- Tango's own Start Here icon (two footprints, by Jakub Steiner), from the viewer's copy of the theme -->
+<!-- Tango's own Start Here icon (two footprints, by Jakub Steiner), the project's mark, in every size the theme draws it at; the
+     largest serves any other size. -->
 <link rel="icon" href="viewer/icons/Tango/16x16/places/start-here.svg" sizes="16x16" type="image/svg+xml">
+<link rel="icon" href="viewer/icons/Tango/22x22/places/start-here.svg" sizes="22x22" type="image/svg+xml">
+<link rel="icon" href="viewer/icons/Tango/32x32/places/start-here.svg" sizes="32x32" type="image/svg+xml">
+<link rel="icon" href="viewer/icons/Tango/48x48/places/start-here.svg" sizes="48x48" type="image/svg+xml">
 <link rel="icon" href="viewer/icons/Tango/48x48/places/start-here.svg" sizes="any" type="image/svg+xml">
 <!-- The Clearlooks window shared with the icon viewer (frame, menu bar, tooltip, About): its layout and script,
      this page's own styles, the paint, the panel on top, and GNOME 2's mouse cursors (viewer/static/cursors/). -->
@@ -59,6 +63,8 @@
 </div>
 <div class="statusbar"><span id="status">{{title}}</span><span class="grip"></span></div>
 </div>
+<!-- GTK 2's GtkAboutDialog: Credits and License are buttons that open windows of their own (installAbout in window.js),
+     each a list of rows with an icon, as Help > Icon Themes is. -->
 <dialog id="about" aria-labelledby="about-name">
   <div class="titlebar"><span class="wm-title">About Tango Remixer</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
   <div class="about">
@@ -67,8 +73,38 @@
     <p>Remix Tango-flavoured icon themes into one XDG icon theme for Qt and GTK applications.</p>
     <p>This page is README.md at commit {{commit}}, generated {{date}}.</p>
     <a href="{{repo_url}}" target="_blank" rel="noopener">Source on {{repo_host}}</a>
-    <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+    <div class="buttons"><button type="button" data-open="credits"><img src="viewer/icons/Nome/apps/16/system-users.svg" width="16" height="16" alt="">Credits</button><button type="button" data-open="license"><img src="viewer/icons/Nome/mimetypes/16/application-certificate.svg" width="16" height="16" alt="">License</button><button type="button" class="close" onclick="this.closest('dialog').close()"><img src="viewer/icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
   </div>
+</dialog>
+<dialog id="credits" class="tool-window" aria-labelledby="credits-title">
+  <div class="titlebar"><span class="wm-title" id="credits-title">Credits</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="body rows">
+    <div class="group">Written by</div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/apps/system-users.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui (ono ono)</a></div><div class="blurb"><ul>
+      <li><a href="{{repo_url}}" target="_blank" rel="noopener">Tango Remixer</a>: 80% are written manually, the rests are assisted by some LLMs. 100% fully-reviewed by human.</li>
+      <li>LSP server: 100% code are by LLM agent, with rough manual code review.</li>
+      <li>Homepage, Icon viewer: 100% code are written by LLM agent.</li>
+      <li><a href="https://github.com/kuanyui/llselect" target="_blank" rel="noopener">llselect</a> (<a href="https://www.npmjs.com/package/@llselect/core" target="_blank" rel="noopener">@llselect/core</a>): the combo boxes in the Icon Viewer.</li>
+    </ul></div></div>
+    <div class="group">Documented by</div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/mimetypes/text-x-generic.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui (ono ono)</a></div><div class="blurb"><a href="{{repo_url}}" target="_blank" rel="noopener">README.md</a>, which these pages are: rendered by <a href="https://python-markdown.github.io/" target="_blank" rel="noopener">Python-Markdown</a>, its code coloured by <a href="https://pygments.org/" target="_blank" rel="noopener">Pygments</a>.</div></div>
+    <div class="group">Artwork by</div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/categories/applications-graphics.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui (ono ono)</a></div><div class="blurb">Some extra icons and fixes in the forks the icons come from: <a href="https://github.com/kuanyui/tango-icon-theme" target="_blank" rel="noopener">Tango</a>, <a href="https://github.com/kuanyui/nome-icon-theme" target="_blank" rel="noopener">Nome</a>, <a href="https://github.com/kuanyui/humanity-icon-theme" target="_blank" rel="noopener">Humanity</a>.</div></div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/apps/preferences-desktop-theme.svg" width="32" height="32" alt=""><div class="name">The icon themes' authors</div><div class="blurb">Tango, Nome and the others of <a href="built-in-icon-themes-and-licenses.html">Built-in Icon Themes and Licenses</a>. Each with where its files are: <button type="button" data-open="themes"><img src="viewer/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">Icon Themes…</button></div></div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/categories/preferences-desktop.svg" width="32" height="32" alt=""><div class="name"><a href="https://en.wikipedia.org/wiki/Clearlooks" target="_blank" rel="noopener">Clearlooks</a>: Richard Stellingwerff, Daniel Borgmann</div><div class="blurb">GNOME 2's theme and its Metacity window frame, redrawn here in CSS.</div></div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name"><a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">DMZ-White</a>: Novell, Inc.</div><div class="blurb">The mouse cursors, 2007&ndash;2010 (viewer/static/cursors/).</div></div>
+  </div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="viewer/icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
+</dialog>
+<dialog id="license" class="tool-window" aria-labelledby="license-title">
+  <div class="titlebar"><span class="wm-title" id="license-title">License</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="body rows">
+    <div class="item"><img src="viewer/icons/Tango/32x32/mimetypes/application-certificate.svg" width="32" height="32" alt=""><div class="name"><a href="{{repo_url}}" target="_blank" rel="noopener">Tango Remixer</a>: GNU General Public License, version 3</div><div class="blurb">The build, the viewer, README.md and this website: see <a href="licenses.html">Licenses</a>. <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">gnu.org/licenses/gpl-3.0</a></div></div>
+    <div class="group">Parts of this page under licenses of their own</div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/apps/preferences-desktop-theme.svg" width="32" height="32" alt=""><div class="name">The icons: each theme's own license</div><div class="blurb">In <a href="built-in-icon-themes-and-licenses.html">Built-in Icon Themes and Licenses</a>; the viewer's list, with where each theme's files are: <button type="button" data-open="themes"><img src="viewer/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">Icon Themes…</button></div></div>
+    <div class="item"><img src="viewer/icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name">Mouse cursors, DMZ-White: <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0 Unported</a></div><div class="blurb">&copy; 2007&ndash;2010 Novell, Inc.; Debian's <a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">dmz-cursor-theme</a> package. <details class="expander" data-license="viewer/static/cursors/LICENSE"><summary>License text</summary><pre></pre></details></div></div>
+  </div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="viewer/icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <script src="panel.js"></script>
 <script>
@@ -102,6 +138,10 @@ function quit() {
   setTimeout(() => { $('status').textContent = 'The browser did not let the page close this tab. Close it yourself.'; }, 200);
 }
 
+// --- The viewer's Icon Themes window (window.js), from the viewer's index.json, fetched the first time it is asked for
+let indexData = null;
+const showThemes = () => openThemesWindow(indexData ??= fetch('viewer/api/index.json').then(r => r.json()), { base: 'viewer/', docs: 'built-in-icon-themes-and-licenses.html' });
+
 // --- Menu bar (window.js): File, View, Help
 const MENUS = [
   ['_File', () => [
@@ -113,10 +153,14 @@ const MENUS = [
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
   ['_Help', () => [
+    { label: 'Icon _Themes', accel: 'F1', icon: 'Nome/apps/16/preferences-desktop-theme.svg', run: showThemes },
+    null,
     { label: '_About', icon: 'Nome/actions/16/help-about.svg', run: () => $('about').showModal() }]],
 ];
 buildMenuBar(MENUS, 'viewer/icons/');
 installTooltips();
+installAbout({ themes: showThemes });
+document.addEventListener('keydown', e => { if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); showThemes(); } });   // Help > Icon Themes
 
 // --- The toolbar's combo box (narrow windows): its menu lists the sections, from the sidebar's entries, the
 // page's own in bold. A choice loads that page; a click elsewhere or Escape closes the menu.

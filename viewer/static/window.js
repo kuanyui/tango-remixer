@@ -1,6 +1,6 @@
 // The Clearlooks application window, shared by the icon viewer (viewer/static/index.html) and the website's
 // homepage (homepage/template.html): DOM helpers, the menu bar with its menus, the one tooltip of the page, the
-// dark-background setting, and links for the bare URLs in a text.
+// About dialog's Credits and License windows, the Icon Themes window, the dark-background setting, and links for the bare URLs in a text.
 // A plain script for <head>; the page calls buildMenuBar() and installTooltips() once its body exists.
 const $ = id => document.getElementById(id);
 
@@ -84,6 +84,96 @@ function openContextMenu(items, x, y, iconBase = 'icons/') {
 }
 document.addEventListener('mousedown', e => { if (contextMenu && !e.target.closest('.context-menu')) closeContextMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContextMenu(); });
+
+// --- About, Credits, License ---------------------------------------------------------------------------
+// GTK 2's GtkAboutDialog: the About window has Credits and License buttons at the left of its button row, each
+// opening a window of its own over it. A [data-open] button names the dialog it opens, or a key of `open`, the
+// page's own openers (the Icon Themes window, built on demand). Both windows are lists of rows with an icon
+// (.rows, as Help > Icon Themes is). In License, a details[data-license] expander fetches that file (a LICENSE
+// of the site) into its <pre> the first time it opens.
+function installAbout(open = {}) {
+  for (const button of document.querySelectorAll('[data-open]')) {
+    button.addEventListener('click', () => (open[button.dataset.open] || (() => $(button.dataset.open).showModal()))());
+  }
+  for (const details of document.querySelectorAll('details[data-license]')) {
+    details.addEventListener('toggle', async () => {
+      if (!details.open || details.dataset.loaded) return;
+      details.dataset.loaded = '1';
+      const pre = details.querySelector('pre');
+      pre.textContent = 'Loading…';
+      try { pre.textContent = await (await fetch(details.dataset.license)).text(); } catch { pre.textContent = `${details.dataset.license} could not be loaded.`; }
+    });
+  }
+}
+
+// --- Tool windows made by script -------------------------------------------------------------------------
+// The chrome the pages' own dialogs have in their markup: a title bar with its Close button, a body, a Close button
+// with GTK's close icon. `base` is the way to the viewer's folder from the page ('' in the viewer, 'viewer/' on
+// the homepage), for the icon.
+function toolWindow(id, title, body, base) {
+  const close = el('button', { type: 'button', className: 'wm-button', title: 'Close' });
+  close.innerHTML = '<svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg>';
+  const dialog = el('dialog', { id, className: 'tool-window' },
+    el('div', { className: 'titlebar' }, el('span', { className: 'wm-title', id: `${id}-title` }, title), el('span', { className: 'wm-buttons' }, close)),
+    body,
+    el('div', { className: 'buttons' }, el('button', { type: 'button' }, el('img', { src: `${base}icons/Nome/actions/16/window-close.svg`, width: 16, height: 16, alt: '' }), 'Close')));
+  dialog.setAttribute('aria-labelledby', `${id}-title`);
+  for (const button of [close, dialog.querySelector('.buttons button')]) button.addEventListener('click', () => dialog.close());
+  return dialog;
+}
+
+// --- Icon Themes window ---------------------------------------------------------------------------------
+// Help > Icon Themes (F1) on both pages, and the License window's Icon Themes button: every source theme as the
+// viewer's Themes filter lists them (same order, same groups), a Blue* variant under the theme whose files it
+// colorizes (`base`), with how many icons a theme has and in which sizes (the files per size in the tooltip), and
+// where its files are: the folder on the machine running viewer/server.py, or two short links on the static site,
+// the repository and the exported commit (index.json tells the two apart by `folder` or `url`). The license is
+// the theme's default; a file's own SPDX-License-Identifier wins. Built once, from `data` (index.json's content,
+// or a promise of it); `base` as for toolWindow, `docs` the documentation's Built-in Icon Themes and Licenses.
+let themesWindow = null;
+async function openThemesWindow(data, { base, docs }) {
+  if (!themesWindow) {
+    const { themes, icons } = await data;
+    const site = !!themes[0]?.url;
+    const row = (t, derived) => {
+      const parts = [el('img', { src: encodeURI(`${base}icons/${t.name}/${t.icon}`), width: 32, height: 32, alt: '', className: t.on_dark ? 'on-dark' : '' })];
+      if (derived) {
+        parts.push(el('div', { className: 'name' }, t.name), el('div', { className: 'blurb' }, t.about));
+      } else {
+        const mine = icons.filter(i => i.theme === t.name), perSize = {};
+        for (const i of mine) for (const s of i.sizes) perSize[s.size] = (perSize[s.size] || 0) + 1;
+        const sizes = Object.keys(perSize).sort((a, b) => (a === 'scalable') - (b === 'scalable') || a - b);
+        const files = Object.values(perSize).reduce((a, b) => a + b, 0);
+        const host = site && (t.repo.includes('gitlab') ? 'GitLab' : 'GitHub');
+        parts.push(
+          el('div', { className: 'name' }, t.name, ' ',
+            el('small', { title: 'Icon names with a real SVG file, each counted once across its sizes: one row of the list each.\nSymlink aliases are not counted.' }, `${mine.length} icons`), ' · ',
+            el('small', { title: `Icons with an SVG file in each size folder:\n${sizes.map(s => `${s}: ${perSize[s]}`).join('\n')}\n${files} SVG files in all (aliases not counted).` }, `sizes ${sizes.join(', ')}`)),
+          el('div', { className: 'blurb' }, `${t.about} · ${t.license}`),
+          el('div', { className: 'source' }, ...(site
+            ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `This theme's repository on ${host}:\n${t.repo}\nOpens in a new tab.` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
+               el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener',
+                         title: `The commit the site's copies of these icons come from:\n${t.commit}\nOpens this theme's folder at that commit, in a new tab.` }, t.commit.slice(0, 7))]
+            : [el('code', { title: "The folder on the machine running the local server, where this theme's icons are read directly." }, t.folder)])));
+      }
+      return el('div', { className: derived ? 'item derived' : 'item' }, ...parts);
+    };
+    const rows = [];
+    themes.forEach((t, k) => {
+      if (t.base) return;   // listed under its base theme
+      if (k === 0 || themes[k - 1].group !== t.group) rows.push(el('div', { className: 'group' }, t.group));
+      rows.push(row(t, false), ...themes.filter(d => d.base === t.name).map(d => row(d, true)));
+    });
+    const body = el('div', { className: 'body rows' }, ...rows,
+      el('div', { className: 'more' }, "A theme's license applies to its files unless an SVG has an SPDX-License-Identifier comment specifying a different license. Hover a thumbnail in the detail pane (tap it on a phone) for the file card with that file's license and metadata. See also ",
+        el('a', { href: docs, ...(site ? {} : { target: '_blank', rel: 'noopener' }),
+                  title: "Each theme's license, and warnings about mixing GPL v2, GPL v3 and CC BY-SA.\n" + (site ? 'A page of this site.' : 'The README on GitHub, in a new tab.') },
+          'Built-in Icon Themes and Licenses'), '.'));
+    themesWindow = toolWindow('themes', 'Icon Themes', body, base);
+    document.body.append(themesWindow);
+  }
+  themesWindow.showModal();
+}
 
 // --- Dark background ------------------------------------------------------------------------------------
 // One setting for every page of the website and for the viewer served alone, kept in localStorage under a key of
