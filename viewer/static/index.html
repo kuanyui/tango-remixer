@@ -234,7 +234,7 @@
 <nav class="menubar" id="menubar"></nav>
 <div class="client">
 <header>
-  <span class="entry"><input type="search" id="q" placeholder="Search icon name…" autofocus><button type="button" class="clear" id="q-clear" title="Clear the search box (Esc)"><img src="icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
+  <span class="entry"><input type="search" id="q" placeholder="Search icon name… (/ or Ctrl+F)" autofocus><button type="button" class="clear" id="q-clear" title="Clear the search box (Esc)"><img src="icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
   <label id="re-toggle" title="Read the search box as a regular expression, case-insensitive. Example: ^(system-run|security-)"><input type="checkbox" id="re"> <code>.*</code></label>
   <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
   <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
@@ -1003,7 +1003,7 @@ const MENUS = [
   ['_File', () => [
     { label: '_Quit', icon: 'Nome/actions/16/application-exit.svg', run: quit }]],
   ['_Edit', () => [
-    { label: '_Find', accel: 'Ctrl+F', icon: 'Nome/actions/16/edit-find.svg', run: focusSearch },
+    { label: '_Find', accel: 'Ctrl+F, /', icon: 'Nome/actions/16/edit-find.svg', run: focusSearch },
     { label: '_Copy Line for included_icons.txt', icon: 'Nome/actions/16/edit-copy.svg',
       disabled: !copyLineButton() || copyLineButton().disabled, run: () => copyLineButton().click() },
     null,
@@ -1028,6 +1028,7 @@ buildMenuBar(MENUS);
 installAbout({ themes: showThemes });
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); focusSearch(); }   // Edit > Find
+  else if (e.key === '/' && !e.ctrlKey && !e.altKey && !e.metaKey && !e.target.closest('input, textarea') && !document.querySelector('dialog[open]')) { e.preventDefault(); focusSearch(); }   // as on the homepage
   else if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); showThemes(); }   // Help > Icon Themes
 });
 </script>

@@ -45,9 +45,9 @@
      (built by the script from the sidebar's entries). -->
 <div class="toolbar" id="toolbar">
   <button type="button" class="combo" id="contents-combo" aria-haspopup="menu" aria-expanded="false" title="Contents: the sections of the documentation">{{section_icon}}<span class="combo-text">{{title}}</span><span class="combo-arrow"><span class="arrow"></span></span></button>
-  <span class="entry"><input type="search" id="find" placeholder="Find in this page…" aria-label="Find in this page"><button type="button" class="clear" id="find-clear" title="Clear the search box (Esc)"><img src="viewer/icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
-  <button type="button" id="find-previous" title="The previous match (Shift+Enter in the box)" disabled><img src="viewer/icons/Tango/16x16/actions/go-up.svg" width="16" height="16" alt=""><span>Previous</span></button>
-  <button type="button" id="find-next" title="The next match (Enter in the box)" disabled><img src="viewer/icons/Tango/16x16/actions/go-down.svg" width="16" height="16" alt=""><span>Next</span></button>
+  <span class="entry"><input type="search" id="find" placeholder="Find in the documentation… (/)" aria-label="Find in the documentation"><button type="button" class="clear" id="find-clear" title="Clear the search box (Esc)"><img src="viewer/icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
+  <button type="button" id="find-previous" title="The previous match (Shift+Enter in the box; Shift+F3 anywhere)" disabled><img src="viewer/icons/Tango/16x16/actions/go-up.svg" width="16" height="16" alt=""><span>Previous</span></button>
+  <button type="button" id="find-next" title="The next match (Enter in the box; F3 anywhere)" disabled><img src="viewer/icons/Tango/16x16/actions/go-down.svg" width="16" height="16" alt=""><span>Next</span></button>
   <span id="find-count"></span>
 </div>
 <nav id="toc" class="sidebar" aria-label="Contents">
@@ -141,10 +141,15 @@ function quit() {
 let indexData = null;
 const showThemes = () => openThemesWindow(indexData ??= fetch('viewer/api/index.json').then(r => r.json()), { base: 'viewer/', docs: 'built-in-icon-themes-and-licenses.html' });
 
-// --- Menu bar (window.js): File, View, Help
+// --- Menu bar (window.js): File, Edit, View, Help
+function focusFind() { $('find').focus(); $('find').select(); }
 const MENUS = [
   ['_File', () => [
     { label: '_Quit', icon: 'Nome/actions/16/application-exit.svg', run: quit }]],
+  ['_Edit', () => [   // the find bar's keys: `/` opens it, F3 and Shift+F3 step, as in Yelp; Ctrl+F stays the browser's own find
+    { label: '_Find…', accel: '/', icon: 'Nome/actions/16/edit-find.svg', run: focusFind },
+    { label: 'Find _Next', accel: 'F3', icon: 'Tango/16x16/actions/go-down.svg', disabled: !total(), run: () => step(1) },
+    { label: 'Find _Previous', accel: 'Shift+F3', icon: 'Tango/16x16/actions/go-up.svg', disabled: !total(), run: () => step(-1) }]],
   ['_View', () => [
     { label: '_Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: isDark(), run: () => setDark(!isDark()) },
     null,
@@ -157,7 +162,12 @@ const MENUS = [
 buildMenuBar(MENUS, 'viewer/icons/');
 installTooltips();
 installAbout({ themes: showThemes });
-document.addEventListener('keydown', e => { if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); showThemes(); } });   // Help > Icon Themes
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.altKey || e.metaKey) return;   // Ctrl+F, Ctrl+G and the rest stay the browser's
+  if (e.key === 'F1' && !e.shiftKey) { e.preventDefault(); showThemes(); }   // Help > Icon Themes
+  else if (e.key === '/' && !e.target.closest('input, textarea, [contenteditable]') && !document.querySelector('dialog[open]')) { e.preventDefault(); focusFind(); }   // Edit > Find
+  else if (e.key === 'F3' && findBox.value.trim()) { e.preventDefault(); step(e.shiftKey ? -1 : 1); }   // Find Next / Previous; with the box empty, F3 is the browser's
+});
 
 // --- The toolbar's combo box (narrow windows): its menu lists the sections, from the sidebar's entries, the
 // page's own in bold. A choice loads that page; a click elsewhere or Escape closes the menu.
