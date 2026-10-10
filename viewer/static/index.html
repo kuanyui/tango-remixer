@@ -183,11 +183,13 @@
   .themes { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
   .themes .group { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
   .themes .theme { display: grid; grid-template-columns: 32px 1fr; column-gap: 10px; align-items: start; padding: 6px 0; border-top: 1px solid var(--line); }
+  .themes .theme.derived { margin-left: 42px; border-top-style: dashed; }   /* a Blue* variant, under the theme whose files it colorizes */
   .themes .theme > img { grid-row: 1 / 4; display: block; box-sizing: border-box; }
   .themes .theme > img.on-dark { padding: 3px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
   .themes .name { font-weight: 600; }
-  .themes .counts { font-weight: normal; color: var(--muted); }
+  .themes .name small { font-weight: normal; color: var(--muted); }
   .themes .blurb, .themes .source { font-size: 12px; color: var(--muted); }
+  .themes .source a { margin-right: 10px; }
   .themes .source code { overflow-wrap: anywhere; }
   .themes .more { margin-top: 12px; font-size: 12px; color: var(--muted); }
 </style>
@@ -733,32 +735,48 @@ async function openPath(theme, path, action) {
 }
 
 // --- Help > Icon Themes ---------------------------------------------------------------------------------
-// The source themes as the Themes filter lists them (same order, same groups), with what the filter has no room
-// for: how many icons and files each one has, and where its files are: the folder on the machine running
-// viewer/server.py, or the repository at the exported commit on the static site (index.json tells the two apart,
-// see fileButtons). The license is the theme's default; a file's own SPDX-License-Identifier wins, which the file
-// cards show. The Blue* variants read their base theme's files (server.py's _THEME_TABLE).
+// The source themes as the Themes filter lists them (same order, same groups), a Blue* variant under the theme
+// whose files it colorizes (`base`), with what the filter has no room for: how many icons a theme has and in
+// which sizes (the files per size in the tooltip), and where its files are: the folder on the machine running
+// viewer/server.py, or two short links on the static site, the repository and the exported commit (index.json
+// tells the two apart, see fileButtons). The license is the theme's default; a file's own SPDX-License-Identifier
+// wins, which the file cards show.
 function fillThemes(themes) {
   const site = !!themes[0]?.url;
-  const rows = themes.flatMap((t, k) => {
-    const mine = icons.filter(i => i.theme === t.name), files = mine.reduce((n, i) => n + i.sizes.length, 0);
-    const host = t.url && (t.url.includes('gitlab') ? 'GitLab' : 'GitHub');
-    const base = t.name.startsWith('Blue') ? " (the base theme's files; the hue shift is the build's)" : '';
-    const source = site
-      ? [el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener' }, `Source folder on ${host}, at the exported commit`), base]
-      : [el('code', {}, t.folder), base];
-    return [
-      ...(k === 0 || themes[k - 1].group !== t.group ? [el('div', { className: 'group' }, t.group)] : []),
-      el('div', { className: 'theme' },
-        el('img', { src: encodeURI(`icons/${t.name}/${t.icon}`), width: 32, height: 32, alt: '', className: t.on_dark ? 'on-dark' : '' }),
-        el('div', { className: 'name' }, t.name, el('span', { className: 'counts' }, ` · ${mine.length} icons, ${files} files`)),
-        el('div', { className: 'blurb' }, `${t.about}. License: ${t.license}.`),
-        el('div', { className: 'source' }, ...source))];
+  const row = (t, derived) => {
+    const parts = [el('img', { src: encodeURI(`icons/${t.name}/${t.icon}`), width: 32, height: 32, alt: '', className: t.on_dark ? 'on-dark' : '' })];
+    if (derived) {
+      parts.push(el('div', { className: 'name' }, t.name), el('div', { className: 'blurb' }, t.about));
+    } else {
+      const mine = icons.filter(i => i.theme === t.name), perSize = {};
+      for (const i of mine) for (const s of i.sizes) perSize[s.size] = (perSize[s.size] || 0) + 1;
+      const sizes = Object.keys(perSize).sort((a, b) => (a === 'scalable') - (b === 'scalable') || a - b);
+      const files = Object.values(perSize).reduce((a, b) => a + b, 0);
+      const host = site && (t.repo.includes('gitlab') ? 'GitLab' : 'GitHub');
+      parts.push(
+        el('div', { className: 'name' }, t.name, ' ',
+          el('small', { title: 'One icon per name and context, as the list counts them.' }, `${mine.length} icons`), ' · ',
+          el('small', { title: `Files per size: ${sizes.map(s => `${s}: ${perSize[s]}`).join(', ')}. ${files} files in all.` }, `sizes ${sizes.join(', ')}`)),
+        el('div', { className: 'blurb' }, `${t.about} · ${t.license}`),
+        el('div', { className: 'source' }, ...(site
+          ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `The theme's repository, on ${host}: ${t.repo}` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
+             el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener',
+                       title: `The source folder as exported, at commit ${t.commit}.` }, t.commit.slice(0, 7))]
+          : [el('code', { title: 'The source folder, on the machine running the viewer.' }, t.folder)])));
+    }
+    return el('div', { className: derived ? 'theme derived' : 'theme' }, ...parts);
+  };
+  const rows = [];
+  themes.forEach((t, k) => {
+    if (t.base) return;   // listed under its base theme
+    if (k === 0 || themes[k - 1].group !== t.group) rows.push(el('div', { className: 'group' }, t.group));
+    rows.push(row(t, false), ...themes.filter(d => d.base === t.name).map(d => row(d, true)));
   });
   const docs = site ? '../built-in-icon-themes-and-licenses.html' : 'https://github.com/kuanyui/tango-remixer#built-in-icon-themes-and-licenses';
   $('themes-list').replaceChildren(...rows,
-    el('div', { className: 'more' }, "A theme's license is the default for its files; a file's own SPDX-License-Identifier wins (the file cards show it). Which licenses go together: ",
-      el('a', { href: docs, ...(site ? {} : { target: '_blank', rel: 'noopener' }) }, 'Built-in Icon Themes and Licenses'), '.'));
+    el('div', { className: 'more' }, "A file's own SPDX-License-Identifier overrides its theme's license (the file cards show it). ",
+      el('a', { href: docs, title: "The documentation's section on the themes: which licenses go together.", ...(site ? {} : { target: '_blank', rel: 'noopener' }) },
+        'Built-in Icon Themes and Licenses')));
 }
 
 fetch('api/index.json').then(r => r.json()).then(data => {

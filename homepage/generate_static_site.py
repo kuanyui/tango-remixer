@@ -31,7 +31,8 @@ its source SVGs weigh, and a Blue* theme is a second copy of its base theme. A
 rerun rewrites only the icons whose source (or the colorizer) changed, so a
 preview round trip takes seconds. Instead of a folder on some machine, each theme
 gets the URL of its folder in the submodule's repository at the checked-out
-commit, where the page links every file; no local path is written.
+commit (and the repository's home page and the commit), where the page links
+every file; no local path is written.
 
 Links in README.md to files of this repository point at their page in the
 repository the site is built from: told by the CI of GitLab or GitHub, else the
@@ -161,13 +162,14 @@ def checkout_of(folder: Path) -> Tuple[Repository, Path]:
     return Repository(web_url(git("remote", "get-url", "origin")), git("rev-parse", "HEAD")), root
 
 
-def source_url(folder: Path) -> str:
-    """Where a theme's source folder is on the web, e.g.
-    https://github.com/kuanyui/nome-icon-theme/blob/<commit>/src: the viewer page
-    appends a file's path to it."""
+def source_place(folder: Path) -> Dict[str, str]:
+    """Where a theme's source folder is on the web, for the viewer page (index.json):
+    `url`, the folder at the checked-out commit, e.g.
+    https://github.com/kuanyui/nome-icon-theme/blob/<commit>/src, to which the page
+    appends a file's path; `repo`, the repository's home page; `commit`, its hash."""
     repo, root = checkout_of(folder)
     sub = folder.relative_to(root).as_posix()
-    return repo.url("" if sub == "." else sub)
+    return {"url": repo.url("" if sub == "." else sub), "repo": repo.web, "commit": repo.commit}
 
 
 def site_repository(root: Path) -> Repository:
@@ -196,10 +198,10 @@ def clean_commit(folder: Path) -> Optional[str]:
     return None if status.strip() else repo.commit
 
 
-def write_viewer_page(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str, index: List[Dict[str, object]]) -> None:
+def write_viewer_page(themes: Dict[str, SourceTheme], out: Path, places: Dict[str, Dict[str, object]], panel: str, index: List[Dict[str, object]]) -> None:
     """The viewer's page and assets into `out`: index.html (with the site's `panel`
     above its window, when given), static/ from viewer/static/, and api/index.json
-    with `urls[name]` as each theme's `url`."""
+    with `places[name]` (source_place: url, repo, commit) in each theme's entry."""
     shutil.rmtree(out / "static", ignore_errors=True)
     shutil.copytree(_STATIC_DIR, out / "static", ignore=shutil.ignore_patterns("index.html"))   # llselect, window.*, clearlooks.css
     page = (_STATIC_DIR / "index.html").read_text("utf-8")
@@ -209,7 +211,7 @@ def write_viewer_page(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str,
         page = page.replace("</body>", '<script src="../panel.js"></script>\n</body>', 1)
     (out / "index.html").write_text(page, "utf-8")
     (out / "api").mkdir(exist_ok=True)
-    (out / "api" / "index.json").write_bytes(index_json(themes, index, "url", urls))
+    (out / "api" / "index.json").write_bytes(index_json(themes, index, places))
 
 
 def write_viewer_icons(themes: Dict[str, SourceTheme], out: Path, index: List[Dict[str, object]]) -> Tuple[int, int]:
@@ -262,14 +264,14 @@ def write_viewer_icons(themes: Dict[str, SourceTheme], out: Path, index: List[Di
     return total, written
 
 
-def export_viewer(themes: Dict[str, SourceTheme], out: Path, urls: Dict[str, str], panel: str = "",
+def export_viewer(themes: Dict[str, SourceTheme], out: Path, places: Dict[str, Dict[str, object]], panel: str = "",
                   index: Optional[List[Dict[str, object]]] = None) -> Tuple[int, int]:
     """The whole viewer into `out`: its page and assets (write_viewer_page), then its
     icons (write_viewer_icons, whose count this returns). `index` is built here when
     not given."""
     if index is None:
         index = build_index(themes)
-    write_viewer_page(themes, out, urls, panel, index)
+    write_viewer_page(themes, out, places, panel, index)
     return write_viewer_icons(themes, out, index)
 
 
@@ -542,10 +544,10 @@ class Site:
         self.root: Path = root
         self.themes: Dict[str, SourceTheme] = source_themes()
         self.index: List[Dict[str, object]] = build_index(self.themes)
-        by_folder: Dict[Path, str] = {}   # per source folder: the Blue* themes share their base theme's
+        by_folder: Dict[Path, Dict[str, str]] = {}   # per source folder: the Blue* themes share their base theme's
         for theme in self.themes.values():
-            by_folder.setdefault(theme.folder, source_url(theme.folder))
-        self.urls: Dict[str, str] = {name: by_folder[theme.folder] for name, theme in self.themes.items()}
+            by_folder.setdefault(theme.folder, source_place(theme.folder))
+        self.places: Dict[str, Dict[str, object]] = {name: by_folder[theme.folder] for name, theme in self.themes.items()}
 
     def build(self, icons: bool = True) -> str:
         """Write the site: the pages, the viewer's page and, unless `icons` is False,
@@ -561,7 +563,7 @@ class Site:
         shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
         pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_paths, self.index))
         write_pages(out, pages)
-        write_viewer_page(self.themes, out / "viewer", self.urls, render_panel("../", "viewer", repo), self.index)
+        write_viewer_page(self.themes, out / "viewer", self.places, render_panel("../", "viewer", repo), self.index)
         about_icons = ""
         if icons:
             total, written = write_viewer_icons(self.themes, out / "viewer", self.index)

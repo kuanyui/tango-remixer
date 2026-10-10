@@ -62,7 +62,7 @@ class TestRepositoryUrls(unittest.TestCase):
         self.assertEqual(gitlab.url("a/b.svg"), "https://gitlab.com/g/r/-/blob/abc/a/b.svg")
         self.assertEqual(gitlab.url("dir", folder=True), "https://gitlab.com/g/r/-/tree/abc/dir")
 
-    def test_source_url_is_the_theme_folder_at_the_checked_out_commit(self) -> None:
+    def test_source_place_is_the_theme_folder_at_the_checked_out_commit(self) -> None:
         repo = Path(tempfile.mkdtemp()).resolve() / "repo"
         (repo / "src").mkdir(parents=True)
         git = lambda *args: subprocess.run(["git", "-C", str(repo), "-c", "user.name=t", "-c", "user.email=t@example.com",
@@ -72,8 +72,8 @@ class TestRepositoryUrls(unittest.TestCase):
             git("commit", "-q", "--allow-empty", "-m", "x")
             git("remote", "add", "origin", "git@github.com:owner/repo.git")
             commit = git("rev-parse", "HEAD")
-            self.assertEqual(gen.source_url(repo / "src"), f"https://github.com/owner/repo/blob/{commit}/src")
-            self.assertEqual(gen.source_url(repo), f"https://github.com/owner/repo/blob/{commit}")
+            self.assertEqual(gen.source_place(repo / "src"), {"url": f"https://github.com/owner/repo/blob/{commit}/src", "repo": "https://github.com/owner/repo", "commit": commit})
+            self.assertEqual(gen.source_place(repo)["url"], f"https://github.com/owner/repo/blob/{commit}")
         finally:
             shutil.rmtree(repo.parent)
 
@@ -301,14 +301,14 @@ class TestViewerExport(unittest.TestCase):
 
     def test_export_writes_real_files_only_and_rewrites_only_what_changed(self) -> None:
         site = self.tmp / "viewer"
-        urls = {"ThemeA": "https://github.com/o/a/blob/0123abc", "BlueA": "https://github.com/o/a/blob/0123abc"}
-        self.assertEqual(gen.export_viewer(self.themes, site, urls), (4, 4))
+        places = {"ThemeA": {"url": "https://github.com/o/a/blob/0123abc"}, "BlueA": {"url": "https://github.com/o/a/blob/0123abc"}}
+        self.assertEqual(gen.export_viewer(self.themes, site, places), (4, 4))
         self.assertEqual((site / "index.html").read_bytes(), (viewer_server._STATIC_DIR / "index.html").read_bytes())   # no panel given: the page as is
         self.assertTrue((site / "static/llselect/index.umd.js").is_file())
         self.assertTrue((site / "static/clearlooks.css").is_file())
         self.assertFalse((site / "static/index.html").exists())
         data = json.loads((site / "api/index.json").read_bytes())
-        self.assertEqual([(t["name"], t["url"]) for t in data["themes"]], [("ThemeA", urls["ThemeA"]), ("BlueA", urls["BlueA"])])
+        self.assertEqual([(t["name"], t["url"]) for t in data["themes"]], [("ThemeA", places["ThemeA"]["url"]), ("BlueA", places["BlueA"]["url"])])
         self.assertTrue(all("folder" not in t for t in data["themes"]))
         self.assertNotIn(str(self.tmp), (site / "api/index.json").read_text())   # no path of this machine
         self.assertEqual(sorted(p.relative_to(site / "icons").as_posix() for p in (site / "icons").rglob("*.svg")),
@@ -317,21 +317,21 @@ class TestViewerExport(unittest.TestCase):
         self.assertEqual((site / "icons/BlueA/apps/16/foo.svg").read_bytes(), _SVG.replace(b"#f57900", b"#3465a4"))
         # A rerun: unchanged sources are left alone, a file no longer indexed goes.
         (site / "icons/ThemeA/apps/16/stale.svg").write_bytes(_SVG)
-        self.assertEqual(gen.export_viewer(self.themes, site, urls), (4, 0))
+        self.assertEqual(gen.export_viewer(self.themes, site, places), (4, 0))
         self.assertFalse((site / "icons/ThemeA/apps/16/stale.svg").exists())
         # A changed source is rewritten, plain and colorized.
         src = self.themes["ThemeA"].folder / "apps/32/foo.svg"
         src.write_bytes(_SVG.replace(b"16", b"32"))
         later = src.stat().st_mtime_ns + 5_000_000_000
         os.utime(src, ns=(later, later))
-        self.assertEqual(gen.export_viewer(self.themes, site, urls), (4, 2))
+        self.assertEqual(gen.export_viewer(self.themes, site, places), (4, 2))
         self.assertEqual((site / "icons/BlueA/apps/32/foo.svg").read_bytes(), _SVG.replace(b"16", b"32").replace(b"#f57900", b"#3465a4"))
-        self.assertEqual(gen.export_viewer(self.themes, site, urls), (4, 0))
+        self.assertEqual(gen.export_viewer(self.themes, site, places), (4, 0))
         self.assertEqual(json.loads((site / ".versions.json").read_text()), {})   # not a checkout: compared file by file every time
 
     def test_export_puts_the_panel_above_the_viewer_window(self) -> None:
-        site, urls = self.tmp / "viewer3", {"ThemeA": "https://github.com/o/a/blob/0123abc", "BlueA": "https://github.com/o/a/blob/0123abc"}
-        gen.export_viewer(self.themes, site, urls, panel='<div class="panel">P</div>')
+        site, places = self.tmp / "viewer3", {"ThemeA": {"url": "https://github.com/o/a/blob/0123abc"}, "BlueA": {"url": "https://github.com/o/a/blob/0123abc"}}
+        gen.export_viewer(self.themes, site, places, panel='<div class="panel">P</div>')
         page = (site / "index.html").read_text("utf-8")
         for once in ['<link rel="stylesheet" href="../panel.css">\n</head>', '<body>\n<div class="panel">P</div>\n<div class="window">',
                      '<script src="../panel.js"></script>\n</body>']:
@@ -349,20 +349,20 @@ class TestViewerExport(unittest.TestCase):
         git("add", "."), git("commit", "-q", "-m", "x")
         themes = {"R": SourceTheme(repo, None, "G", "apps/16/foo.svg", "MIT", "r", False),
                   "BlueR": SourceTheme(repo, _blueish, "G", "apps/16/foo.svg", "MIT", "r", False)}
-        site, urls = self.tmp / "viewer2", {"R": "https://github.com/o/r/blob/abc", "BlueR": "https://github.com/o/r/blob/abc"}
-        self.assertEqual(gen.export_viewer(themes, site, urls), (2, 2))
+        site, places = self.tmp / "viewer2", {"R": {"url": "https://github.com/o/r/blob/abc"}, "BlueR": {"url": "https://github.com/o/r/blob/abc"}}
+        self.assertEqual(gen.export_viewer(themes, site, places), (2, 2))
         versions = json.loads((site / ".versions.json").read_text())
         self.assertEqual(versions["R"], git("rev-parse", "HEAD"))
         self.assertTrue(versions["BlueR"].startswith(git("rev-parse", "HEAD") + "+"))
         (site / "icons/R/apps/16/stale.svg").write_bytes(_SVG)
-        self.assertEqual(gen.export_viewer(themes, site, urls), (2, 0))
+        self.assertEqual(gen.export_viewer(themes, site, places), (2, 0))
         self.assertTrue((site / "icons/R/apps/16/stale.svg").exists())   # the theme was skipped, not compared
         (repo / "apps/16/foo.svg").write_bytes(_SVG.replace(b"16", b"24"))   # work in progress: compared file by file
-        self.assertEqual(gen.export_viewer(themes, site, urls), (2, 2))
+        self.assertEqual(gen.export_viewer(themes, site, places), (2, 2))
         self.assertFalse((site / "icons/R/apps/16/stale.svg").exists())
         self.assertNotIn("R", json.loads((site / ".versions.json").read_text()))
         git("commit", "-q", "-a", "-m", "y")
-        self.assertEqual(gen.export_viewer(themes, site, urls), (2, 0))   # clean again: files already match
+        self.assertEqual(gen.export_viewer(themes, site, places), (2, 0))   # clean again: files already match
         self.assertEqual(json.loads((site / ".versions.json").read_text())["R"], git("rev-parse", "HEAD"))
 
 

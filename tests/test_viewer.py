@@ -67,7 +67,7 @@ class TestViewer(unittest.TestCase):
         cls.themes = {
             "ThemeA": SourceTheme(a, None, "Group A", "apps/16/foo.svg", "MIT", "synthetic A", False),
             "ThemeB": SourceTheme(b, None, "Group B", "16x16/actions/bar.svg", "MIT", "synthetic B", True),
-            "BlueA": SourceTheme(a, _blueish, "Group A", "apps/16/foo.svg", "MIT", "A, colorized", False),
+            "BlueA": SourceTheme(a, _blueish, "Group A", "apps/16/foo.svg", "MIT", "A, colorized", False, "ThemeA"),
         }
         cls.calls: List[Tuple[Path, str]] = []
         viewer_server.open_on_host = lambda target, action: cls.calls.append((target, action))
@@ -117,7 +117,7 @@ class TestViewer(unittest.TestCase):
         data = json.loads(res.read())
         self.assertEqual([t["name"] for t in data["themes"]], ["ThemeA", "ThemeB", "BlueA"])   # dropdown order
         self.assertEqual(data["themes"][2], {"name": "BlueA", "folder": str(self.tmp / "ThemeA"), "group": "Group A",
-                                             "icon": "apps/16/foo.svg", "license": "MIT", "about": "A, colorized", "on_dark": False})
+                                             "icon": "apps/16/foo.svg", "license": "MIT", "about": "A, colorized", "on_dark": False, "base": "ThemeA"})
         self.assertTrue(data["themes"][1]["on_dark"])
         self.assertEqual(data["contexts"]["places"], "Nome/places/16/folder.svg")
         self.assertEqual(len(data["icons"]), 5)

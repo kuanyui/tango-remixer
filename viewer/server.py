@@ -101,6 +101,8 @@ class SourceTheme(NamedTuple):
     about: str
     on_dark: bool
     """Icons drawn for dark panels: the page shows the representative icon on a dark chip."""
+    base: Optional[str] = None
+    """For a Blue* variant, the theme whose files it colorizes: the page lists it under that one."""
 
 
 _FULL: str = "Full icon themes"
@@ -152,7 +154,7 @@ def source_themes() -> Dict[str, SourceTheme]:
         if not folders[base].is_dir():
             print(f"[WARNING] {name}: {folders[base]} not found (submodule not checked out?), skipped", file=sys.stderr)
             continue
-        themes[name] = SourceTheme(folders[base].resolve(), colorize, group, icon, lic, about, on_dark)
+        themes[name] = SourceTheme(folders[base].resolve(), colorize, group, icon, lic, about, on_dark, base if base != name else None)
     return themes
 
 
@@ -363,14 +365,16 @@ class ViewerHandler(BaseHTTPRequestHandler):
         pass  # a page load requests thousands of icons; keep the terminal quiet
 
 
-def index_json(themes: Dict[str, SourceTheme], index: List[Dict[str, Any]], where: str, places: Dict[str, str]) -> bytes:
-    """The /api/index.json document. `places[name]` becomes each theme's `where`
-    field: the server sends the absolute `folder` (for Copy full path), the static
-    export (homepage/generate_static_site.py) a `url` in the theme's repository (for
-    View on GitHub / GitLab); the page picks its file buttons by which of the two it finds."""
+def index_json(themes: Dict[str, SourceTheme], index: List[Dict[str, Any]], places: Dict[str, Dict[str, Any]]) -> bytes:
+    """The /api/index.json document. `places[name]` says where a theme's files are
+    and is merged into its entry: the server gives the absolute `folder` (for Copy
+    full path), the static export (homepage/generate_static_site.py) a `url` in the
+    theme's repository (for View on GitHub / GitLab) with the repository's `repo`
+    and `commit`; the page picks its file buttons by which of the two it finds. A
+    Blue* variant names its `base`."""
     return json.dumps({
-        "themes": [{"name": name, where: places[name], "group": t.group, "icon": t.icon,
-                    "license": t.license, "about": t.about, "on_dark": t.on_dark}
+        "themes": [{"name": name, **places[name], "group": t.group, "icon": t.icon,
+                    "license": t.license, "about": t.about, "on_dark": t.on_dark, **({"base": t.base} if t.base else {})}
                    for name, t in themes.items()],   # dropdown order
         "contexts": _CONTEXT_ICONS,
         "icons": index,
@@ -379,7 +383,7 @@ def index_json(themes: Dict[str, SourceTheme], index: List[Dict[str, Any]], wher
 
 def make_server(themes: Dict[str, SourceTheme], token: str, index: List[Dict[str, Any]], port: int = 0) -> ThreadingHTTPServer:
     handler = partial(ViewerHandler, themes=themes, token=token,
-                      index_json=index_json(themes, index, "folder", {name: str(t.folder) for name, t in themes.items()}))
+                      index_json=index_json(themes, index, {name: {"folder": str(t.folder)} for name, t in themes.items()}))
     return ThreadingHTTPServer(("0.0.0.0", port), handler)
 
 
