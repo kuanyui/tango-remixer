@@ -1,6 +1,12 @@
 # LSP Server for `included_icons.txt`
 
-An optional Language Server Protocol implementation that provides diagnostics and syntax highlighting for `included_icons.txt` files in any LSP-capable editor.
+An optional Language Server Protocol implementation that provides diagnostics and syntax highlighting for `included_icons.txt` files in any LSP-capable editor. What it gives the editor:
+
+- **Diagnostics**: parses `included_icons.txt` on open / change / save, flags syntax errors and bad size-matrix expressions with line + column ranges.
+- **Theme validation**: built-in theme NAMES plus any `# @extra-icon-theme NAME PATH` directives in the file are accepted; anything else gets an "Unknown theme" error. The LSP does not read CLI flags, so themes added only via `--extra-icon-theme` won't be recognized -- declare them with the in-file directive (see README).
+- **Directive path check**: a directive whose PATH doesn't resolve gets a Warning (not Error), so editing in-flight doesn't go red.
+- **Semantic tokens**: colors theme name, context, icon name, size matrix pieces (input number / output number / operator / `scalable` keyword), comments, and the `# @extra-icon-theme` directive parts (decorator-style keyword + NAME + PATH). Needs an LSP client that supports `textDocument/semanticTokens/full` (Eglot >= 1.20; Neovim, Helix).
+- **Hover**: mouse-over (or `M-x eldoc-print-current-symbol-info` / `K` in Neovim) shows what each token means -- theme name, context, icon name, size matrix pieces, directive parts, etc.
 
 ## Install
 
@@ -26,13 +32,13 @@ Fallback (use a venv or `--user`):
 pip install --user pygls
 ```
 
-Then start manually (sanity check):
+To check that it starts, open a shell in your tango-remixer checkout (the folder that has `lsp/` in it; as a submodule, typically `resources/tango-remixer/`) and run:
 
 ```sh
 python3 -m lsp
 ```
 
-The server reads/writes LSP messages over stdio. Editors launch it for you.
+Nothing is printed: the server waits for LSP messages on standard input. Silence means pygls was found; an `ImportError` means it was not. Ctrl-C stops it. That is the only time you start it by hand: editors launch it themselves and talk to it over stdio.
 
 ## Editor Setup
 
@@ -143,11 +149,3 @@ language-servers = ["tango-icons"]
 ### VSCode
 
 No first-class support. You need a generic-LSP-client extension, or to write a small wrapper extension yourself. Not documented here.
-
-## What the server does
-
-- **Diagnostics**: parses `included_icons.txt` on open / change / save, flags syntax errors and bad size-matrix expressions with line + column ranges.
-- **Theme validation**: built-in theme NAMES plus any `# @extra-icon-theme NAME PATH` directives in the file are accepted; anything else gets an "Unknown theme" error. The LSP does not read CLI flags, so themes added only via `--extra-icon-theme` won't be recognized -- declare them with the in-file directive (see README).
-- **Directive path check**: a directive whose PATH doesn't resolve gets a Warning (not Error), so editing in-flight doesn't go red.
-- **Semantic tokens**: colors theme name, context, icon name, size matrix pieces (input number / output number / operator / `scalable` keyword), comments, and the `# @extra-icon-theme` directive parts (decorator-style keyword + NAME + PATH). Needs an LSP client that supports `textDocument/semanticTokens/full` (Eglot >= 1.20; Neovim, Helix).
-- **Hover**: mouse-over (or `M-x eldoc-print-current-symbol-info` / `K` in Neovim) shows what each token means -- theme name, context, icon name, size matrix pieces, directive parts, etc.
