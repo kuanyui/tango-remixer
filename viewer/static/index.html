@@ -761,7 +761,7 @@ function fileThumb(icon, s) {
 async function fileCard(icon, s) {
   const url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
   const meta = await fileMeta(url);
-  const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), ...linkify(value, true));
+  const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), value);   // plain text: a tooltip cannot be clicked; the file's window has the links
   return [
     el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: url, width: 128, height: 128, alt: '' })),
     el('div', { className: 'tip-text' },
