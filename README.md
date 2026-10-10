@@ -25,22 +25,61 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 
 # Why
 
-I personally strongly believe that **flat design + monotone icon since the 2010s is completely a disastrous regression in the field of UI/UX designing**, at least for me who am somewhat dyslexia and heavily rely on colorful and distinguishing icon when using GUI application. The monotone icons in UI **significantly** decrease my reaction speed when interacting with an UI.
+## What's Wrong With You?
+
+> [!CAUTION]
+> This section is my personal perspective and just describes how I feel. It might sound harsh, **but I promise and guarantee it is my honest opinion, without any intention of sensationalism or playing to the crowd.**
+
+I personally fail to understand why designers all over the world feel the need to cook up new trends every so often. ...Is it genuinely because *"the new designs truly improve UI operation speed, and are easier to understand for user"*, or *is it simply "just to chase a trend so I can keep my job and put food on the table"*?
+
+Flat design, if my memory serves me correct, took off around the time Steve Jobs passed away in 2011. However, in my opinion, Apple's product designs after Jobs's passing became a bunch of hideous garbage that I wouldn't even want even if they were given to me for free. The flat design in iOS is ridiculously ugly (BTW, I didn't expect that the hardware design would be worse, Mac Pro 2013 is totally a cremation urn... containing the ashes of Apple aesthetics.)
+
+Back when I was a student, I deeply loved Mac's products and UI design but have no money to buy them; after I grew up, Apple products had become so ridiculous that I don't want any of them even if someone give me for free. Thanks, Apple, for saving me money.
+
+In short, I personally strongly believe that **flat design + monotone icon since the 2010s is completely a disastrous regression in the field of UI/UX designing**, at least for me who am somewhat dyslexia and heavily rely on colorful and distinguishing icons to comprehend and get used to a GUI application.
+
+No, it's **not** like I said that just to show off how unique my aesthetic is, but I tell you the monotone icons in UI truly **significantly** decrease my reaction speed when interacting with an UI.
 
 > [!NOTE]
-> Don't defend flat-design + monotone icon or argue with me about it, **"monotone icons (or even completely omitting icons) significantly decreases my reaction speed when using GUI"** is just a **statement of fact** which really happens on me and has been annoying me for years.
+> Don't defend flat-design + monotone icon or argue with me about it, the sentence **"monotone icons (or even completely omitting icons) significantly decreases my reaction speed when using GUI"** is just a **statement of fact** which really happens on me and has been annoying me for years.
 >
 > Firefox removing lots of icons from its menu since many years ago is a representative example which causes me permanent headache, and result to lactose intolerance and make me allergic to life.
 
-So when I need to add icons into a GUI application (ex: Qt), I always perfer my favorite icon style [Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons), I adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
+## Why Tango
 
-However, Tango Desktop Project has already discontinued and seems not to be promoted anymore ([official site](http://tango.freedesktop.org/Tango_Desktop_Project) has been down... an archive in [2007](https://web.archive.org/web/20070314003558/http://tango.freedesktop.org/Tango_Desktop_Project) and [2021](https://web.archive.org/web/20211002063126/http://tango.freedesktop.org/Tango_Desktop_Project)). I finally found out the version-control repository containing source SVG files and try to fork it as [Tango Icon Theme](https://github.com/kuanyui/tango-icon-theme), but itself contains only a very limited amounts of icons which are hardly able to satisfy the requirements of desktop application development.
+I personally prefer [Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons). Even nowadays, I still adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
+
+This Freedesktop's Tango Desktop's "reference implementation" (that is to say, "reference icon theme") lived between 2005 ~ 2009, and its design guideline somehow popular in this era, especially in FLOSS projects, like GNOME, Firefox, Ubuntu's Humanity...etc. But most of they were gradually replaced by flat icon design lately.
+
+## Why This "Tango Remixer"
+
+In 2024, I began to develop a Qt C++ application, as a perfectionist, I surely want to add semantic icons into the GUI of my application.
+
+But to add icons into Qt application and apply them is very annoying, you must to fight with the QRC and pick icon one by one. As an OCD developer, I want an elegant way to choose the icons I want and apply them in my Qt project. Therefore, I began to develop Tango Remixer to solve this problem. An **elegant, reproducible, extensible way** to do the dirty tasks to integrate the Tango-style icons I want into my Qt projects.
+
+> [!NOTE]
+> By the way, at last, Creating Tango Remixer + curating and drawing icon theme packs cost me more time than that Qt project itself...
+
+"Tango Remixer"'s goal is let user:
+1. Easily pick icons I want from multiple XDG-compatible Tango-flavoured icon themes (user even can specify extra XDG-compatible icon theme pack),
+2. Then aggregate them into a new XDG-compatible icon theme (and generate Qt Resource .qrc files),
+3. Then use API such as `QIcon::fromTheme()`directly to reference these icons in C++ code directly.
+
+## Where are Icon Themes？
+
+But "Tango Remixer" is merely a tool without data, so I still need to provide some built-in practical icon themes in Tango Remixer.
+
+But curating, organizing, fixing, and extending these (semi) "digital heritage" are another time-costing tasks...
+
+First, Tango Desktop Project has already discontinued and seems not to be promoted anymore ([official site](http://tango.freedesktop.org/Tango_Desktop_Project) has been down... an archive in [2007](https://web.archive.org/web/20070314003558/http://tango.freedesktop.org/Tango_Desktop_Project) and [2021](https://web.archive.org/web/20211002063126/http://tango.freedesktop.org/Tango_Desktop_Project)). I finally found out the version-control repository containing source SVG files and try to fork it as [Tango Icon Theme](https://github.com/kuanyui/tango-icon-theme), but itself contains only a very limited amounts of icons which are hardly able to satisfy the requirements of desktop application development.
 
 <!-- Nowadays, it seems that the original version of tango-icon is only available on some places like distros' official package repository (e.g. [Archlinux](https://aur.archlinux.org/packages/tango-icon-theme)) -->
 
 In GNOME 2.10 ~ 3.12 era, GNOME also took Tango Design Guideline to draw their GNOME Icon Theme, but it was also deprecated since GNOME 3.12 and redesigned the style as Adwaita Icon Theme, so I also forked GNOME Icon Theme from version `3.12` into [Nome Icon Theme](https://github.com/kuanyui/nome-icon-theme).
 
 Canonical / Ubuntu also followed Tango Style Guidelines and created [Humanity](https://launchpad.net/humanity/) Project for their Ubuntu GNOME desktop, maybe in around 2006, which provides a larger amount of icons for daily usage. I also migrated it from Bazaar repository to Git repository [Humanity Icon Theme](https://github.com/kuanyui/humanity-icon-theme), and add some missing icons, do some fixes...etc.
+
+I also collect some Tango-flavoured icons from some FLOSS projects such as GIMP and Inkscape.
 
 I hereby express my highest respect for their works, and wish such digital art heritage from the 2000s ~ 2010s can be well preserved (with commit history) and long live, even can be adopted on new projects nowadays.
 
