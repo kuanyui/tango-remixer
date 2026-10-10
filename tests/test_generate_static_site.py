@@ -10,13 +10,18 @@ The theme folders are synthetic; skipped where symlinks cannot be created. The
 homepage tests are skipped without the Python-Markdown package."""
 
 import importlib.util
+import io
 import json
 import os
 import shutil
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
+import urllib.error
+import urllib.request
+from contextlib import redirect_stderr
 from pathlib import Path
 from unittest import mock
 
@@ -358,6 +363,29 @@ class TestViewerExport(unittest.TestCase):
         git("commit", "-q", "-a", "-m", "y")
         self.assertEqual(gen.export_viewer(themes, site, urls), (2, 0))   # clean again: files already match
         self.assertEqual(json.loads((site / ".versions.json").read_text())["R"], git("rev-parse", "HEAD"))
+
+
+class TestSiteServer(unittest.TestCase):
+    """--serve: the generated folder over HTTP, the viewer's icon requests kept out of the terminal."""
+
+    def test_serves_the_folder_quietly(self) -> None:
+        out = Path(tempfile.mkdtemp()).resolve()
+        (out / "index.html").write_text("<p>hi</p>", "utf-8")
+        server = gen.site_server(out, 0)   # any free port
+        threading.Thread(target=server.serve_forever, daemon=True).start()
+        try:
+            base = f"http://127.0.0.1:{server.server_address[1]}"
+            with redirect_stderr(io.StringIO()) as log:
+                with urllib.request.urlopen(f"{base}/index.html") as res:
+                    self.assertEqual(res.read(), b"<p>hi</p>")
+                with self.assertRaises(urllib.error.HTTPError) as caught:
+                    urllib.request.urlopen(f"{base}/missing.html")
+            self.assertEqual(caught.exception.code, 404)
+            self.assertEqual(log.getvalue(), "")   # no request log, not even for the 404
+        finally:
+            server.shutdown()
+            server.server_close()
+            shutil.rmtree(out)
 
 
 if __name__ == "__main__":

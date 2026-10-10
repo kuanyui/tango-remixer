@@ -70,11 +70,11 @@ viewer:    ## Browse the source icon themes (`submodules/`, no build needed): a 
 homepage-build:    ## Generate the website (README.md + the icon viewer) into `HOMEPAGE_OUT`. Needs `python3-markdown` and `python3-pygments`.
 	python3 homepage/generate_static_site.py $(HOMEPAGE_OUT)
 
-# The same, then served on every interface (as `make viewer`), so the host of a VM can open it too:
-# http://127.0.0.1:8000/ here, http://<this machine's IP>:8000/ elsewhere. Ctrl-C stops it; run again after edits.
+# The same, then served on every interface (as `make viewer`), so the host of a VM can open it too. The URLs to
+# open are printed, this machine's LAN addresses among them. Ctrl-C stops it; run again after edits.
 .PHONY: homepage-dev-server
-homepage-dev-server: homepage-build    ## The same, then served on port `HOMEPAGE_PORT` on every interface. Ctrl-C stops it; run again after edits.
-	python3 -m http.server --directory $(HOMEPAGE_OUT) $(HOMEPAGE_PORT)
+homepage-dev-server:    ## Generate the website, then serve it on port `HOMEPAGE_PORT` on every interface; the URLs to open are printed, LAN addresses included. Ctrl-C stops it; run again after edits.
+	python3 homepage/generate_static_site.py $(HOMEPAGE_OUT) --serve $(HOMEPAGE_PORT)
 
 ###
 ### -- Development -----------------------------------------------------------

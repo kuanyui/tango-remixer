@@ -232,6 +232,12 @@ class TestViewer(unittest.TestCase):
         for ip in viewer_server.lan_ips():
             ipaddress.IPv4Address(ip)  # raises on garbage
 
+    def test_local_urls_put_loopback_first_then_each_lan_address(self) -> None:
+        urls = viewer_server.local_urls(7373, "/?token=t")
+        self.assertEqual(urls[0], "http://127.0.0.1:7373/?token=t")
+        self.assertEqual(urls[1:], [f"http://{ip}:7373/?token=t" for ip in viewer_server.lan_ips()])
+        self.assertEqual(viewer_server.local_urls(8000)[0], "http://127.0.0.1:8000/")
+
 
 class TestFixedIconPaths(unittest.TestCase):
     """Every icon the viewer page, the homepage template (its favicon) or the

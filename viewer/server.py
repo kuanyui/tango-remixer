@@ -409,6 +409,13 @@ def lan_ips() -> List[str]:
     return found
 
 
+def local_urls(port: int, path: str = "/") -> List[str]:
+    """`http://<host>:<port><path>` for this machine as seen from itself and from
+    its LANs (lan_ips), loopback first: the lines a server prints for the user to
+    open. Shared with homepage/generate_static_site.py's --serve."""
+    return [f"http://{host}:{port}{path}" for host in ["127.0.0.1"] + lan_ips()]
+
+
 def main() -> None:
     themes = source_themes()
     started = time.perf_counter()
@@ -419,7 +426,7 @@ def main() -> None:
         server = make_server(themes, token, index, PORT)
     except OSError as e:
         sys.exit(f"Cannot listen on port {PORT} ({e.strerror}). Is another viewer still running? Stop it first.")
-    urls: List[str] = [f"http://{host}:{PORT}/?token={token}" for host in ["127.0.0.1"] + lan_ips()]
+    urls: List[str] = local_urls(PORT, f"/?token={token}")
     print("Icon viewer listening on all interfaces (Ctrl-C to stop). Open one of:\n  " + "\n  ".join(urls), flush=True)
     try:
         server.serve_forever()

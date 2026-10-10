@@ -15,9 +15,10 @@ and GitLab Pages publish it:
                               icons/<theme>/<path>, the Blue* themes colorized with
                               the same code the build uses
 
-Run:  python3 homepage/generate_static_site.py [OUT]     (default: homepage/_build/)
+Run:  python3 homepage/generate_static_site.py [OUT] [--serve [PORT]]     (default: homepage/_build/)
       make homepage-build        the same
-      make homepage-dev-server   the same, then served on port 8000, on every interface as the viewer is
+      make homepage-dev-server   the same, then --serve: OUT served on PORT (8000 by default) on every interface, as
+                                 the viewer is, the URLs to open printed, this machine's LAN addresses among them
 Needs Python-Markdown (the `markdown` module) and, for coloured code blocks, Pygments:
 `apt install python3-markdown python3-pygments` on Debian / Ubuntu, else
 `pip install markdown pygments`. (`markdown2` is a different library.)
@@ -37,6 +38,7 @@ origin remote of the checkout.
 
 from __future__ import annotations
 
+import argparse
 import html
 import json
 import os
@@ -47,6 +49,7 @@ import sys
 import time
 from datetime import date
 from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
 
@@ -54,7 +57,7 @@ _PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 
 from lib.included_icons_tokens import tokenize  # noqa: E402
-from viewer.server import _COLOR_CONVERTER, _STATIC_DIR, Colorizer, SourceTheme, build_index, index_json, source_themes  # noqa: E402
+from viewer.server import _COLOR_CONVERTER, _STATIC_DIR, Colorizer, SourceTheme, build_index, index_json, local_urls, source_themes  # noqa: E402
 
 _HOMEPAGE_DIR: Path = Path(__file__).resolve().parent
 _ALERTS: Tuple[str, ...] = ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
@@ -534,8 +537,44 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
           f"{written} written, the rest unchanged. {out} ready in {time.perf_counter() - started:.0f}s.", flush=True)
 
 
+class _QuietHandler(SimpleHTTPRequestHandler):
+    """The site's files, nothing logged: a page load of the viewer requests thousands of icons (as viewer/server.py notes)."""
+
+    def log_message(self, format: str, *args: object) -> None:
+        pass
+
+
+def site_server(out: Path, port: int = 0) -> ThreadingHTTPServer:
+    """An HTTP server for the generated site in `out`, on every interface (as the viewer is), not yet running."""
+    return ThreadingHTTPServer(("0.0.0.0", port), partial(_QuietHandler, directory=str(out)))
+
+
+def serve(out: Path, port: int) -> None:
+    """`--serve`: the site over HTTP until Ctrl-C, the URLs to open printed first,
+    this machine's LAN addresses among them (local_urls), so a browser on another
+    machine (the host of a VM) can open it too."""
+    try:
+        server = site_server(out, port)
+    except OSError as e:
+        sys.exit(f"Cannot listen on port {port} ({e.strerror}). Is another server still running? Stop it first.")
+    print("Website listening on all interfaces (Ctrl-C to stop). Open one of:\n  " + "\n  ".join(local_urls(port))
+          + "\nThe icon viewer is at viewer/ under each.", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+
+
 def main(argv: List[str]) -> None:
-    generate(Path(argv[0]).resolve() if argv else _HOMEPAGE_DIR / "_build")
+    parser = argparse.ArgumentParser(description="Generate the project website as plain files (see the module docstring).")
+    parser.add_argument("out", nargs="?", default=_HOMEPAGE_DIR / "_build", type=Path, help="where the site is written (default: homepage/_build)")
+    parser.add_argument("--serve", nargs="?", const=8000, type=int, metavar="PORT",
+                        help="then serve OUT on PORT (default 8000) on every interface, printing the URLs to open")
+    args = parser.parse_args(argv)
+    out: Path = args.out.resolve()
+    generate(out)
+    if args.serve is not None:
+        serve(out, args.serve)
 
 
 if __name__ == "__main__":
