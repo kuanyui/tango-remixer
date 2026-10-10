@@ -57,11 +57,14 @@ dialog::backdrop { background: transparent; }
 .about h2 { margin: 0 0 6px; font-size: 18px; }
 .about p { margin: 0 0 6px; }
 .about .buttons { text-align: right; margin-top: 16px; }
-/* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. */
+/* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. The button
+   (a 16 px icon in 2 px of padding) is centred in the entry's height, which leaves the input's border and vertical
+   padding above and below it, less the half pixel by which 20 px outgrows the 1.4 em text line; it sits the same
+   distance from the right edge, and the input keeps its text 4 px clear of it. */
 .entry { position: relative; display: flex; }
-.entry input { flex: 1; min-width: 0; padding-right: 26px; }
-.entry .clear { position: absolute; right: 4px; top: 50%; transform: translateY(-50%); display: none; padding: 2px; line-height: 0;
-                border: 0; border-radius: 3px; background: none; box-shadow: none; cursor: pointer; }
+.entry input { flex: 1; min-width: 0; padding-right: calc(0.4rem + 24px); }
+.entry .clear { position: absolute; right: calc(1px + 0.4rem - (20px - 1.4em) / 2); top: 50%; transform: translateY(-50%); display: none; padding: 2px;
+                line-height: 0; border: 0; border-radius: 3px; background: none; box-shadow: none; cursor: pointer; }
 .entry:has(input:not(:placeholder-shown)) .clear { display: block; }
 .entry .clear:hover, .entry .clear:active { background: var(--hover); box-shadow: none; }
 .entry .clear img { display: block; margin: 0; }
