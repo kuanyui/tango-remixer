@@ -598,6 +598,16 @@ function includedBox(icon) {
     line, copy, copyName];
 }
 
+// The detail pane's "Theme license" line: whose license that is. It is the theme's own declaration (its COPYING or
+// README), summarised in server.py's _THEME_TABLE as in the documentation; a Blue* variant inherits its base theme's.
+function themeLicenseTip(name) {
+  const base = themeInfo[name].base;
+  return `The license the ${base || name} theme's authors declare for the whole theme (its COPYING or README), as this project summarises it`
+    + (base ? `; ${name} is ${base} with its hue shifted by the build, so the same applies.` : '.')
+    + '\nHelp > Icon Themes lists every theme\'s.'
+    + '\nA file with its own SPDX-License-Identifier is under that one instead: see each size below.';
+}
+
 // `row` may be missing when the icon is not among the rendered rows (restored selection). `open`: a click, which
 // on a phone opens the detail window (the selection restored at start-up does not).
 function showDetail(icon, row, open = false) {
@@ -608,7 +618,7 @@ function showDetail(icon, row, open = false) {
   $('detail').replaceChildren(
     el('h3', {}, icon.name),
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
-    el('div', { className: 'note' }, `License: ${themeInfo[icon.theme].license}`),
+    el('div', { className: 'note', title: themeLicenseTip(icon.theme) }, `Theme license: ${themeInfo[icon.theme].license}`),
     el('div', { className: 'included' }, ...includedBox(icon)),
     el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
       icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
