@@ -198,9 +198,9 @@ class TestHomepage(unittest.TestCase):
         self.assertFalse(panel.endswith("\n"))
         self.assertIn('src="../viewer/icons/Tango/22x22/places/start-here.svg"', panel)
         self.assertIn("abcdef0</span>", panel)
-        self.assertIn('<span>Applications</span>\n  </button>', panel)
-        self.assertIn('<span class="long">Tango Remixer Documentation</span><span class="short">Documentation</span>', panel)
-        self.assertIn('<span class="long">Tango Remixer Icon Viewer</span><span class="short">Viewer</span>', panel)
+        self.assertIn('<span>Tango Remixer</span>\n  </button>', panel)   # the main menu, named after the project
+        self.assertIn('<img src="../viewer/icons/Nome/categories/16/system-help.svg" width="16" height="16" alt=""><span>Documentation</span>', panel)
+        self.assertIn('<span>Icon Viewer</span>', panel)
         self.assertLess(panel.index('class="window-list"'), panel.index('<span class="tray"'))   # launchers in the notification area, before the clock
         self.assertLess(panel.index('<span class="tray"'), panel.index('class="panel-clock"'))
         self.assertEqual(panel.count('class="panel-button launcher"'), 2)

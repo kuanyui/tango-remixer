@@ -1,16 +1,17 @@
 <!-- The GNOME 2 panel at the top of both pages of the website, filled by generate_static_site.py: the root
      placeholder is the way to the site root ("" or "../"), a pressed placeholder is " pressed" for the window of
-     the page. The main menu, the window list with the two windows, the notification area with a launcher for
-     each source, and the clock slot, which shows the build instead. The launchers' marks are painted by
-     panel.css (a mask per class). -->
+     the page. Left to right: the main menu, named after the project; the window list with the two windows,
+     Documentation (the help icon, system-help) and Icon Viewer; the notification area with a launcher for each
+     source; and the clock slot, which shows the build instead. The launchers' marks are painted by panel.css
+     (a mask per class). -->
 <div class="panel" id="panel" data-root="{{root}}">
   <button type="button" class="panel-button" id="main-menu" title="Main Menu" aria-haspopup="menu" aria-expanded="false">
-    <img src="{{root}}viewer/icons/Tango/22x22/places/start-here.svg" width="22" height="22" alt=""><span>Applications</span>
+    <img src="{{root}}viewer/icons/Tango/22x22/places/start-here.svg" width="22" height="22" alt=""><span>Tango Remixer</span>
   </button>
   <span class="panel-sep"></span>
   <nav class="window-list" aria-label="Windows">
-    <a class="panel-button task{{home_pressed}}" href="{{root}}./"><img src="{{root}}viewer/icons/Tango/16x16/places/start-here.svg" width="16" height="16" alt=""><span class="long">Tango Remixer Documentation</span><span class="short">Documentation</span></a>
-    <a class="panel-button task{{viewer_pressed}}" href="{{root}}viewer/"><img src="{{root}}viewer/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt=""><span class="long">Tango Remixer Icon Viewer</span><span class="short">Viewer</span></a>
+    <a class="panel-button task{{home_pressed}}" href="{{root}}./"><img src="{{root}}viewer/icons/Nome/categories/16/system-help.svg" width="16" height="16" alt=""><span>Documentation</span></a>
+    <a class="panel-button task{{viewer_pressed}}" href="{{root}}viewer/"><img src="{{root}}viewer/icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt=""><span>Icon Viewer</span></a>
   </nav>
   <span class="panel-sep"></span>
   <span class="tray" aria-label="Notification area">

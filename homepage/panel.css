@@ -21,17 +21,15 @@ body.maximized:has(> .panel) { padding-top: var(--panel-height); }
 .panel-sep { margin: 3px 4px; border-left: 1px solid var(--cl-sep, var(--line)); border-right: 1px solid var(--cl-sep-hi, #fff); }
 .window-list { flex: 1; min-width: 0; display: flex; gap: 2px; }
 .tray { display: flex; gap: 2px; }   /* the notification area, left of the clock */
-.task { width: 230px; min-width: 0; }   /* the window list gives every window the same width; the longer title fits */
+.task { width: 170px; min-width: 0; }   /* the window list gives every window the same width */
 .task span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.task .short { display: none; }   /* the short name, for narrow windows */
 .panel-clock { display: flex; align-items: center; padding: 0 8px; white-space: nowrap; }
 /* The main menu: window.css's menu, under its button. Its items are links. */
 .panel-menu { top: calc(var(--panel-height) - 1px); left: 2px; }
 .panel-menu .menu-item { color: inherit; text-decoration: none; }
-/* Narrow window (a phone): a taller panel for fingers, the windows by their short names, no clock. */
+/* Narrow window (a phone): a taller panel for fingers, the main menu by its icon alone, no clock. */
 @media (max-width: 700px) {
   :root { --panel-height: 32px; }
   .task { width: auto; }
-  .task .long, .panel-clock, #main-menu span { display: none; }
-  .task .short { display: inline; }
+  .panel-clock, #main-menu span { display: none; }
 }
