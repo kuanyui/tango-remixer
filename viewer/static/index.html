@@ -98,6 +98,7 @@
   /* Detail pane: everything above stays put, the per-size list takes the rest of the height and scrolls on its
      own. If the window is too short for that (list below its min-height), the pane itself scrolls instead. */
   #detail { border-left: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; }   /* a .scroller: scrolls, with the page's bar */
+  #list-box > .sbar { margin-right: 3px; }   /* off the detail pane's frame line, which would read as one 2 px border with the bar's (the window's frame has its own band) */
   #detail > * { flex: none; }
   #detail > .files-box { flex: 1 1 0; min-height: 96px; }   /* the file list, a .scroller of its own in its box: it gives way down to one row before the pane itself scrolls, so two bars side by side are the short window's last resort */
   .aliases-note { max-height: 4.4em; overflow-y: auto; }   /* some icons have dozens of aliases */
@@ -185,6 +186,7 @@
     body.dark #dark-toggle { background: var(--cl-btn-active, var(--sel)); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
     .client { grid-template-columns: 1fr; }
     .client > #detail-box { display: none; }   /* until placeDetail has moved it into its window */
+    #list-box > .sbar { margin-right: 0; }   /* no pane beside the list here */
     .row { padding: 6px 10px; }
     /* Status bar: one row where it fits; else List | Grid (with the grip) wraps to a second row, still at the
        right end (display: contents makes the four parts siblings, so they wrap one by one). */
