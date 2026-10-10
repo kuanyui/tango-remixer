@@ -93,6 +93,8 @@
   .file { padding: 6px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
   .file .thumb { flex: none; width: 64px; display: flex; justify-content: center; }   /* same sizes as the list rows */
   .file code { display: block; word-break: break-all; color: var(--muted); font-size: 12px; margin: 2px 0 4px; }
+  .file .spdx { margin-left: 8px; font-size: 12px; }   /* the file's own SPDX-License-Identifier (fileLicense) */
+  .file .spdx.none { color: var(--muted); }            /* none in the file: the theme's license applies */
   .note { margin-top: 6px; color: var(--muted); word-break: break-word; }
   .included { margin-top: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 4px; }
   .included code { display: block; white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; font-size: 12px; }   /* long lines wrap: the size matrix at the end stays visible */
@@ -596,7 +598,7 @@ function showDetail(icon, row, open = false) {
     el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file' },
       fileThumb(icon, s),
       el('div', {},
-        el('strong', {}, s.size),
+        el('div', {}, el('strong', {}, s.size), fileLicense(icon, s)),
         el('code', {}, s.path),
         ...fileButtons(icon, s))))));
   if (open && narrow() && !$('detail-window').open) $('detail-window').showModal();
@@ -665,6 +667,23 @@ function parseMeta(text) {
     ['License URL', license ? license.getAttributeNS(RDF, 'resource') || textOf(license) : ''],
   ].filter(([, value]) => value);
   return meta;
+}
+// Beside a file's size in the detail pane: its own SPDX-License-Identifier when it has one (read from the file,
+// as the file card does; fileMeta keeps what it read), else a note that the theme's license, stated at the top
+// of the pane, is the one that applies. Filled once the file has been read.
+function fileLicense(icon, s) {
+  const span = el('span', { className: 'spdx' });
+  fileMeta(encodeURI(`icons/${icon.theme}/${s.path}`)).then(meta => {
+    if (meta.spdx) {
+      span.textContent = `SPDX: ${meta.spdx}`;
+      span.title = "The SPDX-License-Identifier in this file: its license, whatever the theme's.";
+    } else {
+      span.textContent = 'no SPDX tag';
+      span.classList.add('none');
+      span.title = `No SPDX-License-Identifier in this file: the theme's license applies, ${themeInfo[icon.theme].license}.`;
+    }
+  }, () => {});   // the file could not be read: the thumbnail says so by not showing either
+  return span;
 }
 const fileOf = new WeakMap();   // detail pane thumbnail -> { icon, s }
 installTooltips({ selector: '.thumb', show: showFileTip });
@@ -755,13 +774,13 @@ function fillThemes(themes) {
       const host = site && (t.repo.includes('gitlab') ? 'GitLab' : 'GitHub');
       parts.push(
         el('div', { className: 'name' }, t.name, ' ',
-          el('small', { title: 'Each icon name and context (such as apps/ or actions/) with a real SVG file counts once across all sizes and has one list row. Symlink aliases are not counted.' }, `${mine.length} icons`), ' · ',
-          el('small', { title: `Size folders and the number of icons with real SVG files in each: ${sizes.map(s => `${s}: ${perSize[s]}`).join(', ')}. Total: ${files} SVG files, excluding symlink aliases.` }, `sizes ${sizes.join(', ')}`)),
+          el('small', { title: 'Icon names with a real SVG file, each counted once across its sizes: one row of the list each.\nSymlink aliases are not counted.' }, `${mine.length} icons`), ' · ',
+          el('small', { title: `Icons with an SVG file in each size folder:\n${sizes.map(s => `${s}: ${perSize[s]}`).join('\n')}\n${files} SVG files in all (aliases not counted).` }, `sizes ${sizes.join(', ')}`)),
         el('div', { className: 'blurb' }, `${t.about} · ${t.license}`),
         el('div', { className: 'source' }, ...(site
-          ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `Open this theme's repository home page on ${host} in a new tab: ${t.repo}` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
+          ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `This theme's repository on ${host}:\n${t.repo}\nOpens in a new tab.` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
              el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener',
-                       title: `Open this theme's source folder in its repository at commit ${t.commit} (new tab). The icons shown were copied from this commit when the site was built.` }, t.commit.slice(0, 7))]
+                       title: `The commit the site's copies of these icons come from:\n${t.commit}\nOpens this theme's folder at that commit, in a new tab.` }, t.commit.slice(0, 7))]
           : [el('code', { title: "The folder on the machine running the local server, where this theme's icons are read directly." }, t.folder)])));
     }
     return el('div', { className: derived ? 'theme derived' : 'theme' }, ...parts);
@@ -776,8 +795,8 @@ function fillThemes(themes) {
   $('themes-list').replaceChildren(...rows,
     el('div', { className: 'more' }, "A theme's license applies to its files unless an SVG has an SPDX-License-Identifier comment specifying a different license. Hover a thumbnail in the detail pane (tap it on a phone) for the file card with that file's license and metadata. See also ",
       el('a', { href: docs, ...(site ? {} : { target: '_blank', rel: 'noopener' }),
-                title: "Each theme's license and warnings about mixing GPL v2, GPL v3 and CC BY-SA, in the README's Built-in Icon Themes and Licenses section. "
-                  + (site ? 'Opens on this site.' : 'Opens the README on GitHub in a new tab.') },
+                title: "Each theme's license, and warnings about mixing GPL v2, GPL v3 and CC BY-SA.\n"
+                  + (site ? 'A page of this site.' : 'The README on GitHub, in a new tab.') },
         'Built-in Icon Themes and Licenses'), '.'));
 }
 
