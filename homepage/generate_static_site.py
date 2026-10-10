@@ -39,6 +39,10 @@ every file; no local path is written.
 Links in README.md to files of this repository point at their page in the
 repository the site is built from: told by the CI of GitLab or GitHub, else the
 origin remote of the checkout.
+
+What README.md shows only to a reader of the repository (its table of contents,
+the tip that sends them here) sits between a `<!-- homepage-hide-begin -->` line
+and a `<!-- homepage-hide-end -->` line, and the homepage leaves it out (_HIDDEN).
 """
 
 from __future__ import annotations
@@ -68,6 +72,9 @@ from viewer.server import _COLOR_CONVERTER, _STATIC_DIR, Colorizer, SourceTheme,
 _HOMEPAGE_DIR: Path = Path(__file__).resolve().parent
 _ALERTS: Tuple[str, ...] = ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
 """GitHub's `> [!NOTE]` blockquote kinds."""
+_HIDDEN = re.compile(r"^<!-- homepage-hide-begin -->[ \t]*\n.*?^<!-- homepage-hide-end -->[ \t]*(?:\n|\Z)", re.M | re.S)
+"""What a document shows on GitHub and GitLab but not on the homepage: from a `<!-- homepage-hide-begin -->` line to
+a `<!-- homepage-hide-end -->` line, each comment on a line of its own."""
 
 
 class Rendered(NamedTuple):
@@ -337,7 +344,7 @@ def export_viewer(themes: Dict[str, SourceTheme], out: Path, places: Dict[str, D
 # --- The homepage -------------------------------------------------------------------------------------
 
 def github_slug(text: str, separator: str) -> str:
-    """Heading ids as GitHub makes them, so the README's own table of contents
+    """Heading ids as GitHub makes them, so the README's links to its own headings
     (and links into it from elsewhere) work on the homepage too: lower case,
     punctuation other than `-` and `_` dropped, each space a `-`."""
     return re.sub(r"[^\w\- ]", "", text.lower()).strip().replace(" ", separator)
@@ -351,12 +358,15 @@ def render_markdown(text: str) -> Rendered:
     separated by a blank line (kept apart), a list right after a line of text
     (given the blank line Python-Markdown wants), and a nested list indented by two
     spaces (made four, which Python-Markdown wants). An `included-icons` fence is
-    coloured by highlight_included_icons instead of Pygments."""
+    coloured by highlight_included_icons instead of Pygments. What the document
+    hides from the homepage (_HIDDEN, such as the README's table of contents) is
+    dropped first."""
     try:
         import markdown
     except ImportError:
         sys.exit("The homepage needs Python-Markdown (the `markdown` module): sudo apt install python3-markdown "
                  "on Debian / Ubuntu, else pip install markdown. (markdown2 is a different library.)")
+    text = _HIDDEN.sub("", text)
     lines: List[str] = []
     fence: Optional[str] = None   # inside a fenced block: the blockquote prefix it was opened with ("" outside a quote)
     quoted = False                # the last non-blank line was a blockquote line

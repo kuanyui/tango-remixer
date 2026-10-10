@@ -134,6 +134,13 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<p>The built files.</p>\n</blockquote>', html)
         self.assertNotIn("```", html)
 
+    def test_markdown_leaves_out_what_the_document_hides_from_the_homepage(self) -> None:
+        html = gen.render_markdown("# Top\n\n<!-- homepage-hide-begin -->\n> [!TIP]\n> Read it on the homepage.\n<!-- homepage-hide-end -->\n\n"
+                                   "Intro.\n\n<!-- homepage-hide-begin -->\n> **Table of Contents**\n>\n> - [Top](#top)\n<!-- homepage-hide-end -->\n\n# Next\n").html
+        self.assertEqual('<h1 id="top">Top</h1>\n<p>Intro.</p>\n<h1 id="next">Next</h1>', html)   # neither the tip nor the contents, nor the markers
+        mention = gen.render_markdown("Put `<!-- homepage-hide-begin -->` on a line of its own.\n\n<!-- homepage-hide-end -->\n").html
+        self.assertIn("on a line of its own", mention)   # a marker within a line hides nothing
+
     def test_markdown_lists_the_top_level_headings_and_sections_split_there(self) -> None:
         rendered = gen.render_markdown("banner\n\n# Top A\n\n## Mid B\n\n### Low C\n\ntext\n\n# License**s**\n\nend\n")
         self.assertEqual([(h["id"], h["name"]) for h in rendered.headings], [("top-a", "Top A"), ("licenses", "Licenses")])

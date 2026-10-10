@@ -10,6 +10,7 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 
 **Website:** https://kuanyui.github.io/tango-remixer/ : this README, plus the **[icon viewer](https://kuanyui.github.io/tango-remixer/viewer/)** to browse every icon of the built-in themes and copy the line for `included_icons.txt`. `make homepage-build` generates it from `homepage/` and `viewer/`; GitHub Actions (`.github/workflows/pages.yml`) and GitLab CI (`.gitlab-ci.yml`, the same site under `https://<group>.gitlab.io/tango-remixer/`) publish it on every push to `master`.
 
+<!-- homepage-hide-begin -->
 > **Table of Contents**
 >
 > - [Tango Remixer](#tango-remixer)
@@ -22,6 +23,7 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 > - [Internal Concepts](#internal-concepts)
 > - [Acknowledgments](#acknowledgments)
 > - [Licenses](#licenses)
+<!-- homepage-hide-end -->
 
 # Why
 
