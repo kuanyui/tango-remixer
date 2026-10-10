@@ -189,16 +189,16 @@
   #detail-window #detail > .files { flex-basis: auto; }   /* sized by its files, so the window grows to fit them, up to the screen (beside the list the pane is as tall as the window anyway) */
   #detail-window #detail h3 { display: none; }
   #detail-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
-  /* There the file card (the tooltip's, see fileCard) opens under the file on a tap, the file row wrapping. */
-  #detail-window .files::before { content: "Tap a picture for the file's license and metadata."; display: block; padding: 6px 0 2px; font-size: 12px; color: var(--muted); }
-  #detail-window .file { flex-wrap: wrap; }
-  .card { flex: 1 1 100%; display: flex; gap: 12px; padding: 6px 0 2px; font-size: 12px; line-height: 1.35; }
+  /* There a file's window (openFileWindow) is the way to its details: no pointer to hover the card with. */
+  #detail-window .files::before { content: "Tap a size for the file's details."; display: block; padding: 6px 0 2px; font-size: 12px; color: var(--muted); }
+  /* Tool windows (Help > Icon Themes, a file's properties): a title bar, a body that scrolls when the window would
+     outgrow the screen, a Close button; laid out like the detail window on a phone. */
+  .tool-window[open] { display: flex; flex-direction: column; width: 600px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
+  .tool-window > .titlebar, .tool-window > .buttons { flex: none; }
+  .tool-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
+  .tool-window .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
   /* Help > Icon Themes: every source theme as the Themes filter lists them, plus what the filter has no room for
-     (how many icons and files, where the files are), in a window laid out like the detail window. */
-  #themes[open] { display: flex; flex-direction: column; width: 600px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
-  #themes > .titlebar, #themes > .buttons { flex: none; }
-  #themes .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
-  .themes { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
+     (how many icons and files, where the files are). */
   .themes .group { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
   .themes .theme { display: grid; grid-template-columns: 32px 1fr; column-gap: 10px; align-items: start; padding: 6px 0; border-top: 1px solid var(--line); }
   .themes .theme.derived { margin-left: 42px; border-top-style: dashed; }   /* a Blue* variant, under the theme whose files it colorizes */
@@ -210,6 +210,15 @@
   .themes .source a { margin-right: 10px; }
   .themes .source code { overflow-wrap: anywhere; }
   .themes .more { margin-top: 12px; font-size: 12px; color: var(--muted); }
+  /* A file's properties (a click on a size in the detail pane, its picture or its size line): the picture, then
+     label / value rows under group titles, as GNOME 2's Properties dialogs had them. */
+  .file-props .head { display: flex; gap: 14px; align-items: center; margin: 8px 0 4px; }
+  .file-props h4 { margin: 12px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); border-bottom: 1px solid var(--line); }
+  .file-props dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0; font-size: 12px; }
+  .file-props dt { color: var(--muted); text-align: right; white-space: nowrap; }
+  .file-props dd { margin: 0; overflow-wrap: anywhere; }
+  .thumb, .file-head { cursor: pointer; }
+  .file-head:hover strong { text-decoration: underline; }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
 <link rel="stylesheet" href="static/clearlooks.css">
@@ -260,13 +269,18 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
     <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
   </div>
 </dialog>
-<dialog id="themes" aria-labelledby="themes-title">
+<dialog id="themes" class="tool-window" aria-labelledby="themes-title">
   <div class="titlebar"><span class="wm-title" id="themes-title">Icon Themes</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
-  <div class="themes" id="themes-list"></div>
+  <div class="themes body" id="themes-list"></div>
   <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
 </dialog>
 <dialog id="detail-window" aria-labelledby="detail-title">
   <div class="titlebar"><span class="wm-title" id="detail-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
+</dialog>
+<dialog id="file-window" class="tool-window" aria-labelledby="file-title">
+  <div class="titlebar"><span class="wm-title" id="file-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="body file-props" id="file-props"></div>
   <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
 </dialog>
 <script>
@@ -629,7 +643,8 @@ function showDetail(icon, row, open = false) {
     el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file' },
       fileThumb(icon, s),
       el('div', {},
-        el('div', {}, el('strong', {}, s.size), fileLicense(icon, s)),
+        el('div', { className: 'file-head', title: "The file's properties: metadata, license, dimensions, in a window of their own.", onclick: () => openFileWindow(icon, s) },
+          el('strong', {}, s.size), fileLicense(icon, s)),
         el('code', {}, s.path),
         ...fileButtons(icon, s))))));
   if (open && narrow() && !$('detail-window').open) $('detail-window').showModal();
@@ -667,37 +682,53 @@ function fileButtons(icon, s) {
       'Copy the absolute path of this source SVG on the machine running the viewer.')];
 }
 
-// --- File cards ----------------------------------------------------------------------------------------
-// The tooltip is window.js's (every `title` goes through it). The detail pane's thumbnails show a card
-// instead: the file at 128 px with its license and its RDF metadata
-// (the block Inkscape writes: title, creator, date, keywords, ...), the way GNOME 2's image viewer described
-// its thumbnails. The license is the file's own SPDX-License-Identifier comment when it has one, else the
-// theme's. The SVG text is fetched once per file (the server sends the source file, colorized for Blue*).
+// --- A file's details ----------------------------------------------------------------------------------
+// The SVG text of a file is read once (fileMeta; the server sends the source file, colorized for Blue*) and
+// parsed (parseMeta) for: its SPDX-License-Identifier comment; the RDF block Inkscape writes (cc:Work: title,
+// creator, date, keywords, license, ..., field by field in the file's order, and the cc:License terms); the
+// drawing's width, height and viewBox; and the document's Inkscape version, name, title and description. The
+// detail pane shows a card on hover over a thumbnail (fileCard: the picture at 128 px, the license, the RDF
+// fields), the way GNOME 2's image viewer described its thumbnails, and opens the file's own window on a click
+// on the thumbnail or the size line (openFileWindow): every property, as a GNOME 2 Properties dialog lists them.
+// On a phone that window opens over the detail window.
 const DC = 'http://purl.org/dc/elements/1.1/', RDF = 'http://www.w3.org/1999/02/22-rdf-syntax-ns#';
 const CC = ['http://creativecommons.org/ns#', 'http://web.resource.org/cc/'];   // today's and 2005's cc namespace
+const INKSCAPE = 'http://www.inkscape.org/namespaces/inkscape', SODIPODI = 'http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd';
+const RDF_LABELS = { title: 'Title', creator: 'Creator', rights: 'Rights holder', publisher: 'Publisher', contributor: 'Contributors', date: 'Date',
+  description: 'Description', subject: 'Keywords', source: 'Source', identifier: 'Identifier', relation: 'Relation', language: 'Language',
+  coverage: 'Coverage', format: 'Format', type: 'Type', license: 'License' };
 const metaCache = new Map();
 function fileMeta(url) {
-  if (!metaCache.has(url)) metaCache.set(url, fetch(url).then(r => r.text()).then(parseMeta));
+  if (!metaCache.has(url)) metaCache.set(url, fetch(url).then(r => r.arrayBuffer()).then(buffer => parseMeta(new TextDecoder().decode(buffer), buffer.byteLength)));
   return metaCache.get(url);
 }
-function parseMeta(text) {
-  const meta = { spdx: (/SPDX-License-Identifier:\s*([^\r\n]*?)\s*(?:-->|$)/m.exec(text) || [])[1] || null, fields: null };
-  const doc = new DOMParser().parseFromString(text, 'image/svg+xml');
-  const work = CC.flatMap(ns => [...doc.getElementsByTagNameNS(ns, 'Work')])[0];
-  if (!work) return meta;
-  const kids = name => [...work.children].filter(e => e.namespaceURI === DC && e.localName === name);
+function parseMeta(text, bytes) {
+  const doc = new DOMParser().parseFromString(text, 'image/svg+xml'), root = doc.documentElement;
   const textOf = e => e.textContent.trim();
-  const plain = name => kids(name).map(textOf).filter(Boolean).join(', ');
-  const agents = name => kids(name).map(e => textOf(e.getElementsByTagNameNS(DC, 'title')[0] || e)).filter(Boolean).join(', ');   // dc:x/cc:Agent/dc:title
-  const license = [...work.children].find(e => CC.includes(e.namespaceURI) && e.localName === 'license');
-  meta.fields = [
-    ['Title', plain('title')], ['Creator', agents('creator')], ['Contributors', agents('contributor')], ['Publisher', agents('publisher')],
-    ['Date', plain('date')], ['Description', plain('description')],
-    ['Keywords', kids('subject').flatMap(e => [...e.getElementsByTagNameNS(RDF, 'li')]).map(textOf).filter(Boolean).join(', ')],
-    ['Rights', agents('rights')], ['Source', plain('source')],
-    ['License URL', license ? license.getAttributeNS(RDF, 'resource') || textOf(license) : ''],
-  ].filter(([, value]) => value);
-  return meta;
+  const resource = e => e.getAttributeNS(RDF, 'resource');
+  const valueOf = e => resource(e)   // a URL, else a list (rdf:Bag of rdf:li), else an agent's name (cc:Agent/dc:title), else text
+    || [...e.getElementsByTagNameNS(RDF, 'li')].map(textOf).filter(Boolean).join(', ')
+    || [...e.getElementsByTagNameNS(DC, 'title')].map(textOf).filter(Boolean).join(', ')
+    || textOf(e);
+  const label = e => RDF_LABELS[e.localName] || e.localName[0].toUpperCase() + e.localName.slice(1);
+  const work = CC.flatMap(ns => [...doc.getElementsByTagNameNS(ns, 'Work')])[0];
+  const terms = {};   // the cc:License block: Permits, Requires, Prohibits, one row each
+  for (const lic of CC.flatMap(ns => [...doc.getElementsByTagNameNS(ns, 'License')])) {
+    for (const e of lic.children) {
+      const term = resource(e) ? resource(e).split('#').pop() : textOf(e);
+      if (term) terms[label(e)] = terms[label(e)] ? `${terms[label(e)]}, ${term}` : term;
+    }
+  }
+  const own = name => [...root.children].find(e => e.namespaceURI === root.namespaceURI && e.localName === name);
+  return {
+    bytes,
+    spdx: (/SPDX-License-Identifier:\s*([^\r\n]*?)\s*(?:-->|$)/m.exec(text) || [])[1] || null,
+    fields: work ? [...work.children].map(e => [label(e), valueOf(e)]).filter(([, value]) => value) : [],
+    terms: Object.entries(terms),
+    svg: { width: root.getAttribute('width'), height: root.getAttribute('height'), viewBox: root.getAttribute('viewBox') },
+    inkscape: [['Inkscape version', root.getAttributeNS(INKSCAPE, 'version')], ['Document name', root.getAttributeNS(SODIPODI, 'docname')],
+      ['Title (svg)', own('title') && textOf(own('title'))], ['Description (svg)', own('desc') && textOf(own('desc'))]].filter(([, value]) => value),
+  };
 }
 // Beside a file's size in the detail pane: its own SPDX-License-Identifier when it has one (read from the file,
 // as the file card does; fileMeta keeps what it read), else a note that the theme's license, stated at the top
@@ -723,15 +754,7 @@ function fileThumb(icon, s) {
   image.removeAttribute('title');   // the card says it all
   const thumb = el('div', { className: 'thumb' }, image);
   fileOf.set(thumb, { icon, s });
-  // On a phone (no pointer to hover with; the pane in its window) a tap on the picture puts the card under the
-  // file, a second tap takes it away.
-  thumb.addEventListener('click', async () => {
-    if (!narrow()) return;
-    const file = thumb.parentElement, open = file.querySelector('.card');
-    if (open) { open.remove(); return; }
-    const card = el('div', { className: 'card' }, ...(await fileCard(icon, s)));
-    if (!file.querySelector('.card')) file.append(card);
-  });
+  thumb.addEventListener('click', () => openFileWindow(icon, s));
   return thumb;
 }
 // The card's two parts: the file at 128 px, and its license and RDF metadata.
@@ -745,7 +768,34 @@ async function fileCard(icon, s) {
       el('div', { className: 'tip-head' }, `${icon.name}, ${s.size === 'scalable' ? 'scalable' : s.size + ' px'} file shown at 128 px`),
       el('div', { className: 'tip-path' }, s.path),
       line('License', meta.spdx ? `${meta.spdx} (SPDX-License-Identifier in the file)` : `${theme.license} (the theme's: no SPDX-License-Identifier in the file)`),
-      ...(meta.fields ? meta.fields.map(([label, value]) => line(label, value)) : [el('div', { className: 'tip-none' }, 'No RDF metadata in the file.')]))];
+      ...(meta.fields.length ? meta.fields.map(([label, value]) => line(label, value)) : [el('div', { className: 'tip-none' }, 'No RDF metadata in the file.')]),
+      el('div', { className: 'tip-none' }, 'Click for every detail of the file.'))];
+}
+// The file's window: named as Nautilus named them, the picture, then the properties in groups.
+async function openFileWindow(icon, s) {
+  const url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme], meta = await fileMeta(url);
+  const group = (title, rows) => rows.length ? [el('h4', {}, title), el('dl', {}, ...rows.flatMap(([key, value]) => [el('dt', {}, key), el('dd', {}, value)]))] : [];
+  const px = meta.svg.width || meta.svg.height ? `${meta.svg.width || '?'} × ${meta.svg.height || '?'}` : '';
+  const drawing = [px, meta.svg.viewBox && `viewBox ${meta.svg.viewBox}`].filter(Boolean).join(', ');
+  const where = theme.url ? el('a', { href: `${theme.url}/${s.path}`, target: '_blank', rel: 'noopener' }, `${theme.url}/${s.path}`) : `${theme.folder}/${s.path}`;
+  $('file-title').textContent = `${s.path.split('/').pop()} Properties`;
+  $('file-props').replaceChildren(
+    el('div', { className: 'head' },
+      el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: url, width: 128, height: 128, alt: '' })),
+      el('div', {}, el('div', { className: 'tip-head' }, icon.name), el('div', { className: 'tip-path' }, `${icon.theme} · ${icon.context} · ${s.size === 'scalable' ? 'scalable' : s.size + ' px'}`))),
+    ...group('File', [
+      ['Path', s.path],
+      ['Size', meta.bytes >= 1024 ? `${(meta.bytes / 1024).toFixed(1)} KB (${meta.bytes} bytes)` : `${meta.bytes} bytes`],
+      ['Drawing', drawing],
+      ['Theme', `${icon.theme}: ${theme.about}` + (theme.base ? ` (${theme.base}'s file, recoloured by the build)` : '')],
+      ['Where', where]].filter(([, value]) => value)),
+    ...group('License', [
+      ['SPDX-License-Identifier', meta.spdx || 'none in the file'],
+      ["Theme's license", theme.license + (meta.spdx ? ' (the identifier above wins)' : ' (applies: no identifier in the file)')],
+      ...meta.terms]),
+    ...group('Metadata (RDF, as Inkscape writes it)', meta.fields.length ? meta.fields : [['', 'None in the file.']]),
+    ...group('Inkscape', meta.inkscape));
+  $('file-window').showModal();
 }
 async function showFileTip(thumb) {
   const { icon, s } = fileOf.get(thumb);

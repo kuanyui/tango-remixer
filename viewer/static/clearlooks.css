@@ -107,10 +107,11 @@ button.wm-button:active:not(:disabled) {
 /* Maximized: no side frame, no rounded corners (Metacity's normal_maximized geometry). */
 body.maximized .window { border-radius: 0; border-left: 0; border-right: 0; padding: 0; box-shadow: none; }
 body.maximized .window > .titlebar { margin: -1px 0 0; border-radius: 0; border-left: 0; border-right: 0; }
-/* While the About dialog is up the main window is the unfocused one: grey title bar, plain text, grey buttons. */
-body:has(dialog[open]) .window > .titlebar { background: var(--mc-unf-grad); border-color: var(--mc-frame-outline); border-bottom-color: var(--mc-unf-line);
+/* While a dialog is up the main window is the unfocused one: grey title bar, plain text, grey buttons; so is a dialog
+   under another one (the detail window under a file's, on a phone). */
+body:has(dialog[open]) .window > .titlebar, dialog[open]:has(~ dialog[open]) > .titlebar { background: var(--mc-unf-grad); border-color: var(--mc-frame-outline); border-bottom-color: var(--mc-unf-line);
                                              box-shadow: var(--mc-unf-inset); color: var(--fg); text-shadow: none; }
-body:has(dialog[open]) .window > .titlebar button.wm-button { background: var(--mc-unf-btn); border-color: var(--mc-unf-btn-border); color: var(--fg);
+body:has(dialog[open]) .window > .titlebar button.wm-button, dialog[open]:has(~ dialog[open]) > .titlebar button.wm-button { background: var(--mc-unf-btn); border-color: var(--mc-unf-btn-border); color: var(--fg);
                                                               box-shadow: var(--mc-unf-btn-inset); }
 
 /* --- menu bar and menus -----------------------------------------------------------------------------------------
