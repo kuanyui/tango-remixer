@@ -755,14 +755,14 @@ function fillThemes(themes) {
       const host = site && (t.repo.includes('gitlab') ? 'GitLab' : 'GitHub');
       parts.push(
         el('div', { className: 'name' }, t.name, ' ',
-          el('small', { title: 'One icon per name and context, as the list counts them.' }, `${mine.length} icons`), ' · ',
-          el('small', { title: `Files per size: ${sizes.map(s => `${s}: ${perSize[s]}`).join(', ')}. ${files} files in all.` }, `sizes ${sizes.join(', ')}`)),
+          el('small', { title: 'Each icon name and context (such as apps/ or actions/) with a real SVG file counts once across all sizes and has one list row. Symlink aliases are not counted.' }, `${mine.length} icons`), ' · ',
+          el('small', { title: `Size folders and the number of icons with real SVG files in each: ${sizes.map(s => `${s}: ${perSize[s]}`).join(', ')}. Total: ${files} SVG files, excluding symlink aliases.` }, `sizes ${sizes.join(', ')}`)),
         el('div', { className: 'blurb' }, `${t.about} · ${t.license}`),
         el('div', { className: 'source' }, ...(site
-          ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `The theme's repository, on ${host}: ${t.repo}` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
+          ? [el('a', { href: t.repo, target: '_blank', rel: 'noopener', title: `Open this theme's repository home page on ${host} in a new tab: ${t.repo}` }, t.repo.replace(/^https?:\/\/[^/]+\//, '')),
              el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener',
-                       title: `The source folder as exported, at commit ${t.commit}.` }, t.commit.slice(0, 7))]
-          : [el('code', { title: 'The source folder, on the machine running the viewer.' }, t.folder)])));
+                       title: `Open this theme's source folder in its repository at commit ${t.commit} (new tab). The icons shown were copied from this commit when the site was built.` }, t.commit.slice(0, 7))]
+          : [el('code', { title: "The folder on the machine running the local server, where this theme's icons are read directly." }, t.folder)])));
     }
     return el('div', { className: derived ? 'theme derived' : 'theme' }, ...parts);
   };
@@ -774,9 +774,11 @@ function fillThemes(themes) {
   });
   const docs = site ? '../built-in-icon-themes-and-licenses.html' : 'https://github.com/kuanyui/tango-remixer#built-in-icon-themes-and-licenses';
   $('themes-list').replaceChildren(...rows,
-    el('div', { className: 'more' }, "A file's own SPDX-License-Identifier overrides its theme's license (the file cards show it). ",
-      el('a', { href: docs, title: "The documentation's section on the themes: which licenses go together.", ...(site ? {} : { target: '_blank', rel: 'noopener' }) },
-        'Built-in Icon Themes and Licenses')));
+    el('div', { className: 'more' }, "A theme's license applies to its files unless an SVG has an SPDX-License-Identifier comment specifying a different license. Hover a thumbnail in the detail pane (tap it on a phone) for the file card with that file's license and metadata. See also ",
+      el('a', { href: docs, ...(site ? {} : { target: '_blank', rel: 'noopener' }),
+                title: "Each theme's license and warnings about mixing GPL v2, GPL v3 and CC BY-SA, in the README's Built-in Icon Themes and Licenses section. "
+                  + (site ? 'Opens on this site.' : 'Opens the README on GitHub in a new tab.') },
+        'Built-in Icon Themes and Licenses'), '.'));
 }
 
 fetch('api/index.json').then(r => r.json()).then(data => {
