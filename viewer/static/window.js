@@ -1,5 +1,6 @@
 // The Clearlooks application window, shared by the icon viewer (viewer/static/index.html) and the website's
-// homepage (homepage/template.html): DOM helpers, the menu bar with its menus, and the one tooltip of the page.
+// homepage (homepage/template.html): DOM helpers, the menu bar with its menus, the one tooltip of the page, and
+// the dark-background setting.
 // A plain script for <head>; the page calls buildMenuBar() and installTooltips() once its body exists.
 const $ = id => document.getElementById(id);
 
@@ -13,9 +14,11 @@ function el(tag, props, ...children) {
 // GNOME 2 behaviour: `_` in a label marks the underlined letter, as in GTK. A menu is rebuilt each time it opens,
 // so its check items and disabled items always show the current state. Click opens a menu; while one is open,
 // pointing at another title switches to it; Escape or a click elsewhere closes it.
-// `menus` is [[label, () => items], ...]; an item is null (separator) or { label, run, icon?, accel?, disabled?,
-// check? (a check item), radio? (a radio item) }. Item icons are theme paths under `iconBase`. A check item with
-// an icon gives its menu two columns, marks then icons, every row keeping both so that the labels line up.
+// `menus` is [[label, () => items], ...]; an item is null (separator) or { label, run?, href?, icon?, accel?,
+// disabled?, check? (a check item), radio? (a radio item) }. An item with `href` is a link (the panel's main menu);
+// `run` runs once the menu has closed. An icon is a theme path under `iconBase`, or an element the caller made.
+// A check item with an icon gives its menu two columns, marks then icons, every row keeping both so that the
+// labels line up.
 function mnemonic(label) {   // '_File' -> 'F' underlined, then 'ile'
   const k = label.indexOf('_');
   return k < 0 ? [label] : [label.slice(0, k), el('u', {}, label[k + 1]), label.slice(k + 2)];
@@ -32,11 +35,12 @@ function buildMenu(items, iconBase, close) {   // the rows of a menu; `close` ru
       mark = el('span', { className: 'check' in item ? 'check' : 'radio' });
       mark.dataset.state = (item.check ?? item.radio) ? 'checked' : 'unchecked';
     }
-    const icon = item.icon ? el('img', { src: `${iconBase}${item.icon}`, width: 16, height: 16, alt: '' }) : null;
+    const icon = !item.icon ? null : item.icon instanceof Node ? item.icon : el('img', { src: `${iconBase}${item.icon}`, width: 16, height: 16, alt: '' });
     const slots = twoColumns ? [slot(mark), slot(icon)] : [slot(mark || icon)];
-    const row = el('div', { className: item.disabled ? 'menu-item disabled' : 'menu-item' }, ...slots, el('span', {}, ...mnemonic(item.label)));
+    const row = el(item.href ? 'a' : 'div', { className: item.disabled ? 'menu-item disabled' : 'menu-item', ...(item.href ? { href: item.href } : {}) },
+      ...slots, el('span', {}, ...mnemonic(item.label)));
     if (item.accel) row.append(el('span', { className: 'accel' }, item.accel));
-    if (!item.disabled) row.addEventListener('click', () => { close(); item.run(); });
+    if (!item.disabled && !item.href) row.addEventListener('click', () => { close(); item.run?.(); });   // a link navigates, which takes the menu with it
     return row;
   }));
 }
@@ -80,6 +84,21 @@ function openContextMenu(items, x, y, iconBase = 'icons/') {
 }
 document.addEventListener('mousedown', e => { if (contextMenu && !e.target.closest('.context-menu')) closeContextMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContextMenu(); });
+
+// --- Dark background ------------------------------------------------------------------------------------
+// One setting for every page of the website and for the viewer served alone, kept in localStorage under a key of
+// its own (the pages' other state is per page). setDark() paints the page and says so with a `darkchange` event
+// on the document, so a control that shows the state (the viewer's check box) can follow a menu's toggle.
+const DARK_KEY = 'tango-remixer-dark';
+function isDark() { return document.body.classList.contains('dark'); }
+function setDark(on) {
+  document.body.classList.toggle('dark', on);
+  try { localStorage.setItem(DARK_KEY, on ? '1' : '0'); } catch {}
+  document.dispatchEvent(new CustomEvent('darkchange', { detail: on }));
+}
+function savedDark(fallback = false) {   // the choice kept, else `fallback` (a page's setting from before it was shared)
+  try { const kept = localStorage.getItem(DARK_KEY); return kept === null ? fallback : kept === '1'; } catch { return fallback; }
+}
 
 // --- Tooltips ------------------------------------------------------------------------------------------
 // One tooltip element for the whole page, styled by CSS, shown without delay. Every `title` in the page is

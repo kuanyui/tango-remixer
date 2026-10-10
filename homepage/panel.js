@@ -1,5 +1,6 @@
-// The panel's main menu: the windows and the launchers of the panel itself (homepage/panel.html), as a menu of
-// window.js's kind under the button. Click opens it; a choice, Escape or a click elsewhere closes it.
+// The panel's main menu: the windows and the launchers of the panel itself (homepage/panel.html) as links, and the
+// Dark Background switch (window.js's setting, shared by both windows), as a menu of window.js's kind under the
+// button. Click opens it; a choice, Escape or a click elsewhere closes it.
 (() => {
   const panel = $('panel'), button = $('main-menu');
   let menu = null;
@@ -11,11 +12,16 @@
     button.setAttribute('aria-expanded', 'false');
   }
   function open() {
-    const entry = (link, label, slot) => el('a', { className: 'menu-item', href: link.href, role: 'menuitem' }, el('span', { className: 'slot' }, slot), el('span', {}, label));
-    menu = el('div', { className: 'menu panel-menu', role: 'menu' },
-      ...[...panel.querySelectorAll('.task')].map(link => entry(link, link.querySelector('span').textContent, link.querySelector('img').cloneNode())),
-      el('div', { className: 'menu-sep' }),
-      ...[...panel.querySelectorAll('.launcher')].map(link => entry(link, link.dataset.title || link.title, link.querySelector('.mark').cloneNode())));
+    const link = (a, label, icon) => ({ label, href: a.href, icon: icon.cloneNode() });
+    menu = buildMenu(() => [
+      ...[...panel.querySelectorAll('.task')].map(a => link(a, a.querySelector('span').textContent, a.querySelector('img'))),
+      null,
+      ...[...panel.querySelectorAll('.launcher')].map(a => link(a, a.dataset.title || a.title, a.querySelector('.mark'))),
+      null,
+      { label: 'Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: isDark(), run: () => setDark(!isDark()) },
+    ], `${panel.dataset.root}viewer/icons/`, close);
+    menu.classList.add('panel-menu');
+    menu.setAttribute('role', 'menu');
     panel.append(menu);
     button.classList.add('open');
     button.setAttribute('aria-expanded', 'true');

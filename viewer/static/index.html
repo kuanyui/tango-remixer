@@ -303,18 +303,22 @@ const APIS = {
 3. @2 folders are ignored: no Scale support.
 4. GtkImage keeps the PNG's own size.` },
 };
-// Filter state + dark toggle live in localStorage (per origin, so the server's fixed port matters).
+// Filter state lives in localStorage (per origin, so the server's fixed port matters). The dark background is
+// window.js's setting, shared with the homepage, painted before the first paint; the check box follows it.
 const STORAGE_KEY = 'tango-remixer-icon-viewer';
 function loadState() {
   try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {}; } catch { return {}; }
 }
 function saveState() {
   const state = { q: $('q').value, re: $('re').checked, themes: themeSel.getChosenItems(),
-    contexts: contextSel.getChosenItems(), sizes: sizeSel.getChosenItems(), dark: $('dark').checked,
+    contexts: contextSel.getChosenItems(), sizes: sizeSel.getChosenItems(),
     view, showAt: showAtSel?.getChosenItem(), api: apiSel?.getChosenItem(),
     maximized, scroll: $('list').scrollTop, selected: selectedKey };
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
 }
+setDark(savedDark(!!loadState().dark));   // a build before the setting was shared kept it in the state above: carried over once
+$('dark').checked = isDark();
+document.addEventListener('darkchange', e => { $('dark').checked = e.detail; });   // the View menu toggles it too
 // Button icons come from the themes themselves (Tango where it has a 16 px one, else Nome).
 const UI_ICONS = {
   reveal: 'Nome/apps/16/system-file-manager.svg',
@@ -884,8 +888,6 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   if (saved.sizes) sizeSel.setChosenItems(saved.sizes.filter(s => allSizes.includes(s)));
   $('q').value = saved.q || '';
   $('re').checked = !!saved.re;
-  $('dark').checked = !!saved.dark;
-  document.body.classList.toggle('dark', !!saved.dark);
   setView(saved.view === 'grid' ? 'grid' : 'list');   // renders
   const selected = icons.find(i => keyOf(i) === saved.selected);
   if (selected) showDetail(selected, [...$('list').children].find(r => r.dataset.key === saved.selected));
@@ -922,7 +924,7 @@ $('reset').addEventListener('click', () => {
   sizeSel.setChosenItems(DEFAULT_SIZES.filter(s => allSizes.includes(s)));
   render();
 });
-$('dark').addEventListener('change', e => { document.body.classList.toggle('dark', e.target.checked); saveState(); });
+$('dark').addEventListener('change', e => setDark(e.target.checked));
 
 // --- Window frame ---------------------------------------------------------------------------------------
 // Maximize drops the desktop margin around the window; the choice is kept across reloads with the rest of the
@@ -962,7 +964,7 @@ const MENUS = [
     { label: 'Zoom _In', icon: 'Tango/16x16/actions/zoom-in.svg', disabled: view !== 'grid' || $('zoom-in').disabled, run: () => zoom(1) },
     { label: 'Zoom _Out', icon: 'Tango/16x16/actions/zoom-out.svg', disabled: view !== 'grid' || $('zoom-out').disabled, run: () => zoom(-1) },
     null,
-    { label: '_Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: $('dark').checked, run: () => $('dark').click() },
+    { label: '_Dark Background', icon: 'Tango/16x16/status/weather-clear-night.svg', check: isDark(), run: () => setDark(!isDark()) },
     { label: 'Regular _Expression Search', check: $('re').checked, run: () => $('re').click() },
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
