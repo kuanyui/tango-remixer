@@ -246,6 +246,35 @@ class TestHomepage(unittest.TestCase):
         self.assertIn('<a class="previous" href="./"><img src="viewer/icons/Tango/16x16/actions/go-previous.svg" width="16" height="16" alt="">Previous: Hi</a>', why)
         self.assertEqual(sorted(p.name for p in self.out.iterdir()), [])   # nothing copied: no image in this README
 
+    def test_a_second_document_gets_a_row_of_its_own_with_its_sections_under_it(self) -> None:
+        icons = lambda context, name, sizes, prefer=None: {size: f"{prefer or 'Tango'}/{size}x{size}/{context}/{name}.svg" for size in sizes}
+        lsp = gen.Document("lsp/README.md", "lsp", 2, "LSP server")
+        pages = gen.render_pages([(gen.DOCUMENTS[0], "# Hi\n\nSee [the lsp](lsp/README.md).\n"),
+                                  (lsp, "# LSP Server for `x`\n\nIntro.\n\n## Install\n\nPip. See [the setup](#editor-setup) and [the top](#lsp-server-for-x).\n\n## Editor Setup\n\n### Emacs\n\nE.\n")],
+                                 gen.Repository("https://github.com/o/r", "abc"), self.root, self.out, "", icons)
+        self.assertEqual(list(pages), ["index.html", "lsp.html", "lsp-install.html", "lsp-editor-setup.html", "search-index.json"])
+        home, own, install, setup = pages["index.html"], pages["lsp.html"], pages["lsp-install.html"], pages["lsp-editor-setup.html"]
+        self.assertIn('<a href="lsp.html">the lsp</a>', home)   # a document of the site: its first page, not the repository
+        # the Contents: the README's pages at the top, the LSP server's own page a row, its sections rows under it
+        self.assertIn('<li><a href="lsp.html" title="LSP Server for x"><img src="viewer/icons/Nome/16x16/categories/applications-development.svg" width="16" height="16" alt=""><span>LSP server</span></a>\n<ul>\n'
+                      '<li><a href="lsp-install.html" title="Install"><img src="viewer/icons/Nome/16x16/apps/system-software-install.svg" width="16" height="16" alt=""><span>Install</span></a></li>\n'
+                      '<li><a href="lsp-editor-setup.html" title="Editor Setup">', home)
+        self.assertIn('</li>\n</ul></li>', home)
+        self.assertIn('<a href="lsp.html" class="current" title="LSP Server for x">', own)
+        self.assertIn("<title>LSP Server for x - Tango Remixer</title>", own)
+        self.assertIn('<h1 id="lsp-server-for-x"><img src="viewer/icons/Nome/48x48/categories/applications-development.svg"', own)
+        self.assertIn("<p>Intro.</p>", own)
+        self.assertNotIn("<p>Pip.", own)
+        # a section's page opens with an h1 (promoted from h2), and so on down
+        self.assertIn('<h1 id="install"><img src="viewer/icons/Nome/48x48/apps/system-software-install.svg" width="48" height="48" alt="">Install</h1>', install)
+        self.assertIn('<a href="lsp-editor-setup.html">the setup</a>', install)   # another page of the same document
+        self.assertIn('<a href="lsp.html">the top</a>', install)                 # the document's own heading: its own page
+        self.assertIn('<h2 id="emacs">Emacs</h2>', setup)
+        self.assertIn('<a class="previous" href="lsp-install.html"><img src="viewer/icons/Tango/16x16/actions/go-previous.svg" width="16" height="16" alt="">Previous: Install</a>', setup)
+        self.assertIn('Next: LSP server<img', home)   # the pager names the row
+        self.assertEqual([(p["href"], p["title"]) for p in json.loads(pages["search-index.json"])],
+                         [("./", "Hi"), ("lsp.html", "LSP server"), ("lsp-install.html", "Install"), ("lsp-editor-setup.html", "Editor Setup")])
+
     @unittest.skipUnless(all(raw.copied_src_theme_folder.is_dir() for raw in viewer_server.BUILT_IN_RAW_ICON_THEMES_PATH),
                          "theme submodules not checked out")
     def test_the_search_index_holds_every_page_with_its_text(self) -> None:

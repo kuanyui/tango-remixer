@@ -165,6 +165,7 @@ document.addEventListener('keydown', e => { if (e.key === 'F1' && !e.ctrlKey && 
 // --- The toolbar's combo box (narrow windows): its menu lists the sections, from the sidebar's entries, the
 // page's own in bold. A choice loads that page; a click elsewhere or Escape closes the menu.
 const combo = $('contents-combo'), bar = $('toolbar');
+const nested = link => !!link.closest('li').parentElement.closest('li');   // a row under a document's own (the LSP server's sections): indented
 let comboMenu = null;
 function closeCombo() {
   if (!comboMenu) return;
@@ -176,7 +177,7 @@ function closeCombo() {
 function openCombo() {
   closeFindMenu();
   comboMenu = el('div', { className: 'menu contents-menu', role: 'menu' }, ...[...$('toc').querySelectorAll('li a')].map(link =>
-    el('a', { className: link.classList.contains('current') ? 'menu-item current' : 'menu-item', href: link.getAttribute('href'), role: 'menuitem' },
+    el('a', { className: ['menu-item', link.classList.contains('current') && 'current', nested(link) && 'sub'].filter(Boolean).join(' '), href: link.getAttribute('href'), role: 'menuitem' },
       el('span', { className: 'slot' }, link.querySelector('img').cloneNode()), el('span', {}, link.querySelector('span').textContent))));
   bar.append(comboMenu);
   combo.classList.add('open');
@@ -256,7 +257,8 @@ function listPages() {   // under the box: the pages with matches, each with its
   closeCombo();
   const rows = [...$('toc').querySelectorAll('li a')];   // the sidebar's rows: each page's icon, in order
   findMenu = el('div', { className: 'menu find-menu', role: 'menu' }, ...pages.flatMap((p, i) => !counts[i] ? [] : [
-    el('a', { className: p.href === here ? 'menu-item current' : 'menu-item', href: `${p.href}?find=${encodeURIComponent(findBox.value.trim())}`, role: 'menuitem',
+    el('a', { className: ['menu-item', p.href === here && 'current', nested(rows.find(a => a.getAttribute('href') === p.href)) && 'sub'].filter(Boolean).join(' '),
+          href: `${p.href}?find=${encodeURIComponent(findBox.value.trim())}`, role: 'menuitem',
           onclick: e => { e.preventDefault(); swapPage(p.href).then(() => runFind(undefined, true)); } },
       el('span', { className: 'slot' }, rows.find(a => a.getAttribute('href') === p.href).querySelector('img').cloneNode()),
       el('span', {}, p.title), el('span', { className: 'accel' }, String(counts[i])))]));

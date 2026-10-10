@@ -14,6 +14,7 @@ body.no-contents .sidebar { display: none; }
 .find-menu { left: 6px; }   /* under the box: the pages with matches */
 .toolbar .menu-item { color: inherit; text-decoration: none; }   /* the toolbar's menus are links: a page each */
 .toolbar .menu-item.current { font-weight: 600; }
+.toolbar .menu-item.sub { padding-left: 26px; }   /* a row under a document's own, as in the sidebar */
 ::highlight(find) { background: #fce94f; color: #000; }
 ::highlight(find-current) { background: #f57900; color: #fff; }
 .toolbar .combo { display: none; }   /* (.toolbar button would show it) */
@@ -27,6 +28,7 @@ body.no-contents .sidebar { display: none; }
 .sidebar a span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* a long title ends in ... */
 .sidebar a:hover { background: var(--hover); }
 .sidebar a.current, .sidebar a.current:hover { background: var(--cl-sel-grad, var(--sel)); color: var(--cl-sel-fg, var(--fg)); }
+.sidebar li li a { padding-left: 30px; }   /* a document's sections under its own row (the LSP server's) */
 
 /* The README, in a column of at most 60rem, centred when the pane is wider */
 #content { overflow-y: auto; padding: 16px max(32px, calc((100% - 60rem) / 2)) 48px; background: var(--cl-base, var(--ctl-bg));
