@@ -217,6 +217,10 @@
   .file-props dl { display: grid; grid-template-columns: max-content 1fr; gap: 3px 14px; margin: 0; font-size: 12px; }
   .file-props dt { color: var(--muted); text-align: right; white-space: nowrap; }
   .file-props dd { margin: 0; overflow-wrap: anywhere; }
+  .file-props .previews { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; margin: 6px 0 2px; }   /* the one file at every size */
+  .file-props figure { margin: 0; text-align: center; font-size: 11px; color: var(--muted); }
+  .file-props figure .tip-img { display: inline-block; }
+  .file-props figure.own figcaption { color: var(--fg); font-weight: 600; }   /* the size the file is for */
   .thumb, .file-head { cursor: pointer; }
   .file-head:hover strong { text-decoration: underline; }
 </style>
@@ -721,7 +725,7 @@ function parseMeta(text, bytes) {
   }
   const own = name => [...root.children].find(e => e.namespaceURI === root.namespaceURI && e.localName === name);
   return {
-    bytes,
+    bytes, text,
     spdx: (/SPDX-License-Identifier:\s*([^\r\n]*?)\s*(?:-->|$)/m.exec(text) || [])[1] || null,
     fields: work ? [...work.children].map(e => [label(e), valueOf(e)]).filter(([, value]) => value) : [],
     terms: Object.entries(terms),
@@ -771,7 +775,17 @@ async function fileCard(icon, s) {
       ...(meta.fields.length ? meta.fields.map(([label, value]) => line(label, value)) : [el('div', { className: 'tip-none' }, 'No RDF metadata in the file.')]),
       el('div', { className: 'tip-none' }, 'Click for every detail of the file.'))];
 }
-// The file's window: named as Nautilus named them, the picture, then the properties in groups.
+// An SVG without a viewBox draws at its own size whatever box it is given: the previews use a copy with a viewBox
+// made from its width and height, a blob URL made once per file. With a viewBox the file scales as it is.
+function scalableSrc(url, meta) {
+  if (meta.svg.viewBox) return url;
+  const w = parseFloat(meta.svg.width), h = parseFloat(meta.svg.height);
+  if (!(w > 0 && h > 0)) return url;
+  meta.scalableUrl ??= URL.createObjectURL(new Blob([meta.text.replace(/<svg\b/, `<svg viewBox="0 0 ${w} ${h}"`)], { type: 'image/svg+xml' }));
+  return meta.scalableUrl;
+}
+// The file's window: named as Nautilus named them; the one file drawn at every size (SCALABLE_TARGETS), its own
+// size marked, which shows how it would fare scaled; then the properties in groups.
 async function openFileWindow(icon, s) {
   const url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme], meta = await fileMeta(url);
   const group = (title, rows) => rows.length ? [el('h4', {}, title), el('dl', {}, ...rows.flatMap(([key, value]) =>
@@ -782,8 +796,12 @@ async function openFileWindow(icon, s) {
   $('file-title').textContent = `${s.path.split('/').pop()} Properties`;
   $('file-props').replaceChildren(
     el('div', { className: 'head' },
-      el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: url, width: 128, height: 128, alt: '' })),
       el('div', {}, el('div', { className: 'tip-head' }, icon.name), el('div', { className: 'tip-path' }, `${icon.theme} · ${icon.context} · ${s.size === 'scalable' ? 'scalable' : s.size + ' px'}`))),
+    el('h4', {}, 'Drawn at'),
+    el('div', { className: 'previews', title: 'This one file drawn at each size, as a toolkit scales it when it has no file of the size asked for.' },
+      ...SCALABLE_TARGETS.map(px => el('figure', { className: px === s.size ? 'own' : '', title: px === s.size ? 'The size this file is for.' : '' },
+        el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: scalableSrc(url, meta), width: px, height: px, alt: '' })),
+        el('figcaption', {}, px)))),
     ...group('File', [
       ['Path', s.path],
       ['Size', meta.bytes >= 1024 ? `${(meta.bytes / 1024).toFixed(1)} KB (${meta.bytes} bytes)` : `${meta.bytes} bytes`],
