@@ -230,6 +230,7 @@ $('find-clear').addEventListener('click', () => { findBox.value = ''; runFind();
 $('find-previous').addEventListener('click', () => step(-1));
 $('find-next').addEventListener('click', () => step(1));
 const params = new URLSearchParams(location.search);   // arrived through a link that carries the text
+linkifyTree(content);   // a bare URL in the README is a link, as on GitHub (window.js)
 if (params.get('find')) { findBox.value = params.get('find'); runFind(params.get('at'), true); }
 
 // --- Another page in this window: its content, title, status, sidebar row and combo box swapped in, no reload,
@@ -240,6 +241,7 @@ async function swapPage(href, push = true) {
   try { doc = new DOMParser().parseFromString(await (await fetch(href)).text(), 'text/html'); }
   catch { location.href = href; return; }   // offline, or the page gone: the plain way
   content.replaceChildren(...doc.getElementById('content').childNodes);
+  linkifyTree(content);
   content.scrollTop = 0;
   document.title = doc.title;
   $('status').textContent = doc.getElementById('status').textContent;

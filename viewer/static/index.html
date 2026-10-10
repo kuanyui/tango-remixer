@@ -761,7 +761,7 @@ function fileThumb(icon, s) {
 async function fileCard(icon, s) {
   const url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme];
   const meta = await fileMeta(url);
-  const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), value);
+  const line = (label, value) => el('div', {}, el('b', {}, `${label}: `), ...linkify(value, true));
   return [
     el('div', { className: theme.on_dark ? 'tip-img on-dark' : 'tip-img' }, el('img', { src: url, width: 128, height: 128, alt: '' })),
     el('div', { className: 'tip-text' },
@@ -774,7 +774,8 @@ async function fileCard(icon, s) {
 // The file's window: named as Nautilus named them, the picture, then the properties in groups.
 async function openFileWindow(icon, s) {
   const url = encodeURI(`icons/${icon.theme}/${s.path}`), theme = themeInfo[icon.theme], meta = await fileMeta(url);
-  const group = (title, rows) => rows.length ? [el('h4', {}, title), el('dl', {}, ...rows.flatMap(([key, value]) => [el('dt', {}, key), el('dd', {}, value)]))] : [];
+  const group = (title, rows) => rows.length ? [el('h4', {}, title), el('dl', {}, ...rows.flatMap(([key, value]) =>
+    [el('dt', {}, key), el('dd', {}, ...(typeof value === 'string' ? linkify(value, true) : [value]))]))] : [];   // a URL in a value is a link
   const px = meta.svg.width || meta.svg.height ? `${meta.svg.width || '?'} × ${meta.svg.height || '?'}` : '';
   const drawing = [px, meta.svg.viewBox && `viewBox ${meta.svg.viewBox}`].filter(Boolean).join(', ');
   const where = theme.url ? el('a', { href: `${theme.url}/${s.path}`, target: '_blank', rel: 'noopener' }, `${theme.url}/${s.path}`) : `${theme.folder}/${s.path}`;

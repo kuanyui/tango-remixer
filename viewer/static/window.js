@@ -1,6 +1,6 @@
 // The Clearlooks application window, shared by the icon viewer (viewer/static/index.html) and the website's
-// homepage (homepage/template.html): DOM helpers, the menu bar with its menus, the one tooltip of the page, and
-// the dark-background setting.
+// homepage (homepage/template.html): DOM helpers, the menu bar with its menus, the one tooltip of the page, the
+// dark-background setting, and links for the bare URLs in a text.
 // A plain script for <head>; the page calls buildMenuBar() and installTooltips() once its body exists.
 const $ = id => document.getElementById(id);
 
@@ -98,6 +98,32 @@ function setDark(on) {
 }
 function savedDark(fallback = false) {   // the choice kept, else `fallback` (a page's setting from before it was shared)
   try { const kept = localStorage.getItem(DARK_KEY); return kept === null ? fallback : kept === '1'; } catch { return fallback; }
+}
+
+// --- Links in plain text --------------------------------------------------------------------------------
+// A bare URL in a piece of text becomes a link: README.md's prose on the homepage (GitHub links bare URLs,
+// Python-Markdown does not) and the metadata an SVG carries (the viewer's file window). A trailing full stop,
+// comma or unbalanced bracket is left out of the link, as GitHub leaves it. `blank`: open in a new tab (from a
+// dialog, which a navigation would take down with the page).
+const URL_IN_TEXT = /https?:\/\/[^\s<>"'`]+/g;
+function linkify(text, blank = false) {   // the text as strings and <a> elements
+  const parts = [];
+  let last = 0;
+  for (const m of text.matchAll(URL_IN_TEXT)) {
+    let url = m[0];
+    while (/[.,;:!?]$/.test(url) || (url.endsWith(')') && url.split('(').length < url.split(')').length) || (url.endsWith(']') && !url.includes('['))) url = url.slice(0, -1);
+    parts.push(text.slice(last, m.index), el('a', { href: url, ...(blank ? { target: '_blank', rel: 'noopener' } : {}) }, url));
+    last = m.index + url.length;
+  }
+  parts.push(text.slice(last));
+  return parts.filter(part => part !== '');
+}
+function linkifyTree(root, blank = false) {   // every text node under `root`, but inside a link or code
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, node =>
+    node.parentElement.closest('a, code, pre, script, style') ? NodeFilter.FILTER_REJECT : /https?:\/\//.test(node.data) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP);
+  const nodes = [];
+  for (let node = walker.nextNode(); node; node = walker.nextNode()) nodes.push(node);
+  for (const node of nodes) node.replaceWith(...linkify(node.data, blank));
 }
 
 // --- Tooltips ------------------------------------------------------------------------------------------
