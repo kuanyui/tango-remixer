@@ -72,15 +72,17 @@
   .statusbar .llselect-root { max-width: none; font-size: 13px; }
   #show-at { min-width: 0; }   /* llselect's host element; "24 px" needs no 14rem */
   #status { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .row { display: flex; align-items: center; gap: 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
+  /* A row is a wrapping flex line, which decides where the sizes go: beside the name block when the ticked sizes fit
+     there in one line, else on a line of their own under it, wrapping further only if even that is too narrow. No
+     script and no fixed breakpoint: the ticked sizes vary. Every row has the same figure widths (an empty box where an
+     icon lacks a size), so all rows decide alike and the columns keep lining up; the license column is a fixed width
+     for the same reason. */
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 4px 12px; border-bottom: 1px solid var(--line); cursor: pointer; }
   .row:hover { background: var(--hover); }
   .row.selected { background: var(--sel); }
   .meta { width: 252px; flex: none; }
   .meta > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .meta .where, .meta .aliases { color: var(--muted); font-size: 12px; }
-  /* The sizes wrap when the row is too narrow for them all; every row has the same figure widths (an empty box where
-     an icon lacks a size), so they wrap at the same place and the columns keep lining up. The license column is a
-     fixed width for the same reason. */
   .sizes { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 4px 12px; }
   .row .license { margin-left: auto; flex: none; width: 200px; text-align: right; color: var(--muted); font-size: 12px; }
   .sizes figure { margin: 0; text-align: center; }
@@ -140,7 +142,7 @@
      search box with Reset and the Dark toggle (icons only, the toggle drawn as a button, pressed while on),
      then the three filters in thirds, their triggers saying how many are ticked instead of which (see
      multiSelect). The status bar wraps; the detail pane is a window of its own (placeDetail): there is no room for
-     it beside the list. (The rows wrap and lose the license column from the wider tiers above.) */
+     it beside the list. (The license column went at 1366 px; where a row's sizes go is flex wrap's call, see .row.) */
   /* A laptop (1366 px and under): the detail pane gives up 80 px and the list its license column (the theme's
      license is in the detail pane and under Help > Icon Themes), so a row with the default sizes fits beside the
      pane down to about 1000 px. */
@@ -149,12 +151,10 @@
     .meta { width: 220px; }
     .row .license { display: none; }
   }
-  /* Smaller (900 px and under): a row wraps its sizes under the name, the pane gives up 40 px more, and the API
-     chooser, naming just the toolkit (see apiSel), shrinks to it. */
+  /* Smaller (900 px and under): the pane gives up 40 px more, and the API chooser, naming just the toolkit (see
+     apiSel), shrinks to it. */
   @media (max-width: 900px) {
     .client { grid-template-columns: 1fr 320px; }
-    .row { flex-wrap: wrap; gap: 4px 12px; }
-    .meta { width: 100%; }
     #pick-as { min-width: 0; }
   }
   @media (max-width: 700px) {
@@ -274,8 +274,8 @@ const MAX_ROWS = 500;
 const token = new URLSearchParams(location.search).get('token');
 // Width tiers, matching the media queries at the end of the style sheet: on a laptop (1366 px and under) the
 // filter triggers say how many are ticked instead of which, the list drops its license column and the detail pane
-// narrows; at 900 px and under the API chooser names just the toolkit and a row wraps its sizes under the name;
-// 700 px and under is the phone layout (`narrow`).
+// narrows; at 900 px and under the API chooser names just the toolkit; 700 px and under is the phone layout
+// (`narrow`). Where a row puts its sizes is not a tier: flex wrap decides by the ticked sizes' width (see .row).
 const TIERS = { laptop: '(max-width: 1366px)', small: '(max-width: 900px)', phone: '(max-width: 700px)' };
 const tier = name => matchMedia(TIERS[name]).matches;
 const narrow = () => tier('phone');
