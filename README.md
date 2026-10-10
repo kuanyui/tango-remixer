@@ -4,13 +4,18 @@
 
 # Tango Remixer
 
+<!-- homepage-hide-begin -->
+> [!TIP]
+> To understand what this project does, it's strongly recommended to read this README on the [Tango Remixer homepage](https://kuanyui.github.io/tango-remixer/) instead of here.
+<!-- homepage-hide-end -->
+
 Remix multiple [Tango-flavoured icon themes](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (e.g. Freedesktop Tango Icon Theme, GNOME Icon Theme, Ubuntu Humanity Icon Theme...etc) into an independent XDG-compatible icon theme pack, especially for Qt / GTK applications (e.g. directly retrieve icon via `QIcon::fromTheme(QString iconName)`)
 
 This project is to convert it to `.qrc` which can be easily to be used in your Qt project. (only tested on Qt 6, mainly the HiDPI support.)
 
-**Website:** https://kuanyui.github.io/tango-remixer/ : this README, plus the **[icon viewer](https://kuanyui.github.io/tango-remixer/viewer/)** to browse every icon of the built-in themes and copy the line for `included_icons.txt`. `make homepage-build` generates it from `homepage/` and `viewer/`; GitHub Actions (`.github/workflows/pages.yml`) and GitLab CI (`.gitlab-ci.yml`, the same site under `https://<group>.gitlab.io/tango-remixer/`) publish it on every push to `master`.
-
 <!-- homepage-hide-begin -->
+**Website:** https://kuanyui.github.io/tango-remixer/ : this README, plus the **[icon viewer](https://kuanyui.github.io/tango-remixer/viewer/)** to browse every icon of the built-in themes and copy the line for `included_icons.txt`. `make homepage-build` generates it from `homepage/` and `viewer/`; GitHub Actions (`.github/workflows/pages.yml`) and GitLab CI (`.gitlab-ci.yml`, the same site under `https://kuanyui.gitlab.io/tango-remixer/`) publish it on every push to `master`.
+
 > **Table of Contents**
 >
 > - [Tango Remixer](#tango-remixer)
