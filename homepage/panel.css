@@ -1,6 +1,12 @@
 /* The GNOME 2 panel (homepage/panel.html) on both pages of the website: 24 px, fixed at the top; the page's
    window starts under it. Colours are the window's (window.css, clearlooks.css), loaded before this file. */
-:root { --panel-height: 24px; }
+:root { --panel-height: 24px; }   /* gnome-panel's default, and a phone's; a tall desktop screen gets more below */
+/* A desktop screen with room (768 px high and more): a 28 px panel with 13 px text, as GNOME 2 looked on the screens
+   of its day, where 24 px of 768 was more than it is of today's. */
+@media (min-width: 701px) and (min-height: 768px) {
+  :root { --panel-height: 28px; }
+  .panel { font-size: 13px; }
+}
 .panel { position: fixed; top: 0; left: 0; right: 0; z-index: 25; box-sizing: border-box; height: var(--panel-height); display: flex; align-items: stretch;
          gap: 2px; padding: 0 2px; font-size: 12px; color: var(--fg); user-select: none;
          background: linear-gradient(var(--cl-shine, #fff), var(--bg) 40%, var(--cl-menubar-low, var(--bg))); border-bottom: 1px solid var(--cl-shade3, var(--line)); }
@@ -27,9 +33,8 @@ body.maximized:has(> .panel) { padding-top: var(--panel-height); }
 /* The main menu: window.css's menu, under its button. Its items are links. */
 .panel-menu { top: calc(var(--panel-height) - 1px); left: 2px; }
 .panel-menu .menu-item { color: inherit; text-decoration: none; }
-/* Narrow window (a phone): a taller panel for fingers, the main menu by its icon alone, no clock. */
+/* Narrow window (a phone): the thin panel, the main menu by its icon alone, no clock. */
 @media (max-width: 700px) {
-  :root { --panel-height: 32px; }
   .task { width: auto; }
   .panel-clock, #main-menu span { display: none; }
 }
