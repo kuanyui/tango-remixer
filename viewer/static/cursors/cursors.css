@@ -1,0 +1,25 @@
+/* GNOME 2's mouse cursors for the whole page: DMZ-White (Novell, 2007-2010, CC BY-SA 3.0: LICENSE and README.md here),
+   the theme Ubuntu, Debian and openSUSE showed next to Clearlooks. SVG cut from the theme's master, drawn sharp at
+   any pixel density; the theme's 24 px PNG is the fallback for a browser without SVG cursors, then the browser's
+   cursor. The hotspots are the theme's for 24 px. URLs are relative to this file, so the sheet serves both pages.
+   Delete the <link> to this file for the browser's cursors. */
+:root {
+  --cursor-arrow: url(left_ptr.svg) 7 4, url(left_ptr.png) 7 4, default;
+  --cursor-hand: url(hand2.svg) 9 5, url(hand2.png) 9 5, pointer;
+  --cursor-ibeam: url(xterm.svg) 11 11, url(xterm.png) 11 11, text;
+}
+/* The arrow everywhere, inherited from the body: over plain text too, as over a GTK label. The homepage's README is
+   text to select, so it gets the I-beam, as a help browser's text did; its pictures the arrow. */
+body { cursor: var(--cursor-arrow); }
+body .readme { cursor: var(--cursor-ibeam); }
+body .readme img { cursor: var(--cursor-arrow); }
+/* The hand where the sheets above say pointer: links, buttons, the rows and cells one clicks, labels, the combo
+   boxes and their items. (GTK 2 showed the hand on links only; the rows are this project's choice.) */
+body a, body button:not(:disabled), body label, body .row, body .cell, body .file, body .exp-row, body #dark-toggle,
+body .llselect-trigger, body .llselect-item, body .llselect-choose-all-row { cursor: var(--cursor-hand); }
+/* The arrow again where the sheets above chose the browser's default: menus and their items (links in the panel's
+   main menu too), the panel's buttons, disabled buttons. `body` in every selector puts these above the sheets'
+   own rules whatever the order the pages load them in. */
+body .menu-title, body .menu-item, body .panel .panel-button, body button:disabled { cursor: var(--cursor-arrow); }
+/* The I-beam in text entries. */
+body input[type=search], body input[type=text], body textarea { cursor: var(--cursor-ibeam); }
