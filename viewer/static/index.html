@@ -175,6 +175,21 @@
   #detail-window .files::before { content: "Tap a picture for the file's license and metadata."; display: block; padding: 6px 0 2px; font-size: 12px; color: var(--muted); }
   #detail-window .file { flex-wrap: wrap; }
   .card { flex: 1 1 100%; display: flex; gap: 12px; padding: 6px 0 2px; font-size: 12px; line-height: 1.35; }
+  /* Help > Icon Themes: every source theme as the Themes filter lists them, plus what the filter has no room for
+     (how many icons and files, where the files are), in a window laid out like the detail window. */
+  #themes[open] { display: flex; flex-direction: column; width: 600px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
+  #themes > .titlebar, #themes > .buttons { flex: none; }
+  #themes .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
+  .themes { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
+  .themes .group { margin: 10px 0 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+  .themes .theme { display: grid; grid-template-columns: 32px 1fr; column-gap: 10px; align-items: start; padding: 6px 0; border-top: 1px solid var(--line); }
+  .themes .theme > img { grid-row: 1 / 4; display: block; box-sizing: border-box; }
+  .themes .theme > img.on-dark { padding: 3px; border-radius: 3px; background: #3c3b37; }   /* panel glyphs are light */
+  .themes .name { font-weight: 600; }
+  .themes .counts { font-weight: normal; color: var(--muted); }
+  .themes .blurb, .themes .source { font-size: 12px; color: var(--muted); }
+  .themes .source code { overflow-wrap: anywhere; }
+  .themes .more { margin-top: 12px; font-size: 12px; color: var(--muted); }
 </style>
 <!-- GNOME 2 Clearlooks repaint; delete this line for the plain look -->
 <link rel="stylesheet" href="static/clearlooks.css">
@@ -224,6 +239,11 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
     <a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">github.com/kuanyui/tango-remixer</a>
     <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
   </div>
+</dialog>
+<dialog id="themes" aria-labelledby="themes-title">
+  <div class="titlebar"><span class="wm-title" id="themes-title">Icon Themes</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
+  <div class="themes" id="themes-list"></div>
+  <div class="buttons"><button type="button" onclick="this.closest('dialog').close()">Close</button></div>
 </dialog>
 <dialog id="detail-window" aria-labelledby="detail-title">
   <div class="titlebar"><span class="wm-title" id="detail-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
@@ -712,11 +732,41 @@ async function openPath(theme, path, action) {
   if (!res.ok) alert(`${action} failed (HTTP ${res.status}):\n${await res.text()}`);
 }
 
+// --- Help > Icon Themes ---------------------------------------------------------------------------------
+// The source themes as the Themes filter lists them (same order, same groups), with what the filter has no room
+// for: how many icons and files each one has, and where its files are: the folder on the machine running
+// viewer/server.py, or the repository at the exported commit on the static site (index.json tells the two apart,
+// see fileButtons). The license is the theme's default; a file's own SPDX-License-Identifier wins, which the file
+// cards show. The Blue* variants read their base theme's files (server.py's _THEME_TABLE).
+function fillThemes(themes) {
+  const site = !!themes[0]?.url;
+  const rows = themes.flatMap((t, k) => {
+    const mine = icons.filter(i => i.theme === t.name), files = mine.reduce((n, i) => n + i.sizes.length, 0);
+    const host = t.url && (t.url.includes('gitlab') ? 'GitLab' : 'GitHub');
+    const base = t.name.startsWith('Blue') ? " (the base theme's files; the hue shift is the build's)" : '';
+    const source = site
+      ? [el('a', { href: host === 'GitLab' ? t.url.replace('/-/blob/', '/-/tree/') : t.url, target: '_blank', rel: 'noopener' }, `Source folder on ${host}, at the exported commit`), base]
+      : [el('code', {}, t.folder), base];
+    return [
+      ...(k === 0 || themes[k - 1].group !== t.group ? [el('div', { className: 'group' }, t.group)] : []),
+      el('div', { className: 'theme' },
+        el('img', { src: encodeURI(`icons/${t.name}/${t.icon}`), width: 32, height: 32, alt: '', className: t.on_dark ? 'on-dark' : '' }),
+        el('div', { className: 'name' }, t.name, el('span', { className: 'counts' }, ` · ${mine.length} icons, ${files} files`)),
+        el('div', { className: 'blurb' }, `${t.about}. License: ${t.license}.`),
+        el('div', { className: 'source' }, ...source))];
+  });
+  const docs = site ? '../built-in-icon-themes-and-licenses.html' : 'https://github.com/kuanyui/tango-remixer#built-in-icon-themes-and-licenses';
+  $('themes-list').replaceChildren(...rows,
+    el('div', { className: 'more' }, "A theme's license is the default for its files; a file's own SPDX-License-Identifier wins (the file cards show it). Which licenses go together: ",
+      el('a', { href: docs, ...(site ? {} : { target: '_blank', rel: 'noopener' }) }, 'Built-in Icon Themes and Licenses'), '.'));
+}
+
 fetch('api/index.json').then(r => r.json()).then(data => {
   icons = data.icons;
   themeInfo = Object.fromEntries(data.themes.map(t => [t.name, t]));
   folders = Object.fromEntries(data.themes.map(t => [t.name, t.folder]));
   contextIcons = data.contexts;
+  fillThemes(data.themes);
   allSizes = [...new Set(icons.flatMap(i => i.sizes.map(s => s.size)))]
     .sort((a, b) => (a === 'scalable') - (b === 'scalable') || a - b);   // numeric ascending, scalable last
   const themes = data.themes.map(t => t.name), contexts = [...new Set(icons.map(i => i.context))].sort();
@@ -850,11 +900,14 @@ const MENUS = [
     null,
     { label: '_Reload', accel: 'F5', icon: 'Nome/actions/16/view-refresh.svg', run: () => location.reload() }]],
   ['_Help', () => [
+    { label: 'Icon _Themes', accel: 'F1', icon: 'Nome/apps/16/preferences-desktop-theme.svg', run: () => $('themes').showModal() },
+    null,
     { label: '_About', icon: 'Nome/actions/16/help-about.svg', run: () => $('about').showModal() }]],
 ];
 buildMenuBar(MENUS);
 document.addEventListener('keydown', e => {
   if (e.ctrlKey && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'f') { e.preventDefault(); focusSearch(); }   // Edit > Find
+  else if (e.key === 'F1' && !e.ctrlKey && !e.altKey && !e.shiftKey) { e.preventDefault(); $('themes').showModal(); }   // Help > Icon Themes
 });
 </script>
 </body>
