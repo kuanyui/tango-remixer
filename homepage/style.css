@@ -22,7 +22,7 @@ body.no-contents .sidebar { display: none; }
 .sidebar { overflow-y: auto; background: var(--cl-base, var(--ctl-bg)); border-right: 1px solid var(--cl-frame, var(--line)); }
 .sidebar-title { position: sticky; top: 0; padding: 4px 8px; font-weight: 600; background: var(--bg); border-bottom: 1px solid var(--line); }
 .sidebar ul { list-style: none; margin: 0; padding: 2px 0; }
-.sidebar a { display: flex; align-items: center; gap: 8px; padding: 3px 10px; color: var(--fg); text-decoration: none; }
+.sidebar a { display: flex; align-items: center; gap: 8px; padding: 3px 10px; color: var(--fg); text-decoration: none; user-select: none; }
 .sidebar img { flex: none; }
 .sidebar a span { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }   /* a long title ends in ... */
 .sidebar a:hover { background: var(--hover); }

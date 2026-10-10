@@ -31,7 +31,7 @@ body.maximized #wm-maximize .restore { display: inline; }
 .menu-title { padding: 2px 7px; margin: 1px 0; line-height: 17px; border-radius: 3px; cursor: default; }
 .menu-title.open { background: var(--sel); }
 .menu { position: absolute; top: 100%; z-index: 20; min-width: 12rem; padding: 3px; background: var(--ctl-bg); border: 1px solid var(--ctl-border);
-        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); }
+        box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); user-select: none; }
 .context-menu { position: fixed; }   /* at the pointer (openContextMenu sets left and top) */
 .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 3px; white-space: nowrap; cursor: default; }
 .menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark; both, in two columns, when an item has both */
@@ -59,11 +59,12 @@ dialog::backdrop { background: transparent; }
 .about .buttons { text-align: right; margin-top: 16px; }
 /* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. The button
    is a square inside the entry's border, as tall as the entry is inside it, with the icon centred in it: so the icon
-   is as far from the top and bottom edges as from the right one, whatever the font. The input keeps its text 4 px
-   clear of the square (line height plus the vertical padding wide). */
+   is as far from the top and bottom edges as from the right one, whatever the font. Its width is written out (the
+   line height plus the vertical padding) rather than left to aspect-ratio, which an absolutely placed box may not
+   honour. The input keeps its text 4 px clear of the square. */
 .entry { position: relative; display: flex; }
 .entry input { flex: 1; min-width: 0; padding-right: calc(1.4em + 0.8rem + 4px); }
-.entry .clear { position: absolute; inset: 1px 1px 1px auto; aspect-ratio: 1; display: none; align-items: center; justify-content: center;
+.entry .clear { position: absolute; inset: 1px 1px 1px auto; width: calc(1.4em + 0.8rem); display: none; align-items: center; justify-content: center;
                 padding: 0; border: 0; border-radius: 3px; background: none; box-shadow: none; cursor: pointer; }
 .entry:has(input:not(:placeholder-shown)) .clear { display: flex; }
 .entry .clear:hover, .entry .clear:active { background: var(--hover); box-shadow: none; }

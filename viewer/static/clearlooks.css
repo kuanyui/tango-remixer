@@ -220,6 +220,9 @@ button.pressed, button.pressed:hover:not(:disabled) { background: var(--cl-btn-a
          box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }   /* scrolls (overflow-y: auto comes from index.html) */
 .files .file { border-top: none; padding: 8px; }
 .files .file:nth-child(even) { background: var(--cl-row-alt); }
+.files .file:hover { background: var(--hover); }
+.files .file.selected, .files .file.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
+.files .file.selected code, .files .file.selected .spdx { color: rgba(255, 255, 255, 0.88); }
 code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation Mono", monospace; }
 
 /* --- tooltips: the gtkrc's tooltip_bg_color #F5F5B5 with black text, border bg x0.6 (clearlooks_draw_tooltip); no shadow (no compositor) --- */
