@@ -122,6 +122,20 @@ function toolWindow(id, title, body, base) {
   return dialog;
 }
 
+// --- A click outside a dialog closes it ---------------------------------------------------------------
+// A click on the page behind a modal dialog lands on the dialog itself (its backdrop is part of it). Pressed and
+// released outside the dialog's box, it closes the dialog: the topmost one when they are stacked (the file's
+// window over the detail window on a phone). Pressing inside and releasing outside, as a drag that selects text
+// does, closes nothing. Escape closes a dialog as well, as browsers have it.
+const outsideDialog = e => {
+  if (!(e.target instanceof HTMLDialogElement) || !e.target.open) return false;
+  const r = e.target.getBoundingClientRect();
+  return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+};
+let pressedOutside = false;
+document.addEventListener('mousedown', e => { pressedOutside = outsideDialog(e); });
+document.addEventListener('click', e => { if (pressedOutside && outsideDialog(e)) e.target.close(); pressedOutside = false; });
+
 // --- Icon Themes window ---------------------------------------------------------------------------------
 // Help > Icon Themes (F1) on both pages, and the License window's Icon Themes button: every source theme as the
 // viewer's Themes filter lists them (same order, same groups), a Blue* variant under the theme whose files it
