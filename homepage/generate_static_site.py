@@ -20,7 +20,8 @@ Run:  python3 homepage/generate_static_site.py [OUT] [--serve [PORT]]     (defau
       make homepage-dev-server   the same, then --serve: OUT served on PORT (8000 by default) on every interface, as
                                  the viewer is, the URLs to open printed, this machine's LAN addresses among them;
                                  a change to README.md, homepage/, viewer/static/ or lib/color_converter.py
-                                 rebuilds the site while it is served (reload the page)
+                                 rebuilds the site while it is served (reload the page); a change to the
+                                 Python code it is made with restarts the server
 Needs Python-Markdown (the `markdown` module) and, for coloured code blocks, Pygments:
 `apt install python3-markdown python3-pygments` on Debian / Ubuntu, else
 `pip install markdown pygments`. (`markdown2` is a different library.)
@@ -55,7 +56,7 @@ from datetime import date
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Callable, Dict, List, NamedTuple, Optional, Tuple
+from typing import Callable, Dict, List, NamedTuple, Optional, Set, Tuple
 
 _PROJECT_ROOT: Path = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
@@ -198,20 +199,44 @@ def clean_commit(folder: Path) -> Optional[str]:
     return None if status.strip() else repo.commit
 
 
+def write_file(path: Path, data: bytes, mtime_ns: Optional[int] = None) -> None:
+    """`data` into `path` in one step: written beside it, then renamed over it, so a
+    reader (the browser on the dev server) gets the old file or the new one, never a
+    partial one. With `mtime_ns` the file carries that stamp (write_viewer_icons)."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp = path.with_name(path.name + ".tmp")
+    tmp.write_bytes(data)
+    if mtime_ns is not None:
+        os.utime(tmp, ns=(mtime_ns, mtime_ns))
+    os.replace(tmp, path)
+
+
+def mirror_tree(src: Path, dst: Path, ignore: Tuple[str, ...] = ()) -> None:
+    """`dst` made a copy of `src` (files named in `ignore` left out), each file
+    through write_file, files `src` no longer has removed. Nothing is deleted first,
+    so the folder is whole at every moment (rmtree + copytree leaves a gap)."""
+    wanted: Set[Path] = set()
+    for path in src.rglob("*"):
+        if path.is_file() and path.name not in ignore:
+            wanted.add(dst / path.relative_to(src))
+            write_file(dst / path.relative_to(src), path.read_bytes())
+    if dst.is_dir():
+        for stale in [p for p in dst.rglob("*") if p.is_file() and p not in wanted]:
+            stale.unlink()
+
+
 def write_viewer_page(themes: Dict[str, SourceTheme], out: Path, places: Dict[str, Dict[str, object]], panel: str, index: List[Dict[str, object]]) -> None:
     """The viewer's page and assets into `out`: index.html (with the site's `panel`
     above its window, when given), static/ from viewer/static/, and api/index.json
     with `places[name]` (source_place: url, repo, commit) in each theme's entry."""
-    shutil.rmtree(out / "static", ignore_errors=True)
-    shutil.copytree(_STATIC_DIR, out / "static", ignore=shutil.ignore_patterns("index.html"))   # llselect, window.*, clearlooks.css
+    mirror_tree(_STATIC_DIR, out / "static", ignore=("index.html",))   # llselect, window.*, clearlooks.css
     page = (_STATIC_DIR / "index.html").read_text("utf-8")
     if panel:   # the panel's stylesheet, markup and script, from the site root above this folder
         page = page.replace("</head>", '<link rel="stylesheet" href="../panel.css">\n</head>', 1)
         page = page.replace("<body>\n", "<body>\n" + panel + "\n", 1)
         page = page.replace("</body>", '<script src="../panel.js"></script>\n</body>', 1)
-    (out / "index.html").write_text(page, "utf-8")
-    (out / "api").mkdir(exist_ok=True)
-    (out / "api" / "index.json").write_bytes(index_json(themes, index, places))
+    write_file(out / "index.html", page.encode("utf-8"))
+    write_file(out / "api" / "index.json", index_json(themes, index, places))
 
 
 def write_viewer_icons(themes: Dict[str, SourceTheme], out: Path, index: List[Dict[str, object]]) -> Tuple[int, int]:
@@ -249,12 +274,10 @@ def write_viewer_icons(themes: Dict[str, SourceTheme], out: Path, index: List[Di
             stamp: int = max(src.stat().st_mtime_ns, colorizer_mtime) if theme.colorize else src.stat().st_mtime_ns
             if dst.is_file() and dst.stat().st_mtime_ns == stamp:
                 continue
-            dst.parent.mkdir(parents=True, exist_ok=True)
+            data: bytes = src.read_bytes()
             if theme.colorize:   # as the server does per request
-                dst.write_bytes(theme.colorize(src.read_bytes().decode("utf-8"), src.stem).encode("utf-8"))
-            else:
-                shutil.copyfile(src, dst)
-            os.utime(dst, ns=(stamp, stamp))
+                data = theme.colorize(data.decode("utf-8"), src.stem).encode("utf-8")
+            write_file(dst, data, stamp)
             written += 1
         if version:
             exported[name] = version
@@ -443,7 +466,7 @@ def localize(html: str, root: Path, out: Path, repo: Repository) -> str:
             return m[0]
         if attr == "src" and path.is_file():
             (out / target).parent.mkdir(parents=True, exist_ok=True)
-            shutil.copyfile(path, out / target)
+            write_file(out / target, path.read_bytes())
             return m[0]
         return f'{attr}="{repo.url(target, folder=path.is_dir())}"'
     return re.sub(r'\b(src|href)="(?![a-z]+:|#|/)([^"]+)"', repl, html)
@@ -529,7 +552,7 @@ def write_pages(out: Path, pages: Dict[str, str]) -> None:
         if stale.name not in pages:
             stale.unlink()
     for file, html in pages.items():
-        (out / file).write_text(html, "utf-8")
+        write_file(out / file, html.encode("utf-8"))
 
 
 class Site:
@@ -558,9 +581,9 @@ class Site:
         out.mkdir(parents=True, exist_ok=True)
         repo = site_repository(root)
         for name in ["style.css", "panel.css", "panel.js"]:
-            shutil.copyfile(_HOMEPAGE_DIR / name, out / name)
-        (out / "highlight.css").write_text(highlight_css(), "utf-8")
-        shutil.copytree(_HOMEPAGE_DIR / "marks", out / "marks", dirs_exist_ok=True)   # the launchers' GitHub and GitLab marks, with their note
+            write_file(out / name, (_HOMEPAGE_DIR / name).read_bytes())
+        write_file(out / "highlight.css", highlight_css().encode("utf-8"))
+        mirror_tree(_HOMEPAGE_DIR / "marks", out / "marks")   # the launchers' GitHub and GitLab marks, with their note
         pages = render_pages((root / "README.md").read_text("utf-8"), repo, root, out, render_panel("", "home", repo), partial(icon_paths, self.index))
         write_pages(out, pages)
         write_viewer_page(self.themes, out / "viewer", self.places, render_panel("../", "viewer", repo), self.index)
@@ -580,11 +603,13 @@ def generate(out: Path, root: Path = _PROJECT_ROOT) -> None:
 # --- The dev server -----------------------------------------------------------------------------------
 
 def watched_sources(root: Path, out: Path) -> Dict[Path, Tuple[int, int]]:
-    """The files the pages are made from, each with its (mtime, size): README.md,
+    """The files the site is made from, each with its (mtime, size): README.md,
     everything under homepage/ (but a _build folder, the site in `out` and
-    __pycache__) and under viewer/static/, and the colorizer lib/color_converter.py.
-    The theme folders are not among them: thousands of files, slow to poll on a slow
-    mount, and `make viewer` shows an edited SVG without any build."""
+    __pycache__) and under viewer/static/, and the code that makes it: build_icons.py
+    (the theme table), lib/*.py (the colorizer, the included_icons.txt tokenizer) and
+    viewer/*.py (homepage/*.py is under homepage/). The theme folders are not among
+    them: thousands of files, slow to poll on a slow mount, and `make viewer` shows
+    an edited SVG without any build."""
     found: Dict[Path, Tuple[int, int]] = {}
 
     def note(path: Path) -> None:
@@ -594,7 +619,7 @@ def watched_sources(root: Path, out: Path) -> Dict[Path, Tuple[int, int]]:
             return
         found[path] = (stat.st_mtime_ns, stat.st_size)
 
-    for file in [root / "README.md", root / "lib" / "color_converter.py"]:
+    for file in [root / "README.md", root / "build_icons.py", *(root / "lib").glob("*.py"), *(root / "viewer").glob("*.py")]:
         note(file)
     skipped = {out.resolve(), (root / "homepage" / "_build").resolve()}
     pending: List[Path] = [root / "homepage", root / "viewer" / "static"]
@@ -612,6 +637,18 @@ def watched_sources(root: Path, out: Path) -> Dict[Path, Tuple[int, int]]:
             elif entry.is_file():
                 note(Path(entry.path))
     return found
+
+
+def rebuild_plan(changed: List[Path], root: Path) -> str:
+    """What a change to `changed` calls for. "restart": Python code changed, which this
+    process would go on running the old version of (homepage/*.py, viewer/*.py,
+    build_icons.py, lib/*.py but the colorizer). "icons": the colorizer changed; it is
+    reloaded on the fly (viewer/server.py) and the Blue* icons are made from it.
+    "pages": anything else."""
+    colorizer = root / "lib" / "color_converter.py"
+    if any(path.suffix == ".py" and path != colorizer for path in changed):
+        return "restart"
+    return "icons" if colorizer in changed else "pages"
 
 
 def watch(root: Path, out: Path, rebuild: Callable[[List[Path]], None], interval: float = 1.0,
@@ -659,19 +696,23 @@ def serve(out: Path, port: int, site: Optional[Site] = None) -> None:
     except OSError as e:
         sys.exit(f"Cannot listen on port {port} ({e.strerror}). Is another server still running? Stop it first.")
     if site:
-        colorizer = site.root / "lib" / "color_converter.py"
-
         def rebuild(changed: List[Path]) -> None:
-            names = ", ".join(str(p.relative_to(site.root)) if p.is_relative_to(site.root) else str(p) for p in changed[:3])
+            names = ", ".join(str(p.relative_to(site.root)) if p.is_relative_to(site.root) else str(p) for p in changed[:3]) + (", …" if len(changed) > 3 else "")
+            plan = rebuild_plan(changed, site.root)
+            if plan == "restart":   # this process runs the code it started with: start over with the new one
+                print(f"{names} changed: restarting to run the new code (the whole site is built again, give it a moment).", flush=True)
+                server.server_close()
+                os.execv(sys.executable, [sys.executable, *sys.argv])
             try:
-                print(f"{names}{', …' if len(changed) > 3 else ''} changed. " + site.build(icons=colorizer in changed), flush=True)
-            except Exception as e:   # a half-written README, a section icon that is not there, ...: the last build stays
-                print(f"[ERROR] Rebuild failed, the site is as it was: {e}", file=sys.stderr, flush=True)
+                print(f"{names} changed. " + site.build(icons=plan == "icons"), flush=True)
+            except Exception as e:   # a half-written README, a section icon that is not there, ...: whatever was written so far stays whole (write_file)
+                print(f"[ERROR] Rebuild failed: {e}", file=sys.stderr, flush=True)
 
         threading.Thread(target=watch, args=(site.root, out, rebuild), daemon=True).start()
     print("Website listening on all interfaces (Ctrl-C to stop). Open one of:\n  " + "\n  ".join(local_urls(port))
           + "\nThe icon viewer is at viewer/ under each."
-          + ("\nWatching README.md, homepage/, viewer/static/ and lib/color_converter.py: a change rebuilds the site, then reload the page." if site else ""),
+          + ("\nWatching README.md, homepage/, viewer/static/ and lib/color_converter.py: a change rebuilds the site (reload the page);\n"
+             "a change to the Python code it is made with restarts this server." if site else ""),
           flush=True)
     try:
         server.serve_forever()

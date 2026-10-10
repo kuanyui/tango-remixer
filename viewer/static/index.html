@@ -784,7 +784,6 @@ fetch('api/index.json').then(r => r.json()).then(data => {
   themeInfo = Object.fromEntries(data.themes.map(t => [t.name, t]));
   folders = Object.fromEntries(data.themes.map(t => [t.name, t.folder]));
   contextIcons = data.contexts;
-  fillThemes(data.themes);
   allSizes = [...new Set(icons.flatMap(i => i.sizes.map(s => s.size)))]
     .sort((a, b) => (a === 'scalable') - (b === 'scalable') || a - b);   // numeric ascending, scalable last
   const themes = data.themes.map(t => t.name), contexts = [...new Set(icons.map(i => i.context))].sort();
@@ -843,6 +842,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
   const selected = icons.find(i => keyOf(i) === saved.selected);
   if (selected) showDetail(selected, [...$('list').children].find(r => r.dataset.key === saved.selected));
   $('list').scrollTop = saved.scroll || 0;   // the list is inside its own scroll box, so the browser does not restore it
+  try { fillThemes(data.themes); } catch (error) { console.error('Help > Icon Themes could not be filled:', error); }   // a side window: never in the way of the list
 });
 $('q').addEventListener('input', render);
 $('q-clear').addEventListener('click', () => { $('q').value = ''; render(); $('q').focus(); });

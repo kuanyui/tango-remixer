@@ -406,8 +406,15 @@ class TestWatch(unittest.TestCase):
 
     def test_watched_sources_are_what_the_pages_are_made_from(self) -> None:
         found = {p.relative_to(self.root).as_posix() for p in gen.watched_sources(self.root, self.out)}
-        self.assertEqual(found, {"README.md", "lib/color_converter.py", "homepage/style.css", "homepage/marks/x.svg",
-                                 "viewer/static/window.css", "viewer/static/llselect/a.js"})
+        self.assertEqual(found, {"README.md", "build_icons.py", "lib/color_converter.py", "viewer/server.py", "homepage/style.css",
+                                 "homepage/marks/x.svg", "viewer/static/window.css", "viewer/static/llselect/a.js"})
+
+    def test_a_change_to_the_code_restarts_to_the_colorizer_redoes_the_icons_else_the_pages(self) -> None:
+        root = self.root
+        self.assertEqual(gen.rebuild_plan([root / "README.md", root / "homepage" / "style.css"], root), "pages")
+        self.assertEqual(gen.rebuild_plan([root / "lib" / "color_converter.py", root / "README.md"], root), "icons")
+        for code in ["homepage/generate_static_site.py", "viewer/server.py", "build_icons.py", "lib/included_icons_tokens.py"]:
+            self.assertEqual(gen.rebuild_plan([root / "lib" / "color_converter.py", root / code], root), "restart", code)
 
     def test_a_settled_change_calls_for_a_rebuild_with_the_changed_files(self) -> None:
         calls, done, stop = [], threading.Event(), threading.Event()
