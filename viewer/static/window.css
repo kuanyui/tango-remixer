@@ -68,6 +68,7 @@ dialog::backdrop { background: transparent; }
 .tool-window[open] { display: flex; flex-direction: column; box-sizing: border-box; width: 600px; max-width: calc(100% - 16px); max-height: calc(100% - 16px); }
 .tool-window > .titlebar, .tool-window > .buttons { flex: none; }
 .tool-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
+.tool-window > .scrollbox { flex: 1 1 auto; min-height: 0; }   /* the body in its scroll box (toolWindow) */
 .tool-window .body { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 4px 12px 8px; }
 /* Rows with an icon (the Icon Themes, Credits and License windows): a 32 px icon, a name, a line or two under it,
    group titles between; a row marked `derived` hangs under the one before it (a Blue* theme under its base). */

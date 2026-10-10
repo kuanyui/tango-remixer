@@ -16,6 +16,7 @@
      this page's own styles, the paint, the panel on top, and GNOME 2's mouse cursors (viewer/static/cursors/). -->
 <link rel="stylesheet" href="viewer/static/window.css">
 <script src="viewer/static/window.js"></script>
+<script src="viewer/static/scrollbars.js"></script>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="viewer/static/clearlooks.css">
 <link rel="stylesheet" href="panel.css">
@@ -50,16 +51,16 @@
   <button type="button" id="find-next" title="The next match (Enter in the box; F3 anywhere)" disabled><img src="viewer/icons/Tango/16x16/actions/go-down.svg" width="16" height="16" alt=""><span>Next</span></button>
   <span id="find-count"></span>
 </div>
-<nav id="toc" class="sidebar" aria-label="Contents">
+<div class="scrollbox" id="toc-box"><nav id="toc" class="sidebar scroller" aria-label="Contents">
 <div class="sidebar-title">Contents</div>
 <ul>
 {{sidebar}}
 </ul>
-</nav>
-<main id="content" class="readme">
+</nav></div>
+<div class="scrollbox" id="content-box"><main id="content" class="readme scroller">
 {{content}}
 <nav class="pager">{{pager}}</nav>
-</main>
+</main></div>
 </div>
 <div class="statusbar"><span id="status">{{title}}</span><span class="grip"></span></div>
 </div>
@@ -122,6 +123,7 @@ function saveState() {
 const saved = loadState(), narrow = () => matchMedia('(max-width: 700px)').matches;
 let maximized = !!saved.maximized;   // the user's choice
 setDark(savedDark(!!saved.dark));   // a build before the setting was shared kept it here: carried over once
+installScrollbars();   // the Contents' and the text's bars (scrollbars.js)
 
 // --- Window frame: Maximize drops the desktop margin; a narrow window (a phone) has no room for it and is maximized
 // whatever the choice, the button only drawn there, as Minimize and Close are; File > Quit closes the tab

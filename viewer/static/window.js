@@ -115,7 +115,7 @@ function toolWindow(id, title, body, base) {
   close.innerHTML = '<svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg>';
   const dialog = el('dialog', { id, className: 'tool-window' },
     el('div', { className: 'titlebar' }, el('span', { className: 'wm-title', id: `${id}-title` }, title), el('span', { className: 'wm-buttons' }, close)),
-    body,
+    typeof scrollbox === 'function' ? scrollbox(body) : body,   // the page's own bar beside it (scrollbars.js, which both pages load)
     el('div', { className: 'buttons' }, el('button', { type: 'button' }, el('img', { src: `${base}icons/Nome/actions/16/window-close.svg`, width: 16, height: 16, alt: '' }), 'Close')));
   dialog.setAttribute('aria-labelledby', `${id}-title`);
   for (const button of [close, dialog.querySelector('.buttons button')]) button.addEventListener('click', () => dialog.close());

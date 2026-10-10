@@ -56,6 +56,8 @@
   header > label { white-space: nowrap; }
   /* Grid view: one cell per icon, drawn at the Show-at size with the file the chosen API would pick (pickFile).
      A pick smaller than the cell sits centred in it, the way Qt draws a PNG it will not enlarge. */
+  #list { border: 1px solid var(--line); }   /* a sunken frame around the list, as a tree view's scrolled window has; its bar is outside it */
+  #list-box { padding: 3px 3px 3px 0; }   /* room between the frame and the lines around it: above, below, and the pane's on the right, bar or no bar */
   #list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cell, 120px), 1fr)); gap: 4px; padding: 8px; align-content: start; }
   .cell { display: flex; flex-direction: column; align-items: center; gap: 4px; min-width: 0; padding: 8px 4px; border-radius: 3px; text-align: center; }
   .cell:hover { background: var(--hover); }
@@ -98,10 +100,10 @@
   /* Detail pane: everything above stays put, the per-size list takes the rest of the height and scrolls on its
      own. If the window is too short for that (list below its min-height), the pane itself scrolls instead. */
   #detail { border-left: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; }   /* a .scroller: scrolls, with the page's bar */
-  #list-box > .sbar { margin-right: 3px; }   /* off the detail pane's frame line, which would read as one 2 px border with the bar's (the window's frame has its own band) */
   #detail > * { flex: none; }
   #detail > .files-box { flex: 1 1 0; min-height: 96px; }   /* the file list, a .scroller of its own in its box: it gives way down to one row before the pane itself scrolls, so two bars side by side are the short window's last resort */
-  .aliases-note { max-height: 4.4em; overflow-y: auto; }   /* some icons have dozens of aliases */
+  .aliases-box { margin-top: 6px; }   /* the aliases in a scroll box (showDetail): some icons have dozens; the box takes the note's margin */
+  .note.aliases-note { margin-top: 0; max-height: 8em; }   /* (.note's margin, which comes later, would win over a single class) */
   #detail h3 { margin: 0; }
   .file { padding: 6px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
   .file:hover { background: var(--hover); }
@@ -119,13 +121,14 @@
   .included label { margin-right: 10px; white-space: nowrap; }
   /* Expanded filter lists: hidden in the top bar, shown when the header is a sidebar (wide windows). */
   .expanded { display: none; }
+  header .scrollbox > .filter { overflow: visible; }   /* in the top bar a filter is a combo box: its list must not be clipped */
   .exp-title { font-weight: 600; margin: 8px 0 4px; }
   .exp-group { margin: 6px 0 2px; font-size: 12px; font-weight: 600; color: var(--muted); }
   .exp-row { padding: 3px 4px; border-radius: 3px; }
   .exp-row:hover { background: var(--hover); }
   @media (min-width: 1600px) {
     .client { grid-template-rows: 1fr; grid-template-columns: 330px 1fr 440px; }
-    #list-box { grid-column: 2; grid-row: 1; }
+    #list-box { grid-column: 2; grid-row: 1; padding-left: 3px; }   /* off the sidebar's line */
     #detail-box { grid-column: 3; grid-row: 1; }
     /* Sidebar: search, Reset and Dark stay put; below them the height is split in two halves,
        Themes on top, Contexts and Sizes side by side underneath, each half scrolling on its own. */
@@ -142,7 +145,8 @@
     #theme-box { grid-area: 3 / 1 / 4 / 3; }
     #context-box { grid-area: 4 / 1; }
     #size-box { grid-area: 4 / 2; }
-    #theme-box, #context-box, #size-box { align-self: stretch; min-height: 0; overflow-y: auto; border-top: 1px solid var(--line); padding: 6px; }
+    #theme-box, #context-box, #size-box { align-self: stretch; min-height: 0; }   /* scroll boxes: the list inside scrolls, its bar beside it */
+    header .scrollbox > .filter { overflow-y: auto; border-top: 1px solid var(--line); padding: 6px; }
     header .llselect-root { display: none; }
     .expanded { display: block; }
     /* The title spans the whole box (negative margins undo the box padding) and stays put while the rows scroll. */
@@ -186,7 +190,7 @@
     body.dark #dark-toggle { background: var(--cl-btn-active, var(--sel)); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
     .client { grid-template-columns: 1fr; }
     .client > #detail-box { display: none; }   /* until placeDetail has moved it into its window */
-    #list-box > .sbar { margin-right: 0; }   /* no pane beside the list here */
+    #list-box { padding-right: 0; }   /* no pane beside the list here: the window's frame band is the room */
     .row { padding: 6px 10px; }
     /* Status bar: one row where it fits; else List | Grid (with the grip) wraps to a second row, still at the
        right end (display: contents makes the four parts siblings, so they wrap one by one). */
@@ -239,9 +243,9 @@
 <header>
   <span class="entry"><input type="search" id="q" placeholder="Search icon name… (/ or Ctrl+F)" autofocus><button type="button" class="clear" id="q-clear" title="Clear the search box (Esc)"><img src="icons/Tango/16x16/actions/edit-clear.svg" width="16" height="16" alt=""></button></span>
   <label id="re-toggle" title="Read the search box as a regular expression, case-insensitive. Example: ^(system-run|security-)"><input type="checkbox" id="re"> <code>.*</code></label>
-  <div id="theme-box"><div id="theme"></div><div class="expanded" id="theme-list"></div></div>
-  <div id="context-box"><div id="context"></div><div class="expanded" id="context-list"></div></div>
-  <div id="size-box"><div id="size"></div><div class="expanded" id="size-list"></div></div>
+  <div id="theme-box" class="scrollbox"><div class="filter scroller"><div id="theme"></div><div class="expanded" id="theme-list"></div></div></div>
+  <div id="context-box" class="scrollbox"><div class="filter scroller"><div id="context"></div><div class="expanded" id="context-list"></div></div></div>
+  <div id="size-box" class="scrollbox"><div class="filter scroller"><div id="size"></div><div class="expanded" id="size-list"></div></div></div>
   <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""><span> Reset</span></button>
   <label id="dark-toggle" title="Draw the icons on a dark background"><input type="checkbox" id="dark"> <img src="icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"><span> Dark background</span></label>
 </header>
@@ -371,7 +375,7 @@ const UI_ICONS = {
 let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, showAtSel, apiSel, selectedKey = null;
 let view = 'list';   // 'list' | 'grid'
 const keyOf = icon => `${icon.theme}/${icon.context}/${icon.name}`;
-installScrollbars();   // the list's and the detail pane's bars (scrollbars.js); the file list gets its own when made
+installScrollbars();   // the bars of the list, the detail pane and the filter boxes (scrollbars.js); the file list and the aliases get theirs when made
 
 const buttonContent = (icon, label) => [el('img', { src: `icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
 function iconButton(icon, label, onclick, title) {
@@ -665,8 +669,8 @@ function showDetail(icon, row, open = false) {
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
     el('div', { className: 'note', title: themeLicenseTip(icon.theme) }, `Theme license: ${themeInfo[icon.theme].license}`),
     el('div', { className: 'included' }, ...includedBox(icon)),
-    el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
-      icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
+    scrollbox(el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
+      icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'), 'aliases-box'),
     // A file's row: a click anywhere on it (but on one of its buttons) selects it and opens the file's window.
     scrollbox(el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file', title: "The file's properties, in a window of their own.",
         onclick: e => {

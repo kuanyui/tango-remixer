@@ -1,7 +1,8 @@
 /* The homepage: a Clearlooks window (frame and paint from viewer/static/window.css and clearlooks.css) laid out
    like GNOME 2's help browser: the Contents sidebar on the left, the README on the right in the window's own
    scroll box. Colours are the window's variables, so the Dark Background toggle covers everything. */
-.client { display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-height: 0; }
+.client { display: grid; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-height: 0;
+          column-gap: 6px; }   /* between the two panes: Clearlooks' GtkPaned handle-size */
 
 /* The toolbar, across the window: the find bar (its matches painted through the Custom Highlight API, in
    Tango's Butter and Orange) and, on a narrow window only, the Contents combo box (the end of this file). */
@@ -18,7 +19,10 @@
 .toolbar .combo { display: none; }   /* (.toolbar button would show it) */
 
 /* Sidebar: a GTK tree view with one selected row */
-.sidebar { overflow-y: auto; background: var(--cl-base, var(--ctl-bg)); border-right: 1px solid var(--cl-frame, var(--line)); }
+/* The two panes as GTK2 scrolled windows (shadow IN): a 1 px frame around the list and around the text, the bar beside
+   each outside its frame, 3 px of the window above and below, the paned handle's 6 px between them (.client). */
+#toc-box, #content-box { padding: 3px 0; }
+.sidebar { overflow-y: auto; background: var(--cl-base, var(--ctl-bg)); border: 1px solid var(--cl-frame-in, var(--line)); }
 .sidebar-title { position: sticky; top: 0; padding: 4px 8px; font-weight: 600; background: var(--bg); border-bottom: 1px solid var(--line); }
 .sidebar ul { list-style: none; margin: 0; padding: 2px 0; }
 .sidebar a { display: flex; align-items: center; gap: 8px; padding: 3px 10px; color: var(--fg); text-decoration: none; user-select: none; }
@@ -29,7 +33,7 @@
 .sidebar li li a { padding-left: 30px; }   /* a document's sections under its own row (the LSP server's) */
 
 /* The README, in a column of at most 60rem, centred when the pane is wider */
-#content { overflow-y: auto; padding: 16px max(32px, calc((100% - 60rem) / 2)) 48px; background: var(--cl-base, var(--ctl-bg));
+#content { overflow-y: auto; border: 1px solid var(--cl-frame-in, var(--line)); padding: 16px max(32px, calc((100% - 60rem) / 2)) 48px; background: var(--cl-base, var(--ctl-bg));
            font-size: 14px; line-height: 1.55; scroll-behavior: smooth; }
 @media (prefers-reduced-motion: reduce) { #content { scroll-behavior: auto; } }
 .readme > :first-child { margin-top: 0; }
@@ -78,7 +82,7 @@ body.dark .readme .warning .alert-title { color: #fcaf3e; }
    name, an etched separator, an arrow) stands in for it, its menu listing the sections. */
 @media (max-width: 700px) {
   .client { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); }
-  .sidebar { display: none; }
+  #toc-box { display: none; }
   .toolbar .combo { order: 1; flex: 1 1 100%; display: flex; align-items: center; gap: 6px; padding: 4px 6px; text-align: left; }   /* its own row, under the find bar, its menu right below it */
   .toolbar .entry { max-width: none; }
   #find-previous span, #find-next span { display: none; }   /* icons only */

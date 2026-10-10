@@ -6,7 +6,7 @@
 :root {
   --bg: #edeceb; --fg: #1a1a1a; --line: #c9c6c1; --muted: #6b6965; --hover: #e3e1de; --sel: #86abd9;
   --ctl-bg: #ffffff; --ctl-border: #8b8986; --ctl-hover: #f7f6f5; --accent: #86abd9;
-  --cl-base: #ffffff; --cl-row-alt: #f4f3f2; --cl-frame: #aaa69f; --cl-shine: #ffffff;
+  --cl-base: #ffffff; --cl-row-alt: #f4f3f2; --cl-frame: #aaa69f; --cl-frame-in: #a09d9a;   /* --cl-frame-in: a scrolled window's sunken frame, bg x0.665 (shade[5]), a plain 1 px rectangle */ --cl-shine: #ffffff;
   /* The Gummy gradient from clearlooks_draw_gummy.c: fill x1.08 at the top, x1.02 just above the middle,
      the plain fill right below it (a barely visible cut), x0.94 at the bottom. Fills: bg, bg x1.02, bg x0.90. */
   --cl-btn: linear-gradient(#ffffff 0%, #f1f1f0 50%, #edeceb 50%, #dfdedc 100%);
@@ -62,7 +62,7 @@ body.dark {   /* a "Darklooks"-style counterpart for the Dark background toggle 
   --mc-btn-active-grad: linear-gradient(#415f88, #3f5a7e);
   --mc-btn-active-inset: inset 0 1px 0 #3f5a7e, inset 1px 0 0 #3d5474, 1px 0 0 #497abc, 0 1px 0 #456fa8;
   --cl-thumb-stops: #4d7ebf 0%, #4676b7 50%, #4674b3 50%, #456da5 100%; --cl-thumb-hover-stops: #5686c7 0%, #4e7ec0 50%, #4b7bbd 50%, #4674b2 100%;
-  --cl-base: #2f2e2b; --cl-row-alt: #353431; --cl-frame: #1f1e1c; --cl-shine: #55534e;
+  --cl-base: #2f2e2b; --cl-row-alt: #353431; --cl-frame: #1f1e1c; --cl-frame-in: #292927; --cl-shine: #55534e;
   --cl-btn: linear-gradient(#5c5a54 0%, #57554f 50%, #55534e 50%, #504e4a 100%);
   --cl-btn-hover: linear-gradient(#64615a 0%, #5e5c56 50%, #5c5a54 50%, #56544f 100%);
   --cl-btn-active: linear-gradient(#4e4c48 0%, #494744 50%, #484643 50%, #44423f 100%);
@@ -132,8 +132,7 @@ body:has(dialog[open]) .window > .titlebar button.wm-button, dialog[open]:has(~ 
 header { background: linear-gradient(var(--cl-shine), var(--bg) 8%, var(--hover)); border-bottom: 1px solid var(--cl-frame); }
 @media (min-width: 1600px) {
   header { background: var(--bg); border-right: 1px solid var(--cl-frame); box-shadow: inset -1px 0 0 var(--cl-shine); }
-  #theme-box, #context-box, #size-box { background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px;
-                                        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }
+  header .scrollbox > .filter { background: var(--cl-base); border: 1px solid var(--cl-frame-in); }   /* a sunken frame, the bar beside it */
   .exp-title { background: var(--cl-base); }
 }
 
@@ -200,7 +199,7 @@ input[type=checkbox]:focus-visible { outline: 1px dotted var(--fg); outline-offs
 button.pressed, button.pressed:hover:not(:disabled) { background: var(--cl-btn-active); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
 
 /* --- the icon list: a GTK tree view ----------------------------------------- */
-#list { background: var(--cl-base); }
+#list { background: var(--cl-base); border-color: var(--cl-frame-in); }
 .cell.selected, .cell.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
 .cell.selected .cell-info { color: rgba(255, 255, 255, 0.88); }
 .row { border-bottom: none; }
@@ -217,7 +216,7 @@ button.pressed, button.pressed:hover:not(:disabled) { background: var(--cl-btn-a
 /* The per-size rows are one list, so they get one sunken white frame with alternating rows (a tree view),
    instead of a white patch behind every thumbnail; the frame is the list's, its bar beside it as a scrolled window's. */
 .files-box { margin-top: 10px; }
-.files-box > .files { background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }
+.files-box > .files { background: var(--cl-base); border: 1px solid var(--cl-frame-in); }
 .files .file { border-top: none; padding: 8px; }
 .files .file:nth-child(even) { background: var(--cl-row-alt); }
 .files .file:hover { background: var(--hover); }
