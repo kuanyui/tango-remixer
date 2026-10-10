@@ -34,10 +34,9 @@
   .theme-opt small { display: block; color: var(--muted); }
   /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
   .llselect-root { color: var(--fg); }
-  /* Dropdown arrow: a solid triangle in the text colour (the vanilla theme pins the arrow to #666, which
-     disappears on the dark background). */
+  /* Dropdown arrow in the text colour (the vanilla theme pins it to #666, which disappears on the dark
+     background); the triangle itself (.arrow) is window.css's. */
   .llselect-trigger-arrow { color: var(--fg); }
-  .arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
   .llselect-trigger, .llselect-popup { background: var(--ctl-bg); color: var(--fg); border-color: var(--ctl-border); }
   .llselect-item:hover, .llselect-item-focused { background: var(--ctl-hover); color: var(--fg); }
   .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }

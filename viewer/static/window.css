@@ -74,6 +74,9 @@ dialog::backdrop { background: transparent; }
 /* Radio mark of menu radio items: a circle, a dot when chosen. */
 .radio { display: inline-block; width: 14px; height: 14px; box-sizing: border-box; border: 1px solid var(--ctl-border); border-radius: 50%; background: var(--ctl-bg); }
 .radio[data-state=checked] { background: radial-gradient(circle, var(--fg) 3px, transparent 3.5px), var(--ctl-bg); }
+/* Dropdown arrow of a combo box (the viewer's llselect triggers, the homepage's Contents combo): a solid triangle
+   in the text colour. */
+.arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
 /* One control look for buttons, the search box and llselect: same border, radius, padding, focus ring. */
 button, input[type=search] { font: inherit; line-height: 1.4; padding: 0.4rem 0.7rem; color: var(--fg); background: var(--ctl-bg);
                              border: 1px solid var(--ctl-border); border-radius: 4px; }

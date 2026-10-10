@@ -86,7 +86,6 @@ body.dark .readme .warning .alert-title { color: #fcaf3e; }
   .combo-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .combo-arrow { flex: none; align-self: stretch; display: flex; align-items: center; margin: -4px 0; padding-left: 8px;
                  border-left: 1px solid var(--ctl-border); box-shadow: inset 1px 0 0 var(--cl-shine, #fff); }
-  .arrow { width: 0; height: 0; border-left: 4px solid transparent; border-right: 4px solid transparent; border-top: 5px solid currentColor; }
   .contents-menu, .find-menu { left: 6px; right: 6px; }
   #content { padding: 12px 16px 32px; }
 }
