@@ -277,7 +277,7 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 </dialog>
 <dialog id="credits" class="tool-window" aria-labelledby="credits-title">
   <div class="titlebar"><span class="wm-title" id="credits-title">Credits</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
-  <div class="body rows">
+  <div class="scrollbox"><div class="body rows scroller">
     <div class="group">Written by</div>
     <div class="item"><img src="icons/Tango/32x32/apps/system-users.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui (ono ono)</a></div><div class="blurb"><ul>
       <li><a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">Tango Remixer</a>: 80% are written manually, the rests are assisted by some LLMs. 100% fully-reviewed by human.</li>
@@ -290,18 +290,18 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
     <div class="item"><img src="icons/Tango/32x32/apps/preferences-desktop-theme.svg" width="32" height="32" alt=""><div class="name">The icon themes' authors</div><div class="blurb">Each theme, with where its files are: <button type="button" data-open="themes"><img src="icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">Icon Themes…</button></div></div>
     <div class="item"><img src="icons/Tango/32x32/categories/preferences-desktop.svg" width="32" height="32" alt=""><div class="name"><a href="https://en.wikipedia.org/wiki/Clearlooks" target="_blank" rel="noopener">Clearlooks</a>: Richard Stellingwerff, Daniel Borgmann</div><div class="blurb">GNOME 2's theme and its Metacity window frame, redrawn here in CSS.</div></div>
     <div class="item"><img src="icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name"><a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">DMZ-White</a>: Novell, Inc.</div><div class="blurb">The mouse cursors, 2007&ndash;2010 (static/cursors/).</div></div>
-  </div>
+  </div></div>
   <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <dialog id="license" class="tool-window" aria-labelledby="license-title">
   <div class="titlebar"><span class="wm-title" id="license-title">License</span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
-  <div class="body rows">
+  <div class="scrollbox"><div class="body rows scroller">
     <div class="item"><img src="icons/Tango/32x32/mimetypes/application-certificate.svg" width="32" height="32" alt=""><div class="name"><a href="https://github.com/kuanyui/tango-remixer" target="_blank" rel="noopener">Tango Remixer</a>: GNU General Public License, version 3</div><div class="blurb">This viewer, the build and README.md. <a href="https://www.gnu.org/licenses/gpl-3.0.html" target="_blank" rel="noopener">gnu.org/licenses/gpl-3.0</a></div></div>
     <div class="group">Parts of this page under licenses of their own</div>
     <div class="item"><img src="icons/Tango/32x32/apps/preferences-desktop-theme.svg" width="32" height="32" alt=""><div class="name">The icons: each theme's own license</div><div class="blurb">A file's SPDX-License-Identifier where it has one (its window shows it). <button type="button" data-open="themes"><img src="icons/Nome/apps/16/preferences-desktop-theme.svg" width="16" height="16" alt="">Icon Themes…</button></div></div>
-    <div class="item"><img src="icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name">Mouse cursors, DMZ-White: <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0 Unported</a></div><div class="blurb">&copy; 2007&ndash;2010 Novell, Inc.; Debian's <a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">dmz-cursor-theme</a> package. <details class="expander" data-license="static/cursors/LICENSE"><summary>License text</summary><pre></pre></details></div></div>
-    <div class="item"><img src="icons/Tango/32x32/actions/format-justify-fill.svg" width="32" height="32" alt=""><div class="name">Combo boxes, <a href="https://github.com/kuanyui/llselect" target="_blank" rel="noopener">llselect</a> (@llselect/core): MIT</div><div class="blurb">By <a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui</a>. <details class="expander" data-license="static/llselect/LICENSE"><summary>License text</summary><pre></pre></details></div></div>
-  </div>
+    <div class="item"><img src="icons/Tango/32x32/devices/input-mouse.svg" width="32" height="32" alt=""><div class="name">Mouse cursors, DMZ-White: <a href="https://creativecommons.org/licenses/by-sa/3.0/" target="_blank" rel="noopener">CC BY-SA 3.0 Unported</a></div><div class="blurb">&copy; 2007&ndash;2010 Novell, Inc.; Debian's <a href="https://tracker.debian.org/pkg/dmz-cursor-theme" target="_blank" rel="noopener">dmz-cursor-theme</a> package. <details class="expander" data-license="static/cursors/LICENSE"><summary>License text</summary><pre class="scroller" data-box="expander-box"></pre></details></div></div>
+    <div class="item"><img src="icons/Tango/32x32/actions/format-justify-fill.svg" width="32" height="32" alt=""><div class="name">Combo boxes, <a href="https://github.com/kuanyui/llselect" target="_blank" rel="noopener">llselect</a> (@llselect/core): MIT</div><div class="blurb">By <a href="https://github.com/kuanyui" target="_blank" rel="noopener">kuanyui</a>. <details class="expander" data-license="static/llselect/LICENSE"><summary>License text</summary><pre class="scroller" data-box="expander-box"></pre></details></div></div>
+  </div></div>
   <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <dialog id="detail-window" aria-labelledby="detail-title">
@@ -310,7 +310,7 @@ Grid icons may come out smaller or larger: see As."><button type="button" id="zo
 </dialog>
 <dialog id="file-window" class="tool-window" aria-labelledby="file-title">
   <div class="titlebar"><span class="wm-title" id="file-title"></span><span class="wm-buttons"><button type="button" class="wm-button" title="Close" onclick="this.closest('dialog').close()"><svg viewBox="0 0 9 9"><path class="o" stroke-width="4" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/><path class="i" stroke-width="2" d="M1.5 1.5l6 6M7.5 1.5l-6 6"/></svg></button></span></div>
-  <div class="body file-props" id="file-props"></div>
+  <div class="scrollbox"><div class="body file-props scroller" id="file-props"></div></div>   <!-- its bar from installScrollbars -->
   <div class="buttons"><button type="button" onclick="this.closest('dialog').close()"><img src="icons/Nome/actions/16/window-close.svg" width="16" height="16" alt="">Close</button></div>
 </dialog>
 <script>

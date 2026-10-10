@@ -200,6 +200,7 @@ button.pressed, button.pressed:hover:not(:disabled) { background: var(--cl-btn-a
 
 /* --- the icon list: a GTK tree view ----------------------------------------- */
 #list { background: var(--cl-base); border-color: var(--cl-frame-in); }
+details.expander pre { border-color: var(--cl-frame-in); }   /* a license text: a text view's sunken frame */
 .cell.selected, .cell.selected:hover { background: var(--cl-sel-grad); color: var(--cl-sel-fg); }
 .cell.selected .cell-info { color: rgba(255, 255, 255, 0.88); }
 .row { border-bottom: none; }

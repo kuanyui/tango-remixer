@@ -92,7 +92,8 @@ details.expander > summary { list-style: none; cursor: pointer; margin-top: 4px;
 details.expander > summary::-webkit-details-marker { display: none; }
 details.expander > summary::before { content: "\25B8"; display: inline-block; width: 12px; }
 details.expander[open] > summary::before { content: "\25BE"; }
-details.expander pre { max-height: 240px; overflow: auto; margin: 6px 0 0; padding: 8px; border: 1px solid var(--line); background: var(--ctl-bg); color: var(--fg); font-size: 11px; white-space: pre-wrap; }
+details.expander .expander-box { margin-top: 6px; }   /* the text in a scroll box (installScrollbars, the pre being a .scroller), its bar beside the frame */
+details.expander pre { max-height: 240px; overflow-y: auto; margin: 0; padding: 8px; border: 1px solid var(--line); background: var(--ctl-bg); color: var(--fg); font-size: 11px; white-space: pre-wrap; }
 /* An entry with a clear button at its right end (a GtkEntry's secondary icon), shown once there is text. The button
    is a square inside the entry's border, as tall as the entry is inside it, with the icon centred in it: so the icon
    is as far from the top and bottom edges as from the right one, whatever the font. Its width is written out (the
