@@ -215,9 +215,9 @@ button.pressed, button.pressed:hover:not(:disabled) { background: var(--cl-btn-a
 .included { background: var(--bg); border: 1px solid var(--cl-frame); border-radius: 4px; box-shadow: inset 0 1px 0 var(--cl-shine), 0 1px 0 var(--cl-shine); }
 .included code { background: var(--cl-base); border: 1px solid var(--line); border-radius: 3px; padding: 4px 6px; }
 /* The per-size rows are one list, so they get one sunken white frame with alternating rows (a tree view),
-   instead of a white patch behind every thumbnail. */
-.files { margin-top: 10px; background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px;
-         box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }   /* scrolls (overflow-y: auto comes from index.html) */
+   instead of a white patch behind every thumbnail; the frame is the list's, its bar beside it as a scrolled window's. */
+.files-box { margin-top: 10px; }
+.files-box > .files { background: var(--cl-base); border: 1px solid var(--cl-frame); border-radius: 3px; box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.12); }
 .files .file { border-top: none; padding: 8px; }
 .files .file:nth-child(even) { background: var(--cl-row-alt); }
 .files .file:hover { background: var(--hover); }
@@ -245,10 +245,74 @@ code { font-family: "DejaVu Sans Mono", "Bitstream Vera Sans Mono", "Liberation 
 .exp-row:hover { background: var(--cl-menu-grad); color: var(--cl-sel-fg); box-shadow: inset 0 0 0 1px var(--cl-sel-border); }
 .exp-row:hover small { color: rgba(255, 255, 255, 0.88); }
 
-/* --- scrollbars: blue Clearlooks sliders in a sunken trough ----------------------- */
-* { scrollbar-color: var(--sel) var(--cl-trough); }
+/* --- the page's own scrollbars (scrollbars.js): drawn as gtk2-engines 2.20's Clearlooks (style GUMMY, colorize_scrollbar)
+   draws a vertical one; its shades, like the gtkrc's shade() and darker(), scale HLS lightness and saturation.
+   The trough: bg x0.896, a 2 px edge x0.95 of that, its long sides bordered bg x0.665. A stepper: the
+   Gummy gradient of bg across the bar (x1.08, x1.02 | x1, x0.94), bordered bg x0.45 mixed 20 % into bg, rounded at the
+   bar's end, a x1.3 highlight at 40 % along its top and left; under the pointer bg[PRELIGHT] (x1.02), pressed
+   bg[ACTIVE] (x0.9); its arrow (clearlooks_draw_normal_arrow at 7 x 7) in fg_color, insensitive in darker(bg) over a
+   bg x1.15 copy a pixel down and right. The slider: spot[1] (sel x1.05) with the same gradient across, the bar's full
+   width over the trough's border, bordered its x0.575 mixed 30 % into itself, a x1.3 highlight ring inside at 20 %,
+   three 1 px grip lines in the x0.575 colour from 5.5 to 9.5 across, x1.04 under the pointer.
+   slider-width 15, stepper-size 15, min-slider-length 30, scrollbar-spacing 3. --- */
+:root {
+  --cl-sb-trough: #d6d3d1; --cl-sb-trough-edge: #ccc8c6; --cl-sb-border: #a09d9a; --cl-sb-step-border: #878482;
+  --cl-sb-step-stops: #ffffff 0%, #f1f1f0 50%, #edeceb 50%, #dfdedc 100%;
+  --cl-sb-step-hover-stops: #ffffff 0%, #f6f6f5 50%, #f1f1f0 50%, #e3e3e1 100%;
+  --cl-sb-step-active-stops: #e6e5e4 0%, #dad8d6 50%, #d6d4d2 50%, #cac7c5 100%;
+  --cl-sb-step-hilight: rgba(255, 255, 255, 0.4); --cl-sb-arrow: #000000; --cl-sb-arrow-off: #a9a5a2;
+  --cl-sb-arrow-emboss: #ffffff; --cl-sb-slider-stops: #a6c3e8 0%, #97b8e1 50%, #92b4df 50%, #84a9d7 100%;
+  --cl-sb-slider-hover-stops: #b2cced 0%, #a1c0e6 50%, #9cbce4 50%, #8cb0dd 100%; --cl-sb-slider-border: #5f7da4;
+  --cl-sb-slider-hilight: rgba(229, 239, 251, 0.2);
+  --cl-sb-grip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 7'%3E%3Cpath d='M5.5 .5h4M5.5 3.5h4M5.5 6.5h4' stroke='%2349668b'/%3E%3C/svg%3E");
+}
+body.dark {
+  --cl-sb-trough: #383734; --cl-sb-trough-edge: #353431; --cl-sb-border: #292927; --cl-sb-step-border: #232321;
+  --cl-sb-step-stops: #44433e 0%, #403f3b 50%, #3f3e3a 50%, #3b3a37 100%;
+  --cl-sb-step-hover-stops: #454440 0%, #41403c 50%, #403f3b 50%, #3c3b38 100%;
+  --cl-sb-step-active-stops: #3d3d38 0%, #393935 50%, #383834 50%, #353531 100%;
+  --cl-sb-step-hilight: rgba(83, 81, 74, 0.4); --cl-sb-arrow: var(--fg); --cl-sb-arrow-off: var(--muted);
+  --cl-sb-arrow-emboss: #494842; --cl-sb-slider-stops: #4d7ebf 0%, #4676b8 50%, #4674b3 50%, #456ea5 100%;
+  --cl-sb-slider-hover-stops: #5383c5 0%, #4b7cbe 50%, #4879bb 50%, #4572ae 100%; --cl-sb-slider-border: #3b5375;
+  --cl-sb-slider-hilight: rgba(109, 154, 215, 0.2);
+  --cl-sb-grip: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 15 7'%3E%3Cpath d='M5.5 .5h4M5.5 3.5h4M5.5 6.5h4' stroke='%2336455a'/%3E%3C/svg%3E");
+}
+.sbar .trough { border-color: var(--cl-sb-border); background: linear-gradient(90deg, var(--cl-sb-trough-edge), var(--cl-sb-trough) 2px); }
+.sbar .step { border-color: var(--cl-sb-step-border); background: linear-gradient(90deg, var(--cl-sb-step-stops)); background-origin: border-box;
+              box-shadow: inset 1px 1px 0 var(--cl-sb-step-hilight); }
+.sbar .step:hover:not(:disabled) { background: linear-gradient(90deg, var(--cl-sb-step-hover-stops)); background-origin: border-box; }
+.sbar .step:active:not(:disabled) { background: linear-gradient(90deg, var(--cl-sb-step-active-stops)); background-origin: border-box; }
+.sbar .step::after { background: var(--cl-sb-arrow); }
+.sbar .step:disabled::after { background: var(--cl-sb-arrow-off); }
+.sbar .step:disabled::before { content: ""; position: absolute; inset: 0; transform: translate(1px, 1px); background: var(--cl-sb-arrow-emboss); mask: var(--arrow) center / 7px 4.25px no-repeat; -webkit-mask: var(--arrow) center / 7px 4.25px no-repeat; }
+.sbar .step.up { --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3.5 0 7 4.25'%3E%3Cpath d='M3.5 3.5L2.75 4.25L1.0607 2.5606A1.5 1.5 0 0 0 -1.0607 2.5606L-2.75 4.25L-3.5 3.5L0 0Z'/%3E%3C/svg%3E"); }
+.sbar .step.down { --arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='-3.5 0 7 4.25'%3E%3Cpath d='M-3.5 .75L-2.75 0L-1.0607 1.6894A1.5 1.5 0 0 0 1.0607 1.6894L2.75 0L3.5 .75L0 4.25Z'/%3E%3C/svg%3E"); }
+.sbar .slider { border-color: var(--cl-sb-slider-border); box-shadow: inset 0 0 0 1px var(--cl-sb-slider-hilight);
+                background: var(--cl-sb-grip) 0 var(--grip-y, center) / 15px 7px no-repeat, linear-gradient(90deg, var(--cl-sb-slider-stops));
+                background-origin: border-box, padding-box; }   /* --grip-y: scrollbars.js's whole-pixel row for the grip */
+.sbar .slider:hover, .sbar .slider.active { background-image: var(--cl-sb-grip), linear-gradient(90deg, var(--cl-sb-slider-hover-stops)); }
+
+/* --- the browser's scrollbars where the page draws none (code blocks, the combo box lists): a stepper button with an arrow at each end --
+   Drawn with the ::-webkit-scrollbar parts where a browser has them (Chrome, Safari); the page's cursor shows over
+   them, since they are drawn in the page. Chrome ignores those parts on an element that sets scrollbar-color, so
+   the standard property is set for Firefox only (which parses ::-webkit-* pseudo-elements as valid, so a selector()
+   test cannot tell it apart; -moz-appearance can): it then colours its own slider and trough and keeps its own
+   cursor over them. The arrows: a triangle in the text colour, light on the dark background. */
+@supports (-moz-appearance: none) { * { scrollbar-color: var(--sel) var(--cl-trough); } }
+:root { --cl-arrow-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M0.5 5.5h6L3.5 1.5z' fill='%23555753'/%3E%3C/svg%3E"); --cl-arrow-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M0.5 1.5h6L3.5 5.5z' fill='%23555753'/%3E%3C/svg%3E");
+  --cl-arrow-left: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M5.5 0.5v6L1.5 3.5z' fill='%23555753'/%3E%3C/svg%3E"); --cl-arrow-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M1.5 0.5v6L5.5 3.5z' fill='%23555753'/%3E%3C/svg%3E"); }
+body.dark { --cl-arrow-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M0.5 5.5h6L3.5 1.5z' fill='%23e8e6e2'/%3E%3C/svg%3E"); --cl-arrow-down: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M0.5 1.5h6L3.5 5.5z' fill='%23e8e6e2'/%3E%3C/svg%3E");
+  --cl-arrow-left: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M5.5 0.5v6L1.5 3.5z' fill='%23e8e6e2'/%3E%3C/svg%3E"); --cl-arrow-right: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 7 7'%3E%3Cpath d='M1.5 0.5v6L5.5 3.5z' fill='%23e8e6e2'/%3E%3C/svg%3E"); }
 ::-webkit-scrollbar { width: 14px; height: 14px; }
 ::-webkit-scrollbar-track { background: var(--cl-trough); box-shadow: inset 1px 0 2px rgba(0, 0, 0, 0.25); }
+::-webkit-scrollbar-corner { background: var(--bg); }
+::-webkit-scrollbar-button:single-button { width: 14px; height: 14px; border: 1px solid var(--ctl-border); border-radius: 3px;
+                                           background: var(--arrow), var(--cl-btn); background-repeat: no-repeat; background-position: center; background-size: 7px 7px, auto; }
+::-webkit-scrollbar-button:single-button:hover { background-image: var(--arrow), var(--cl-btn-hover); }
+::-webkit-scrollbar-button:single-button:vertical:decrement { --arrow: var(--cl-arrow-up); }     /* each end its arrow; the fill is the rule above's */
+::-webkit-scrollbar-button:single-button:vertical:increment { --arrow: var(--cl-arrow-down); }
+::-webkit-scrollbar-button:single-button:horizontal:decrement { --arrow: var(--cl-arrow-left); }
+::-webkit-scrollbar-button:single-button:horizontal:increment { --arrow: var(--cl-arrow-right); }
 ::-webkit-scrollbar-thumb { background: linear-gradient(90deg, var(--cl-thumb-stops)); border: 1px solid var(--cl-sel-border); border-radius: 3px; }
 ::-webkit-scrollbar-thumb:horizontal { background: linear-gradient(var(--cl-thumb-stops)); }
 ::-webkit-scrollbar-thumb:hover { background: linear-gradient(90deg, var(--cl-thumb-hover-stops)); }

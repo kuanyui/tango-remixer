@@ -20,6 +20,6 @@ body .llselect-trigger, body .llselect-item, body .llselect-choose-all-row { cur
 /* The arrow again where the sheets above chose the browser's default: menus and their items (links in the panel's
    main menu too), the panel's buttons, disabled buttons. `body` in every selector puts these above the sheets'
    own rules whatever the order the pages load them in. */
-body .menu-title, body .menu-item, body .panel .panel-button, body button:disabled { cursor: var(--cursor-arrow); }
+body .menu-title, body .menu-item, body .panel .panel-button, body button:disabled, body .sbar, body .sbar button { cursor: var(--cursor-arrow); }
 /* The I-beam in text entries. */
 body input[type=search], body input[type=text], body textarea { cursor: var(--cursor-ibeam); }

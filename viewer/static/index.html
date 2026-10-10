@@ -18,6 +18,7 @@
      with the website's homepage. -->
 <link rel="stylesheet" href="static/window.css">
 <script src="static/window.js"></script>
+<script src="static/scrollbars.js"></script>
 <style>
   /* The client area of this window: toolbar, icon list, detail pane. */
   .client { display: grid; grid-template-rows: auto 1fr; grid-template-columns: 1fr 440px; min-height: 0; }
@@ -50,10 +51,9 @@
   .llselect-choose-all-row, .llselect-group-label { background: var(--hover); color: var(--muted); }
   input[type=search]::placeholder { color: var(--muted); }
   input[type=checkbox] { accent-color: var(--accent); }
-  #detail button { padding: 0.2rem 0.5rem; margin: 0 6px 4px 0; }   /* many of them per icon: compact */
+  #detail button:not(.step) { padding: 0.2rem 0.5rem; margin: 0 6px 4px 0; }   /* many of them per icon: compact (not the scrollbars' steppers) */
   header .entry { flex: 1; max-width: 320px; }   /* the search box, with its clear button (window.css) */
   header > label { white-space: nowrap; }
-  #list { overflow-y: auto; }
   /* Grid view: one cell per icon, drawn at the Show-at size with the file the chosen API would pick (pickFile).
      A pick smaller than the cell sits centred in it, the way Qt draws a PNG it will not enlarge. */
   #list.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--cell, 120px), 1fr)); gap: 4px; padding: 8px; align-content: start; }
@@ -97,9 +97,9 @@
   .sizes .empty { box-sizing: border-box; border: 1px dashed var(--line); }
   /* Detail pane: everything above stays put, the per-size list takes the rest of the height and scrolls on its
      own. If the window is too short for that (list below its min-height), the pane itself scrolls instead. */
-  #detail { border-left: 1px solid var(--line); padding: 12px; overflow-y: auto; display: flex; flex-direction: column; }
+  #detail { border-left: 1px solid var(--line); padding: 12px; display: flex; flex-direction: column; }   /* a .scroller: scrolls, with the page's bar */
   #detail > * { flex: none; }
-  #detail > .files { flex: 1 1 0; min-height: 170px; overflow-y: auto; }
+  #detail > .files-box { flex: 1 1 0; min-height: 96px; }   /* the file list, a .scroller of its own in its box: it gives way down to one row before the pane itself scrolls, so two bars side by side are the short window's last resort */
   .aliases-note { max-height: 4.4em; overflow-y: auto; }   /* some icons have dozens of aliases */
   #detail h3 { margin: 0; }
   .file { padding: 6px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
@@ -124,8 +124,8 @@
   .exp-row:hover { background: var(--hover); }
   @media (min-width: 1600px) {
     .client { grid-template-rows: 1fr; grid-template-columns: 330px 1fr 440px; }
-    #list { grid-column: 2; grid-row: 1; }
-    #detail { grid-column: 3; grid-row: 1; }
+    #list-box { grid-column: 2; grid-row: 1; }
+    #detail-box { grid-column: 3; grid-row: 1; }
     /* Sidebar: search, Reset and Dark stay put; below them the height is split in two halves,
        Themes on top, Contexts and Sizes side by side underneath, each half scrolling on its own. */
     header { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: start;
@@ -184,7 +184,7 @@
                    box-shadow: var(--cl-btn-shadow, none); cursor: pointer; }
     body.dark #dark-toggle { background: var(--cl-btn-active, var(--sel)); box-shadow: inset 2px 2px 3px rgba(0, 0, 0, 0.17); }
     .client { grid-template-columns: 1fr; }
-    .client > #detail { display: none; }   /* until placeDetail has moved it into its window */
+    .client > #detail-box { display: none; }   /* until placeDetail has moved it into its window */
     .row { padding: 6px 10px; }
     /* Status bar: one row where it fits; else List | Grid (with the grip) wraps to a second row, still at the
        right end (display: contents makes the four parts siblings, so they wrap one by one). */
@@ -197,8 +197,9 @@
      the bottom as About has; the title bar and the button row keep their height. */
   #detail-window[open] { display: flex; flex-direction: column; width: calc(100% - 16px); max-width: none; }
   #detail-window > .titlebar, #detail-window > .buttons { flex: none; }
-  #detail-window #detail { flex: 1 1 auto; min-height: 0; border-left: 0; }
-  #detail-window #detail > .files { flex-basis: auto; }   /* sized by its files, so the window grows to fit them, up to the screen (beside the list the pane is as tall as the window anyway) */
+  #detail-window #detail-box { flex: 1 1 auto; min-height: 0; }
+  #detail-window #detail { border-left: 0; }
+  #detail-window #detail > .files-box { flex-basis: auto; }   /* sized by its files, so the window grows to fit them, up to the screen (beside the list the pane is as tall as the window anyway) */
   #detail-window #detail h3 { display: none; }
   #detail-window .buttons { text-align: right; padding: 8px 12px; border-top: 1px solid var(--line); }
   /* There a file's window (openFileWindow) is the way to its details: no pointer to hover the card with. */
@@ -242,8 +243,8 @@
   <button id="reset" title="Search, regexp, themes, contexts and sizes back to their defaults"><img src="icons/Tango/16x16/actions/edit-undo.svg" width="16" height="16" alt=""><span> Reset</span></button>
   <label id="dark-toggle" title="Draw the icons on a dark background"><input type="checkbox" id="dark"> <img src="icons/Tango/16x16/status/weather-clear-night.svg" width="16" height="16" alt="" style="vertical-align:-3px"><span> Dark background</span></label>
 </header>
-<main id="list"></main>
-<aside id="detail"><p style="color:var(--muted)">Click an icon to see its files.</p></aside>
+<div class="scrollbox" id="list-box"><main id="list" class="scroller"></main></div>
+<div class="scrollbox" id="detail-box"><aside id="detail" class="scroller"><p style="color:var(--muted)">Click an icon to see its files.</p></aside></div>
 </div>
 <div class="statusbar"><span id="status">Loading…</span>
   <div class="view-controls">
@@ -368,6 +369,7 @@ const UI_ICONS = {
 let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, showAtSel, apiSel, selectedKey = null;
 let view = 'list';   // 'list' | 'grid'
 const keyOf = icon => `${icon.theme}/${icon.context}/${icon.name}`;
+installScrollbars();   // the list's and the detail pane's bars (scrollbars.js); the file list gets its own when made
 
 const buttonContent = (icon, label) => [el('img', { src: `icons/${UI_ICONS[icon]}`, width: 16, height: 16, alt: '' }), label];
 function iconButton(icon, label, onclick, title) {
@@ -664,7 +666,7 @@ function showDetail(icon, row, open = false) {
     el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
       icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'),
     // A file's row: a click anywhere on it (but on one of its buttons) selects it and opens the file's window.
-    el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file', title: "The file's properties, in a window of their own.",
+    scrollbox(el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file', title: "The file's properties, in a window of their own.",
         onclick: e => {
           if (e.target.closest('button, a')) return;
           e.currentTarget.parentElement.querySelector('.file.selected')?.classList.remove('selected');
@@ -675,17 +677,17 @@ function showDetail(icon, row, open = false) {
       el('div', {},
         el('div', {}, el('strong', {}, s.size), fileLicense(icon, s)),
         el('code', {}, s.path),
-        ...fileButtons(icon, s))))));
+        ...fileButtons(icon, s))))), 'files-box'));
   if (open && narrow() && !$('detail-window').open) $('detail-window').showModal();
   saveState();
 }
 
 // On a phone the detail pane lives in a window of its own (#detail-window, a dialog as About is), opened by a
 // tap on a row or a cell; it goes back beside the list when the window widens past 700 px.
-function placeDetail() {
-  const dialog = $('detail-window'), detail = $('detail');
-  if (narrow()) { if (detail.parentNode !== dialog) dialog.querySelector('.buttons').before(detail); }
-  else { if (dialog.open) dialog.close(); if (detail.parentNode === dialog) $('list').after(detail); }
+function placeDetail() {   // the pane moves in its scroll box
+  const dialog = $('detail-window'), box = $('detail-box');
+  if (narrow()) { if (box.parentNode !== dialog) dialog.querySelector('.buttons').before(box); }
+  else { if (dialog.open) dialog.close(); if (box.parentNode === dialog) $('list-box').after(box); }
 }
 placeDetail();
 
