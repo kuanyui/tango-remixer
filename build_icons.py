@@ -995,7 +995,14 @@ class SvgToPngConverter:
                     env={**os.environ, "SELF_CALL": "1"},
                 )
 
-                _stdout, stderr = await process.communicate()
+                try:
+                    _stdout, stderr = await process.communicate()
+                except asyncio.CancelledError:
+                    # Another conversion failed, so this one is cancelled. Stop its Inkscape too,
+                    # otherwise it keeps running in the background.
+                    process.kill()
+                    await process.wait()
+                    raise
 
                 if process.returncode != 0:
                     error_msg = stderr.decode() if stderr else "Unknown error"
@@ -1290,9 +1297,14 @@ async def run_05_convert_svg_to_png():
     qrc.write_qrc_file(dst_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(dst_theme_folder / "index.theme")
 
-    results = await asyncio.gather(*deferred)
-    if not all(results):
-        raise RuntimeError(f"{results.count(False)} of {len(results)} PNG conversions failed. See the errors above.")
+    async def convert_or_raise(conversion: Coroutine[None, None, bool]) -> None:
+        if not await conversion:
+            raise RuntimeError("A PNG conversion failed. See the error above.")
+
+    # Stop at the first failed conversion: the TaskGroup then cancels all the other conversions.
+    async with asyncio.TaskGroup() as task_group:
+        for conversion in deferred:
+            task_group.create_task(convert_or_raise(conversion))
 
 def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
     '''Follow the directory structure of `hicolor` (Fallback icon theme pack in XDG standard) `<size>x<size>@<scale>/<context>`
