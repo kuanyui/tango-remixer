@@ -65,9 +65,9 @@ viewer:    ## Browse the source icon themes (`submodules/`, no build needed): a 
 
 # The website (this README + the icon viewer) as plain files, as GitHub Pages and GitLab Pages publish it. Needs
 # Python-Markdown and Pygments: `apt install python3-markdown python3-pygments` (Debian / Ubuntu) or
-# `pip install markdown pygments`.
+# `pip install markdown pygments`. It also needs rsvg-convert, for the link-preview image: `apt install librsvg2-bin`.
 .PHONY: homepage-build
-homepage-build:    ## Generate the website (README.md + the icon viewer) into `HOMEPAGE_OUT`. Needs `python3-markdown` and `python3-pygments`.
+homepage-build:    ## Generate the website (README.md + the icon viewer) into `HOMEPAGE_OUT`. Needs `python3-markdown`, `python3-pygments` and `rsvg-convert`.
 	python3 homepage/generate_static_site.py $(HOMEPAGE_OUT)
 
 # The same, then served on every interface (as `make viewer`), so the host of a VM can open it too. The URLs to

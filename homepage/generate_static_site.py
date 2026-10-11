@@ -11,6 +11,8 @@ and GitLab Pages publish it:
     panel.css, panel.js,      the GNOME 2 panel above both windows (panel.html: main menu, launchers
     marks/                    with the GitHub / GitLab marks, window list, the build in the clock slot)
     tango-mixer-banner.svg    (and any other image README.md shows)
+    og-image.png              the link-preview image (og:image in template.html): og-image.svg as a PNG
+                              with a white background, because link previews do not show SVG
     viewer/                   the icon viewer (viewer/) as a static site: its page and
                               assets, api/index.json, and every indexed SVG under
                               icons/<theme>/<path>, the Blue* themes colorized with
@@ -26,6 +28,7 @@ Run:  python3 homepage/generate_static_site.py [OUT] [--serve [PORT]]     (defau
 Needs Python-Markdown (the `markdown` module) and, for coloured code blocks, Pygments:
 `apt install python3-markdown python3-pygments` on Debian / Ubuntu, else
 `pip install markdown pygments`. (`markdown2` is a different library.)
+Needs rsvg-convert too, for og-image.png: `apt install librsvg2-bin` on Debian / Ubuntu.
 
 The viewer part writes only the real files of the index (an alias is a symlink
 name listed with its icon; the page never requests it), so a theme weighs what
@@ -53,6 +56,7 @@ import json
 import os
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import threading
@@ -70,6 +74,11 @@ from lib.included_icons_tokens import tokenize  # noqa: E402
 from viewer.server import _COLOR_CONVERTER, _STATIC_DIR, Colorizer, SourceTheme, build_index, index_json, local_urls, source_themes  # noqa: E402
 
 _HOMEPAGE_DIR: Path = Path(__file__).resolve().parent
+_OG_IMAGE_SVG: Path = _HOMEPAGE_DIR / "og-image.svg"
+"""The SVG source of the link-preview image, with no background. og_image_png() converts it into a PNG."""
+_OG_IMAGE_SIZE: Tuple[int, int] = (1280, 640)
+"""Its width and height in pixels. These must match og:image:width and og:image:height in template.html
+and viewer/static/index.html."""
 _ALERTS: Tuple[str, ...] = ("NOTE", "TIP", "IMPORTANT", "WARNING", "CAUTION")
 """GitHub's `> [!NOTE]` blockquote kinds."""
 _HIDDEN = re.compile(r"^<!-- homepage-hide-begin -->[ \t]*\n.*?^<!-- homepage-hide-end -->[ \t]*(?:\n|\Z)", re.M | re.S)
@@ -266,6 +275,23 @@ def mirror_tree(src: Path, dst: Path, ignore: Tuple[str, ...] = ()) -> None:
     if dst.is_dir():
         for stale in [p for p in dst.rglob("*") if p.is_file() and p not in wanted]:
             stale.unlink()
+
+
+def og_image_png() -> bytes:
+    """Convert _OG_IMAGE_SVG into a PNG with a white background, with rsvg-convert (librsvg).
+    The result must have the size _OG_IMAGE_SIZE."""
+    if shutil.which("rsvg-convert") is None:
+        sys.exit("The homepage needs rsvg-convert, to convert homepage/og-image.svg into the link-preview PNG: "
+                 "sudo apt install librsvg2-bin on Debian / Ubuntu, sudo zypper install rsvg-convert on openSUSE, "
+                 "sudo dnf install librsvg2-tools on Fedora, sudo pacman -S librsvg on Arch Linux.")
+    result = subprocess.run(["rsvg-convert", "--format=png", "--background-color=white", str(_OG_IMAGE_SVG)], capture_output=True)
+    if result.returncode != 0 or not result.stdout.startswith(b"\x89PNG"):
+        raise RuntimeError(f"{_OG_IMAGE_SVG}: rsvg-convert failed: {result.stderr.decode(errors='replace').strip()}")
+    size = struct.unpack(">II", result.stdout[16:24])   # the width and height in the PNG header (IHDR)
+    if size != _OG_IMAGE_SIZE:
+        raise RuntimeError(f"{_OG_IMAGE_SVG}: the rendered image is {size[0]}x{size[1]} pixels, not {_OG_IMAGE_SIZE[0]}x{_OG_IMAGE_SIZE[1]}. For another size, "
+                           "change _OG_IMAGE_SIZE, and og:image:width and og:image:height in template.html and viewer/static/index.html.")
+    return result.stdout
 
 
 def write_viewer_page(themes: Dict[str, SourceTheme], out: Path, places: Dict[str, Dict[str, object]], panel: str, index: List[Dict[str, object]]) -> None:
@@ -659,8 +685,10 @@ class Site:
         out, root = self.out, self.root
         out.mkdir(parents=True, exist_ok=True)
         repo = site_repository(root)
+        og_image = og_image_png()
         for name in ["style.css", "panel.css", "panel.js"]:
             write_file(out / name, (_HOMEPAGE_DIR / name).read_bytes())
+        write_file(out / "og-image.png", og_image)
         write_file(out / "highlight.css", highlight_css().encode("utf-8"))
         mirror_tree(_HOMEPAGE_DIR / "marks", out / "marks")   # the launchers' GitHub and GitLab marks, with their note
         sources = [(doc, (root / doc.path).read_text("utf-8")) for doc in DOCUMENTS if (root / doc.path).is_file()]

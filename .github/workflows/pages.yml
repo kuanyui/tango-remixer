@@ -35,6 +35,7 @@ jobs:
         with:
           python-version: "3.13"   # build_icons.py uses warnings.deprecated
       - run: pip install markdown pygments
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends librsvg2-bin   # rsvg-convert, for og-image.png
       - run: make homepage-build
       - uses: actions/upload-pages-artifact@v5
         with:

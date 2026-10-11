@@ -12,6 +12,7 @@ pages:
     - git config --global url."https://github.com/".insteadOf "git@github.com:"
     - git submodule update --init --depth 1
     - pip install markdown pygments
+    - apt-get update && apt-get install -y --no-install-recommends librsvg2-bin   # rsvg-convert, for og-image.png
     - python3 homepage/generate_static_site.py public
     - find public -type f -regex '.*\.\(html\|css\|js\|json\|svg\)$' -exec gzip -f -k {} \;
   artifacts:
