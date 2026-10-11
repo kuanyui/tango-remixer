@@ -978,7 +978,21 @@ class SvgToPngConverter:
                 process = await asyncio.create_subprocess_exec(
                     *args,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
+                    # == Reason ====
+                    # - Inkscape checks if an existing Inkscape instance is running, and try to reuse it to process job.
+                    # - The check makes sure this only happens between Inkscapes of exactly the same version and build.
+                    # - For this check, Inkscape briefly registers a test app on D-Bus (via GLib).
+                    # - On Windows, GLib starts a D-Bus by itself when one is needed.
+                    # - When several Inkscape processes start at the same time, a random instance crashes with "Gio::DBus::Error".
+                    #
+                    # == Solutions ====
+                    # 1. The `unshare --user` above avoids the same crash in another way, but this only works on Linux
+                    #   (unshare user namespace, so D-Bus refuses the connection, and GLib then skips the registration. )
+                    # 2. Setting the environment variable SELF_CALL to turn this check off.
+                    #
+                    # https://gitlab.com/inkscape/inkscape/-/issues/4716
+                    env={**os.environ, "SELF_CALL": "1"},
                 )
 
                 _stdout, stderr = await process.communicate()
