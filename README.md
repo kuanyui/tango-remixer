@@ -90,6 +90,23 @@ I also collect some Tango-flavoured icons from some FLOSS projects such as GIMP 
 
 I hereby express my highest respect for their works, and wish such digital art heritage from the 2000s ~ 2010s can be well preserved (with commit history) and long live, even can be adopted on new projects nowadays.
 
+# Quick Start
+
+## Prerequisites
+
+- Python >= 3.13
+- Inkscape
+
+## Steps
+
+1. Clone this repository into your project repository via `git clone --recursive git@github.com:kuanyui/tango-remixer.git` and add it as git submodule.
+2. Write `included_icons.txt` according to "`included_icons.txt` Reference"
+3. Execute `python3 ./build_icons.py --included-icon-file ./included_icons.txt` in your building procession.
+
+> [!TIP]
+> You can see the [source code of QKiSS](https://github.com/kuanyui/qkiss) to know how to integrate Tango Remixer into a Qt 6 + CMake project.
+> After all, in the very beginning, Tango Remixer was developed specially for QKiSS.
+
 # Used Submodules
 This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically download these tarballs. So you don't need to download these files manually.
 
