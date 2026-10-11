@@ -999,7 +999,7 @@ class SvgToPngConverter:
 
                 if process.returncode != 0:
                     error_msg = stderr.decode() if stderr else "Unknown error"
-                    self.logger.error(f"Conversion failed: {error_msg}")
+                    self.logger.error(f"Conversion failed: {src_svg} -> {dst_png}: {error_msg}")
                     return False
                 return True
 
@@ -1290,7 +1290,9 @@ async def run_05_convert_svg_to_png():
     qrc.write_qrc_file(dst_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(dst_theme_folder / "index.theme")
 
-    await asyncio.gather(*deferred)
+    results = await asyncio.gather(*deferred)
+    if not all(results):
+        raise RuntimeError(f"{results.count(False)} of {len(results)} PNG conversions failed. See the errors above.")
 
 def get_xdg_size_folder_name(size: IconSizeType, scale: IconScaleType) -> str:
     '''Follow the directory structure of `hicolor` (Fallback icon theme pack in XDG standard) `<size>x<size>@<scale>/<context>`
