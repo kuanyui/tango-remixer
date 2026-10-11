@@ -971,9 +971,9 @@ class SvgToPngConverter:
                     f"--export-height={size}",
                     "--export-filename", str(dst_png.absolute()),
                 ]
-                if platform.system() == "Linux":
-                    # Prevent crash. Linux only. https://gitlab.com/inkscape/inkscape/-/issues/4716
-                    args = ["unshare", "--user", *args]
+                # if platform.system() == "Linux":
+                #     # Prevent crash. Linux only. https://gitlab.com/inkscape/inkscape/-/issues/4716
+                #     args = ["unshare", "--user", *args]
 
                 process = await asyncio.create_subprocess_exec(
                     *args,
@@ -987,9 +987,11 @@ class SvgToPngConverter:
                     # - When several Inkscape processes start at the same time, a random instance crashes with "Gio::DBus::Error".
                     #
                     # == Solutions ====
-                    # 1. The `unshare --user` above avoids the same crash in another way, but this only works on Linux
+                    # 1. The `unshare --user` above (commented out) avoids the same crash in another way, but this only works on Linux
                     #   (unshare user namespace, so D-Bus refuses the connection, and GLib then skips the registration. )
-                    # 2. Setting the environment variable SELF_CALL to turn this check off.
+                    #   It also fails in containers that forbid user namespaces, like the Docker container of a Github Actions job:
+                    #   "unshare: unshare failed: Operation not permitted"
+                    # 2. Setting the environment variable SELF_CALL to turn this check off. (Used now. Works on all platforms.)
                     #
                     # https://gitlab.com/inkscape/inkscape/-/issues/4716
                     env={**os.environ, "SELF_CALL": "1"},
