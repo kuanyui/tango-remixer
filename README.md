@@ -105,6 +105,10 @@ I also collect some Tango-flavoured icons from some FLOSS projects such as GIMP 
 
 I hereby express my highest respect for their works, and wish such digital art heritage from the 2000s ~ 2010s can be well preserved (with commit history) and long live, even can be adopted on new projects nowadays.
 
+## ...Wait, Now is 2026 and there are LLM agents, why not ask them to pick and integrate the icons into your project directly?
+
+Yeah I also noticed that recently. 🤦
+
 # Quick Start
 
 ## Prerequisites
