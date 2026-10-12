@@ -32,10 +32,39 @@ This project is to convert it to `.qrc` which can be easily to be used in your Q
 
 # Why
 
-## What's Wrong With You?
-
 > [!CAUTION]
 > This section is my personal perspective and just describes how I feel. It might sound harsh, **but I promise and guarantee it is my honest opinion, without any intention of sensationalism or playing to the crowd.**
+
+## What Possessed You to Make This... "Tango Remixer"?
+
+I started to develop a Qt/C++ project [QKiSS](https://kuanyui.github.io/qkiss/) since August 2024, so I eager to a **elegant, reproducible, well-organized, extensible** way to pick and integrate the SVG icons into my Qt project to relieve my OCD. Because this is absolutely a dirty task:
+
+- The support for SVG specification of QtSVG is limited, many SVG icon is failed to be rendered by QtSVG, so using Inkscape to convert these picked SVG files into PNG is also needed.
+- Hi-res pixel density also needs to be handled when rasterizing.
+- You must to fight with the Qt's QRC and pick the icons one by one.
+- CMake's integration is also a problem.
+- Can I pick only the sizes I need?
+- ...blahblah other requirements.
+
+So I decided to start to develop "Tango Remixer" since November 2024 so satisfying these requirements.
+<!---
+## Why This "Tango Remixer"
+
+In 2024, I began to develop a Qt C++ application, as a perfectionist, I surely want to add semantic icons into the GUI of my application.
+
+But to add icons into Qt application and apply them is very annoying, you must to fight with the QRC and pick icon one by one. As an OCD developer, I want an elegant way to choose the icons I want and apply them in my Qt project. Therefore, I began to develop Tango Remixer to solve this problem. An **elegant, reproducible, extensible way** to do the dirty tasks to integrate the Tango-style icons I want into my Qt projects.
+--->
+
+> [!NOTE]
+> By the way, at last, Creating Tango Remixer + curating and drawing icon theme packs cost me more time than that Qt project itself...
+
+"Tango Remixer"'s goal is let user:
+1. Easily pick icons I want from multiple XDG-compatible Tango-flavoured icon themes (user even can specify extra XDG-compatible icon theme pack),
+2. Then aggregate them into a new XDG-compatible icon theme (and generate Qt Resource .qrc files),
+3. Then use API such as `QIcon::fromTheme()`directly to reference these icons in C++ code directly.
+
+
+## You Tasteless Bumpkin, Why Add So Many Icons Into GUI Applications?
 
 I personally fail to understand why designers all over the world feel the need to cook up new trends every so often. ...Is it genuinely because *"the new designs truly improve UI operation speed, and are easier to understand for user"*, or *is it simply "just to chase a trend so I can keep my job and put food on the table"*?
 
@@ -52,25 +81,11 @@ No, it's **not** like I said that just to show off how unique my aesthetic is, b
 >
 > Firefox removing lots of icons from its menu since many years ago is a representative example which causes me permanent headache, and result to lactose intolerance and make me allergic to life.
 
-## Why Tango
+## Why "Tango"?
 
 I personally prefer [Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons). Even nowadays, I still adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
 
 This Freedesktop's Tango Desktop's "reference implementation" (that is to say, "reference icon theme") lived between 2005 ~ 2009, and its design guideline somehow popular in this era, especially in FLOSS projects, like GNOME, Firefox, Ubuntu's Humanity...etc. But most of they were gradually replaced by flat icon design lately.
-
-## Why This "Tango Remixer"
-
-In 2024, I began to develop a Qt C++ application, as a perfectionist, I surely want to add semantic icons into the GUI of my application.
-
-But to add icons into Qt application and apply them is very annoying, you must to fight with the QRC and pick icon one by one. As an OCD developer, I want an elegant way to choose the icons I want and apply them in my Qt project. Therefore, I began to develop Tango Remixer to solve this problem. An **elegant, reproducible, extensible way** to do the dirty tasks to integrate the Tango-style icons I want into my Qt projects.
-
-> [!NOTE]
-> By the way, at last, Creating Tango Remixer + curating and drawing icon theme packs cost me more time than that Qt project itself...
-
-"Tango Remixer"'s goal is let user:
-1. Easily pick icons I want from multiple XDG-compatible Tango-flavoured icon themes (user even can specify extra XDG-compatible icon theme pack),
-2. Then aggregate them into a new XDG-compatible icon theme (and generate Qt Resource .qrc files),
-3. Then use API such as `QIcon::fromTheme()`directly to reference these icons in C++ code directly.
 
 ## Where are Icon Themes？
 
