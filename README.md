@@ -9,7 +9,7 @@
 > To understand what this project does, it's strongly recommended to read this README on the [Tango Remixer homepage](https://kuanyui.github.io/tango-remixer/) instead of here.
 <!-- homepage-hide-end -->
 
-Remix multiple [Tango-flavoured icon themes](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (e.g. Freedesktop Tango Icon Theme, GNOME Icon Theme, Ubuntu Humanity Icon Theme...etc) into an independent XDG-compatible icon theme pack, especially for Qt / GTK applications (e.g. directly retrieve icon via `QIcon::fromTheme(QString iconName)`)
+Remix multiple [Tango-flavoured icon themes](https://web.archive.org/web/20250829073407/https://en.wikipedia.org/wiki/Tango_Desktop_Project) (e.g. Freedesktop Tango Icon Theme, GNOME Icon Theme, Ubuntu Humanity Icon Theme...etc) into an independent XDG-compatible icon theme pack, especially for Qt / GTK applications (e.g. directly retrieve icon via `QIcon::fromTheme(QString iconName)`)
 
 This project is to convert it to `.qrc` which can be easily to be used in your Qt project. (only tested on Qt 6, mainly the HiDPI support.)
 
@@ -83,9 +83,11 @@ No, it's **not** like I said that just to show off how unique my aesthetic is, b
 
 ## Why "Tango"?
 
-I personally prefer [Freedesktop's Tango Desktop](https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons). Even nowadays, I still adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
+I personally prefer [Freedesktop's Tango Desktop](https://web.archive.org/web/20250829073407/https://en.wikipedia.org/wiki/Tango_Desktop_Project) (precisely, it's [a style guidelines for icons](https://web.archive.org/web/20070314003622/http://tango.freedesktop.org/Tango_Icon_Theme_Guidelines), along with an official reference implementation including a very limited amounts of icons). Even nowadays, I still adore its reasonable, practical, aesthetic, elegant, and distinguishing on screen.
 
 This Freedesktop's Tango Desktop's "reference implementation" (that is to say, "reference icon theme") lived between 2005 ~ 2009, and its design guideline somehow popular in this era, especially in FLOSS projects, like GNOME, Firefox, Ubuntu's Humanity...etc. But most of they were gradually replaced by flat icon design lately.
+
+Not only has freedesktop.org removed the Tango Desktop website, leaving [only the tarballs](https://tango.freedesktop.org/releases/), but now even the English Wikipedia has deleted its article; only [Archive.org](https://web.archive.org/web/20250829073407/https://en.wikipedia.org/wiki/Tango_Desktop_Project) and Wikipedia in other languages (e.g. [de](https://de.wikipedia.org/wiki/Tango_Desktop_Project), [es](https://es.wikipedia.org/wiki/Tango_Desktop_Project), [ja](https://ja.wikipedia.org/wiki/Tango_Desktop_Project)) still have it... I can't figure out why it was deleted. Even more absurd, [the tango-icon-theme in the official Git repository of freedesktop.org itself is already incomplete](https://gitlab.freedesktop.org/tango/tango-icon-theme), for unknown reasons. Maybe records were lost when it was migrated from SVN or CVS to Git? Anyway, I at least hope that this project can keep Tango Desktop alive, even if only as a historical record...
 
 ## Where are Icon Themes？
 
