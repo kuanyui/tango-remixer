@@ -244,7 +244,7 @@ def nome_colorize_hex_code_with_rule(hex_color: str, rules: List[NomeColorizeRul
             case "brown_to_blue":
                 if 15 <= h <= 50:
                     h += 170
-                s = int(s * 1.2)
+                s = int(s * 1.8)
 
     h = h % 360
     s = max(0, s)
