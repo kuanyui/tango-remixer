@@ -32,7 +32,7 @@ body.maximized #wm-maximize .restore { display: inline; }
 .menu-title.open { background: var(--sel); }
 .menu { position: absolute; top: 100%; z-index: 20; min-width: 12rem; padding: 3px; background: var(--ctl-bg); border: 1px solid var(--ctl-border);
         box-shadow: 0 3px 8px rgba(0, 0, 0, 0.25); user-select: none; }
-.context-menu { position: fixed; }   /* at the pointer (openContextMenu sets left and top) */
+.context-menu { position: fixed; inset: auto; margin: 0; overflow: visible; color: var(--fg); }   /* at the pointer (openContextMenu sets left and top); a popover: no browser popover placement or colour */
 .menu-item { display: flex; align-items: center; gap: 8px; padding: 4px 10px 4px 6px; border-radius: 3px; white-space: nowrap; cursor: default; }
 .menu-item .slot { flex: none; width: 16px; height: 16px; display: flex; align-items: center; justify-content: center; }   /* icon or check mark; both, in two columns, when an item has both */
 .menu-item .accel { margin-left: auto; padding-left: 24px; }

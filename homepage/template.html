@@ -173,6 +173,7 @@ const MENUS = [
     { label: '_About', icon: 'Nome/actions/16/help-about.svg', run: () => $('about').showModal() }]],
 ];
 buildMenuBar(MENUS, 'viewer/icons/');
+installContextMenus('viewer/icons/');   // right clicks as GTK has them: text, links, the find box
 installTooltips();
 installAbout({ themes: showThemes });
 document.addEventListener('keydown', e => {

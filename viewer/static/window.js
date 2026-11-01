@@ -1,7 +1,8 @@
 // The Clearlooks application window, shared by the icon viewer (viewer/static/index.html) and the website's
-// homepage (homepage/template.html): DOM helpers, the menu bar with its menus, the one tooltip of the page, the
-// About dialog's Credits and License windows, the Icon Themes window, the dark-background setting, and links for the bare URLs in a text.
-// A plain script for <head>; the page calls buildMenuBar() and installTooltips() once its body exists.
+// homepage (homepage/template.html): DOM helpers, the menu bar with its menus, the popup menus of right clicks, the
+// one tooltip of the page, the About dialog's Credits and License windows, the Icon Themes window, the
+// dark-background setting, and links for the bare URLs in a text.
+// A plain script for <head>; the page calls buildMenuBar(), installContextMenus() and installTooltips() once its body exists.
 const $ = id => document.getElementById(id);
 
 function el(tag, props, ...children) {
@@ -70,20 +71,124 @@ function buildMenuBar(menus, iconBase = 'icons/') {
 }
 
 // --- Context menu ---------------------------------------------------------------------------------------
-// The same rows, at the pointer (a right click, or a long press on a phone), kept on screen; Escape or a
-// click elsewhere closes it. `items` as for the menu bar.
+// The same rows, at the pointer (a right click, or a long press on a phone), kept on screen; Escape, a click
+// elsewhere, a scroll or the window losing focus closes it. `items` as for the menu bar. A popover where the
+// browser has them, so that it shows above an open dialog, and put in the dialog the click was in (`host`): the
+// rest of the page is inert while a modal dialog is open. Pressing on it moves neither the focus nor the text
+// selection, which its rows act on.
 let contextMenu = null;
 function closeContextMenu() { if (contextMenu) { contextMenu.remove(); contextMenu = null; } }
-function openContextMenu(items, x, y, iconBase = 'icons/') {
+function openContextMenu(items, x, y, iconBase = 'icons/', host = document.body) {
   closeContextMenu();
   contextMenu = buildMenu(items, iconBase, closeContextMenu);
   contextMenu.classList.add('context-menu');
-  document.body.append(contextMenu);
+  contextMenu.addEventListener('mousedown', e => e.preventDefault());
+  if ('showPopover' in contextMenu) contextMenu.popover = 'manual';
+  host.append(contextMenu);
+  contextMenu.showPopover?.();
   contextMenu.style.left = Math.max(0, Math.min(x, innerWidth - contextMenu.offsetWidth - 4)) + 'px';
   contextMenu.style.top = Math.max(0, Math.min(y, innerHeight - contextMenu.offsetHeight - 4)) + 'px';
 }
 document.addEventListener('mousedown', e => { if (contextMenu && !e.target.closest('.context-menu')) closeContextMenu(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape') closeContextMenu(); });
+document.addEventListener('scroll', closeContextMenu, true);   // any scrolling box
+addEventListener('blur', closeContextMenu);
+addEventListener('resize', closeContextMenu);
+
+// --- Clipboard ------------------------------------------------------------------------------------------
+// navigator.clipboard only exists in secure contexts (https or localhost). Viewed over plain http from another
+// machine it is undefined: copying falls back to the old execCommand route (from a hidden text box in the dialog
+// that has the focus, the rest of the page being inert then), and nothing can read the clipboard.
+function copyToClipboard(text) {
+  if (navigator.clipboard) { navigator.clipboard.writeText(text); return; }
+  const focused = document.activeElement;
+  const box = el('textarea', { value: text, style: 'position:fixed;opacity:0' });
+  (focused?.closest('dialog') || document.body).append(box);
+  box.select();
+  document.execCommand('copy');
+  box.remove();
+  focused?.focus();
+}
+
+// --- Right clicks ---------------------------------------------------------------------------------------
+// The browser's own menu never shows; a right click gets what GTK 2 gives it instead:
+// - a text entry: Cut, Copy, Paste, Delete, Select All, GtkEntry's menu (GTK 2 has no Undo there; Ctrl+Z stays
+//   the browser's). Its edits go through execCommand where the browser still has it, so Ctrl+Z undoes them.
+//   Paste reads the clipboard, which only a secure context can (see Clipboard); the browser asks first
+//   (Firefox and Safari show a Paste button to confirm it, Chrome a permission prompt once). Elsewhere Paste is greyed.
+// - selected text under the pointer, or text of the page (its letters, or the box of the element whose own text it
+//   is, as a label takes the clicks over its whole area): the same rows as a GtkLabel has them, only Copy and
+//   Select All usable; Select All takes the block the text is in, as a label is selected whole.
+// - the page's own menus, `menus`: [[selector, node => items], ...], for what a selector matches.
+// - a link: Open Link, Copy Link Address, a GtkLabel link's menu.
+// - the window's frame, buttons, check boxes, combo boxes, images and empty space: nothing, as GTK has it.
+// Shift+right click keeps the browser's own menu (Inspect and the rest), as Firefox always does. A long press on a
+// phone keeps the browser's own text selection, but where the page has a menu of its own.
+const NO_MENU = 'button, label, summary, select, .titlebar, .menubar, .menu, .toolbar, header, .statusbar, .buttons, .panel, .llselect-root, .llselect-popup, .sbar, .tooltip';
+function editMenu({ cut, copy, paste, remove, selectAll }) {   // GTK's rows for text: an action left out is greyed
+  const row = (label, icon, run) => ({ label, icon: `Nome/actions/16/${icon}.svg`, disabled: !run, run });
+  return [row('Cu_t', 'edit-cut', cut), row('_Copy', 'edit-copy', copy), row('_Paste', 'edit-paste', paste),
+    row('_Delete', 'edit-delete', remove), null, row('Select _All', 'edit-select-all', selectAll)];
+}
+function entryMenu(entry) {
+  const { selectionStart: start, selectionEnd: end } = entry, picked = entry.value.slice(start, end);
+  const editable = !entry.readOnly && !entry.disabled;
+  const put = text => {   // `text` in place of the selection, as typing it would
+    entry.focus();
+    entry.setSelectionRange(start, end);
+    if (!document.execCommand(text ? 'insertText' : 'delete', false, text)) {
+      entry.setRangeText(text, start, end, 'end');
+      entry.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  };
+  return editMenu({
+    cut: editable && picked && (() => { copyToClipboard(picked); put(''); }),
+    copy: picked && (() => copyToClipboard(picked)),
+    paste: editable && navigator.clipboard?.readText && (() => navigator.clipboard.readText().then(text => text && put(text), () => {})),
+    remove: editable && picked && (() => put('')),
+    selectAll: entry.value && (() => { entry.focus(); entry.select(); }),
+  });
+}
+const inBox = (r, x, y) => x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+function textAt(x, y) {   // the text node whose letters are under the point, or null
+  const node = document.caretPositionFromPoint ? document.caretPositionFromPoint(x, y)?.offsetNode : document.caretRangeFromPoint?.(x, y)?.startContainer;
+  if (!node || node.nodeType !== Node.TEXT_NODE || !node.data.trim()) return null;
+  const range = document.createRange();
+  range.selectNodeContents(node);
+  return [...range.getClientRects()].some(r => inBox(r, x, y)) ? node : null;
+}
+function selectionAt(x, y) {   // the selected text, if the point is on it
+  const selection = getSelection();
+  if (!selection.rangeCount || selection.isCollapsed) return '';
+  return [...selection.getRangeAt(0).getClientRects()].some(r => inBox(r, x, y)) ? selection.toString() : '';
+}
+function textBlock(node) {   // the block a text is in: what Select All selects
+  let block = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+  while (block.parentElement && /^(inline|contents)/.test(getComputedStyle(block).display)) block = block.parentElement;
+  return block;
+}
+function installContextMenus(iconBase = 'icons/', menus = []) {
+  let touch = false;
+  document.addEventListener('pointerdown', e => { touch = e.pointerType === 'touch'; }, true);
+  document.addEventListener('contextmenu', e => {
+    if (e.shiftKey && e.button === 2) return;
+    const target = e.target instanceof Element ? e.target : e.target.parentElement;
+    const own = menus.find(([selector]) => target.closest(selector));
+    if (touch && !own) return;
+    e.preventDefault();
+    const show = items => openContextMenu(() => items, e.clientX, e.clientY, iconBase, target.closest('dialog[open]') || document.body);
+    const entry = target.closest('input, textarea');
+    if (entry) { if (entry.selectionStart !== null) show(entryMenu(entry)); return; }   // a check box has no text
+    if (target.closest(NO_MENU)) return;
+    const text = textAt(e.clientX, e.clientY) || [...target.childNodes].find(n => n.nodeType === Node.TEXT_NODE && n.data.trim());
+    const picked = selectionAt(e.clientX, e.clientY);
+    if (picked) return show(editMenu({ copy: () => copyToClipboard(picked), selectAll: () => getSelection().selectAllChildren(textBlock(text || target)) }));
+    if (own) return show(own[1](target.closest(own[0])));
+    const link = target.closest('a[href]');
+    if (link) return show([{ label: '_Open Link', run: () => link.click() }, { label: 'Copy _Link Address', run: () => copyToClipboard(link.href) }]);
+    if (text) show(editMenu({ selectAll: () => getSelection().selectAllChildren(textBlock(text)) }));
+  });
+}
 
 // --- About, Credits, License ---------------------------------------------------------------------------
 // GTK 2's GtkAboutDialog: the About window has Credits and License buttons at the left of its button row, each

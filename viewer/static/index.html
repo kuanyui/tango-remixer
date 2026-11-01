@@ -386,6 +386,7 @@ const UI_ICONS = {
   copied: 'Nome/emblems/16/emblem-default.svg',
   inkscape: 'InkscapeTango/actions/scalable/inkscape-logo.svg',
   web: 'Nome/apps/16/web-browser.svg',   // the static site's link to the file on GitHub
+  properties: 'Nome/actions/16/document-properties.svg',
 };
 let icons = [], folders = {}, themeInfo = {}, contextIcons = {}, allSizes = [], themeSel, contextSel, sizeSel, showAtSel, apiSel, selectedKey = null;
 let view = 'list';   // 'list' | 'grid'
@@ -688,21 +689,37 @@ function showDetail(icon, row, open = false) {
     el('div', { className: 'included' }, ...includedBox(icon)),
     scrollbox(el('div', { className: 'note aliases-note', title: 'Names of symlinks that point at this file. They only help searching here; included_icons.txt needs the real name above.' },
       icon.aliases.length ? `Aliases (search only, not usable in included_icons.txt): ${icon.aliases.join(', ')}` : 'No aliases'), 'aliases-box'),
-    // A file's row: a click anywhere on it (but on one of its buttons) selects it and opens the file's window.
-    scrollbox(el('div', { className: 'files' }, ...icon.sizes.map(s => el('div', { className: 'file', title: "The file's properties, in a window of their own.",
-        onclick: e => {
-          if (e.target.closest('button, a')) return;
-          e.currentTarget.parentElement.querySelector('.file.selected')?.classList.remove('selected');
-          e.currentTarget.classList.add('selected');
-          openFileWindow(icon, s);
-        } },
-      fileThumb(icon, s),
-      el('div', {},
-        el('div', {}, el('strong', {}, s.size), fileLicense(icon, s)),
-        el('code', {}, s.path),
-        ...fileButtons(icon, s))))), 'files-box'));
+    scrollbox(el('div', { className: 'files' }, ...icon.sizes.map(s => fileRow(icon, s))), 'files-box'));
   if (open && narrow() && !$('detail-window').open) $('detail-window').showModal();
   saveState();
+}
+// A file's row in the detail pane: a click anywhere on it (but on one of its buttons) selects it and opens the
+// file's window. A right click (a long press on a phone) gives its buttons' actions and Properties (fileMenu).
+const fileRowOf = new WeakMap();   // row -> { icon, s }
+function fileRow(icon, s) {
+  const row = el('div', { className: 'file', title: "The file's properties, in a window of their own.",
+      onclick: e => { if (!e.target.closest('button, a')) openFileRow(row); } },
+    fileThumb(icon, s),
+    el('div', {},
+      el('div', {}, el('strong', {}, s.size), fileLicense(icon, s)),
+      el('code', {}, s.path),
+      ...fileActions(icon, s).map(a => iconButton(a.icon, a.button, a.copy ? e => copyText(a.copy, e.currentTarget) : a.run, a.title))));
+  fileRowOf.set(row, { icon, s });
+  return row;
+}
+function openFileRow(row) {
+  row.parentElement.querySelector('.file.selected')?.classList.remove('selected');
+  row.classList.add('selected');
+  const { icon, s } = fileRowOf.get(row);
+  openFileWindow(icon, s);
+}
+function fileMenu(row) {
+  const { icon, s } = fileRowOf.get(row);
+  return [
+    ...fileActions(icon, s).map(a => ({ label: a.menu, icon: UI_ICONS[a.icon],
+      run: a.copy ? () => { copyText(a.copy); flashStatus(`Copied ${a.copy}`); } : a.run })),
+    null,
+    { label: '_Properties', icon: UI_ICONS.properties, run: () => openFileRow(row) }];
 }
 
 // On a phone the detail pane lives in a window of its own (#detail-window, a dialog as About is), opened by a
@@ -714,26 +731,28 @@ function placeDetail() {   // the pane moves in its scroll box
 }
 placeDetail();
 
-// The buttons under a file in the detail pane. Served by viewer/server.py, the file is on the machine running
-// it and can be opened there. On the static site (homepage/generate_static_site.py; GitHub or GitLab Pages) there
-// is no such machine: the one button opens the file in its source repository, at the exported commit. index.json
-// tells the two apart: the server gives each theme its `folder`, the export its `url`.
-function fileButtons(icon, s) {
+// What can be done with a file in the detail pane: the buttons under it (`button`, the label; `title`) and the
+// rows of its popup menu (`menu`). Each runs `run`, or copies `copy`. Served by viewer/server.py, the file is on
+// the machine running it and can be opened there. On the static site (homepage/generate_static_site.py; GitHub or
+// GitLab Pages) there is no such machine: the one action opens the file in its source repository, at the
+// exported commit. index.json tells the two apart: the server gives each theme its `folder`, the export its `url`.
+function fileActions(icon, s) {
   const url = themeInfo[icon.theme].url;
   if (url) {
     const host = url.includes('gitlab') ? 'GitLab' : 'GitHub';
-    return [iconButton('web', `View on ${host}`, () => window.open(`${url}/${s.path}`, '_blank', 'noopener'),
-      `Open this source SVG on ${host}, in a new tab. For a Blue* theme: the base theme's file, before the hue shift.`)];
+    return [{ icon: 'web', button: `View on ${host}`, menu: `_View on ${host}`, run: () => window.open(`${url}/${s.path}`, '_blank', 'noopener'),
+      title: `Open this source SVG on ${host}, in a new tab. For a Blue* theme: the base theme's file, before the hue shift.` }];
   }
+  const open = action => () => openPath(icon.theme, s.path, action);
   return [
-    iconButton('reveal', 'Show in file manager', () => openPath(icon.theme, s.path, 'reveal'),
-      'Select this source file in the file manager of the machine running the viewer.'),
-    iconButton('dir', 'Open folder', () => openPath(icon.theme, s.path, 'dir'),
-      'Open the folder containing this source file, on the machine running the viewer.'),
-    iconButton('inkscape', 'Open with Inkscape', () => openPath(icon.theme, s.path, 'inkscape'),
-      'Open this source SVG in Inkscape, on the machine running the viewer.'),
-    iconButton('copy', 'Copy full path', e => copyText(`${folders[icon.theme]}/${s.path}`, e.currentTarget),
-      'Copy the absolute path of this source SVG on the machine running the viewer.')];
+    { icon: 'reveal', button: 'Show in file manager', menu: '_Show in File Manager', run: open('reveal'),
+      title: 'Select this source file in the file manager of the machine running the viewer.' },
+    { icon: 'dir', button: 'Open folder', menu: 'Open _Folder', run: open('dir'),
+      title: 'Open the folder containing this source file, on the machine running the viewer.' },
+    { icon: 'inkscape', button: 'Open with Inkscape', menu: 'Open with _Inkscape', run: open('inkscape'),
+      title: 'Open this source SVG in Inkscape, on the machine running the viewer.' },
+    { icon: 'copy', button: 'Copy full path', menu: '_Copy Full Path', copy: `${folders[icon.theme]}/${s.path}`,
+      title: 'Copy the absolute path of this source SVG on the machine running the viewer.' }];
 }
 
 // --- A file's details ----------------------------------------------------------------------------------
@@ -875,18 +894,9 @@ async function showFileTip(thumb) {
   const r = thumb.getBoundingClientRect();
   placeTip(r.left - tip.offsetWidth - 8 >= 0 ? r.left - tip.offsetWidth - 8 : r.right + 8, r.top);
 }
-// navigator.clipboard only exists in secure contexts (https or localhost). Viewed over plain
-// http from another machine it is undefined, so fall back to the old execCommand route.
+// Copy (copyToClipboard in window.js), and say so on the button for a while.
 function copyText(text, button) {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text);
-  } else {
-    const ta = el('textarea', { value: text, style: 'position:fixed;opacity:0' });
-    document.body.append(ta);
-    ta.select();
-    document.execCommand('copy');
-    ta.remove();
-  }
+  copyToClipboard(text);
   if (!button) return;   // the context menu: the status bar says so instead
   const original = [...button.childNodes];
   button.replaceChildren(...buttonContent('copied', 'Copied'));
@@ -976,17 +986,16 @@ $('q').addEventListener('keydown', e => { if (e.key === 'Escape') { $('q').value
 let scrollTimer;
 $('list').addEventListener('scroll', () => { clearTimeout(scrollTimer); scrollTimer = setTimeout(saveState, 100); });
 // A right click (a long press on a phone) on a row or a cell: a popup menu to copy the icon's name, or to
-// search for it, which shows the same name in every theme that has it.
-$('list').addEventListener('contextmenu', e => {
-  const node = e.target.closest('.row, .cell');
-  if (!node) return;
-  e.preventDefault();
+// search for it, which shows the same name in every theme that has it. On a file of the detail pane: fileMenu.
+// Everywhere else window.js decides, as GTK would (text, links, entries, nothing).
+function iconMenu(node) {
   const icon = icons.find(i => keyOf(i) === node.dataset.key);
-  openContextMenu(() => [
+  return [
     { label: '_Copy Icon Name', icon: UI_ICONS.copy, run: () => { copyText(icon.name); flashStatus(`Copied ${icon.name}`); } },
     { label: '_Search Icon Name', icon: UI_ICONS.find, run: () => searchName(icon.name) },
-  ], e.clientX, e.clientY);
-});
+  ];
+}
+installContextMenus('icons/', [['#list .row, #list .cell', iconMenu], ['#detail .file', fileMenu]]);
 // Put a name in the search box: the list then shows that name in every theme that has it.
 function searchName(name) { $('q').value = name; render(); }
 // A short notice in the status bar, then the status text again.
