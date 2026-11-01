@@ -264,6 +264,7 @@ def init_built_in_icon_themes() -> List[RawIconTheme]:
     repo_gimp_default   : Path = root / "submodules" / "floss-icon-collections" / "GimpDefault"
     repo_gimp_legacy    : Path = root / "submodules" / "floss-icon-collections" / "GimpLegacy"
     repo_inkscape_tango : Path = root / "submodules" / "floss-icon-collections" / "InkscapeTango"
+    repo_lo_elementary  : Path = root / "submodules" / "floss-icon-collections" / "LibreOfficeElementary"
     return [
         RawIconTheme(
             copied_dst_theme_name="Tango",
@@ -318,7 +319,15 @@ def init_built_in_icon_themes() -> List[RawIconTheme]:
             authors=[ repo_inkscape_tango / "AUTHORS" ],
             licenses=[ repo_inkscape_tango / "COPYING" ],
             urls=[ "https://gitlab.com/inkscape/inkscape/-/tree/master/share/icons?ref_type=heads" ],
-        )
+        ),
+        RawIconTheme(
+            copied_dst_theme_name="LibreOfficeElementary",
+            copied_src_theme_folder=repo_lo_elementary,
+            # Made by `upstream/LibreOffice/sync.py` of floss-icon-collections from the files of LibreOffice.
+            authors=[ repo_lo_elementary / "Copyrights" ],
+            licenses=[ repo_lo_elementary / "LICENSE.GPL", repo_lo_elementary / "Copyrights" ],
+            urls=[ "https://github.com/LibreOffice/core/tree/master/icon-themes/elementary_svg" ],
+        ),
     ]
 
 BUILT_IN_RAW_ICON_THEMES_PATH: List[RawIconTheme] = init_built_in_icon_themes()
@@ -336,7 +345,7 @@ class BUILD_FOLDERS:
     FOLDER_00_ORIGINAL_THEMES_ROOT = FOLDER_ROOT / "00_ORIGINAL_THEMES"
     '''`00` Copy all icon themes folders here.
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
-    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango", "LibreOfficeElementary")
 
     Folder structures can be:
     - `<context>/<size>` (convension since CVS/SVN era)
@@ -346,7 +355,7 @@ class BUILD_FOLDERS:
     FOLDER_01_NO_SYMLINK_THEMES_ROOT = FOLDER_ROOT / "01_NO_SYMLINK_THEMES"
     '''`01` Delete all symlinks in this folder for simplifying and portability (Non-UNIX systems have no symlink support).
     Contains "Tango", "Nome", "Humanity", "Humanity-Dark"
-    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango", "LibreOfficeElementary")
 
     - Folder structures (of each theme) can be:
         - `<context>/<size>` (convension since CVS/SVN era)
@@ -359,11 +368,11 @@ class BUILD_FOLDERS:
       - `Nome`           ->  `BlueNome`           (via `nome_colorizer`)
       - `Humanity`       ->  `BlueHumanity`       (via `humanity_colorizer`)
       - `Humanity-Dark`  ->  `BlueHumanity-Dark`  (via `humanity_colorizer`)
-    Tango / GimpDefault / GimpLegacy / InkscapeTango are passed through as-is
+    Tango / GimpDefault / GimpLegacy / InkscapeTango / LibreOfficeElementary are passed through as-is
     (no Blue variant). The original input themes are always also copied through.
 
     Contains "Tango", "Nome", "BlueNome", "Humanity", "Humanity-Dark", "BlueHumanity", "BlueHumanity-Dark",
-    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango")
+    (Plus "GimpDefault", "GimpLegacy", "InkscapeTango", "LibreOfficeElementary")
 
     - Folder structures (of each theme) can be:
         - `<context>/<size>` (convension since CVS/SVN era)

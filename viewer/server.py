@@ -123,6 +123,7 @@ _THEME_TABLE: List[Tuple[str, str, Optional[Colorizer], str, str, str, str, bool
     ("BlueHumanity",      "Humanity",      _live_colorizer("humanity_colorize_svg_content"), _FULL,  "places/48/folder.svg",                 _HUMANITY_LICENSE,         f"Humanity {_BLUE}", False),
     ("Humanity-Dark",     "Humanity-Dark", None,                          _FULL,  _PANEL_GLYPH,                           _HUMANITY_LICENSE,         "Humanity's light glyphs for dark panels", True),
     ("BlueHumanity-Dark", "Humanity-Dark", _live_colorizer("humanity_colorize_svg_content"), _FULL,  _PANEL_GLYPH,                           _HUMANITY_LICENSE,         f"Humanity-Dark {_BLUE}", True),
+    ("LibreOfficeElementary", "LibreOfficeElementary", None,              _FLOSS, "actions/48/mainapp.svg",               "GPL v3",                  "LibreOffice's Elementary icons, named after LibreOffice's own names", False),
     ("GimpLegacy",        "GimpLegacy",    None,                          _FLOSS, "actions/scalable/gimp-wilber.svg",     "GPL v3+",                 "GIMP's legacy colour icons", False),
     ("GimpDefault",       "GimpDefault",   None,                          _FLOSS, "actions/scalable/gimp-wilber-eek.svg", "CC BY-SA 3.0",            "GIMP's current default icons", False),
     ("InkscapeTango",     "InkscapeTango", None,                          _FLOSS, "actions/scalable/inkscape-logo.svg",   "GPL v2",                  "Inkscape's Tango-style icons, removed upstream in 2025", False),

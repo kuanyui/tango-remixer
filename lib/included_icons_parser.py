@@ -200,6 +200,7 @@ BUILT_IN_ICON_THEMES: Final[List[str]] = [
     "GimpDefault",
     "GimpLegacy",
     "InkscapeTango",
+    "LibreOfficeElementary",
 ]
 
 

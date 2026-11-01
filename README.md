@@ -180,6 +180,7 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
     - GIMP: `GimpLegacy` (GPL v3+, licensed the same as GIMP application core)
     - GIMP: `GimpDefault` (CC by-sa 3.0)
     - Inkscape: `InkscapeTango` (GPL v2)
+    - LibreOffice: `LibreOfficeElementary` (GPL v3)
 
 
 # Built-in Icon Themes and Licenses
@@ -199,16 +200,17 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 > ### Exceptions
 > - **Even though the icon theme pack itself has license, but the license of a few icons may be differ from icon theme pack itself. In case of any discrepancy, the SPDX tag and license metadata inside the individual SVG file shall prevail.**
 
-| Theme ID        | Forked Source | License                                                        | Description                                                                                                                 |
-|-----------------|---------------|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
-| `Tango`         | Tango         | `GPL v2` or `GPL v3`                                           | Tango Icons from Freedesktop.org, See [tango-icon-theme](https://github.com/kuanyui/tango-icon-theme)                       |
-| `Nome`          | GNOME         | `LGPL v3` or `CC by-sa 3.0`                                    | See [nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)                                                           |
-| `BlueNome`      | GNOME         | `LGPL v3` or `CC by-sa 3.0`                                    | (⇧ Same with `Nome`, but with adjusted hue by Python script in this project)                                                |
-| `Humanity`      | Ubuntu        | Depends (some icons are `GPL`, while some are `Public Domain`) | The license declaration is ambigious, please judge according to the descriptions in its `COPYING` file                      |
-| `BlueHumanity`  | Ubuntu        | Depends (some icons are `GPL`, while some are `Public Domain`) | (⇧ Same with `Humanity`, but with adjusted hue by Python script in this project)                                            |
-| `GimpLegacy`    | GIMP          | `GPL v3+`                                                      |                                                                                                                             |
-| `GimpDefault`   | GIMP          | `CC by-sa 3.0`                                                 | This license is actually somewhat unreasonable, because **the compatibility between `GPL` and `CC by-sa`is controversial**. |
-| `InkscapeTango` | Inkscape      | `GPL v2`                                                       |                                                                                                                             |
+| Theme ID                | Forked Source | License                                                        | Description                                                                                                                                   |
+|-------------------------|---------------|----------------------------------------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------|
+| `Tango`                 | Tango         | `GPL v2` or `GPL v3`                                           | Tango Icons from Freedesktop.org, See [tango-icon-theme](https://github.com/kuanyui/tango-icon-theme)                                         |
+| `Nome`                  | GNOME         | `LGPL v3` or `CC by-sa 3.0`                                    | See [nome-icon-theme](https://github.com/kuanyui/nome-icon-theme)                                                                             |
+| `BlueNome`              | GNOME         | `LGPL v3` or `CC by-sa 3.0`                                    | (⇧ Same with `Nome`, but with adjusted hue by Python script in this project)                                                                  |
+| `Humanity`              | Ubuntu        | Depends (some icons are `GPL`, while some are `Public Domain`) | The license declaration is ambigious, please judge according to the descriptions in its `COPYING` file                                        |
+| `BlueHumanity`          | Ubuntu        | Depends (some icons are `GPL`, while some are `Public Domain`) | (⇧ Same with `Humanity`, but with adjusted hue by Python script in this project)                                                              |
+| `GimpLegacy`            | GIMP          | `GPL v3+`                                                      |                                                                                                                                               |
+| `GimpDefault`           | GIMP          | `CC by-sa 3.0`                                                 | This license is actually somewhat unreasonable, because **the compatibility between `GPL` and `CC by-sa`is controversial**.                   |
+| `InkscapeTango`         | Inkscape      | `GPL v2`                                                       |                                                                                                                                               |
+| `LibreOfficeElementary` | LibreOffice   | `GPL v3` (some icons: `LGPL`)                                  | Names come from LibreOffice: `open`, `insert-annotation`... Rename them in `included_icons.txt` for the standard names (e.g. `document-open`) |
 
 # `included_icons.txt` Reference
 
