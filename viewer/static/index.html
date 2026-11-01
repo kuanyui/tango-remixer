@@ -139,11 +139,12 @@
     .client { grid-template-rows: 1fr; grid-template-columns: 330px 1fr 440px; }
     #list-box { grid-column: 2; grid-row: 1; padding-left: 3px; }   /* off the sidebar's line */
     #detail-box { grid-column: 3; grid-row: 1; }
-    /* Sidebar: search, Reset and Dark stay put; below them the height is split in two halves,
-       Themes on top, Contexts and Sizes side by side underneath, each half scrolling on its own. */
+    /* Sidebar: search, Reset and Dark stay put; below them Themes on top, Contexts and Sizes side by side
+       underneath, each scrolling on its own. Contexts and Sizes take what they need, up to 340 px;
+       Themes takes the rest, as the list that grows the most. */
     header { grid-column: 1; grid-row: 1; display: grid; grid-template-columns: 1fr 1fr; align-items: start;
              padding: 10px; gap: 10px;   /* one spacing everywhere: window edge to block, block to block, both directions */
-             grid-template-rows: auto auto minmax(0, 1fr) minmax(0, 1fr); overflow: hidden;
+             grid-template-rows: auto auto minmax(0, 1fr) fit-content(340px); overflow: hidden;
              border-bottom: none; border-right: 1px solid var(--line); }
     header .entry { grid-area: 1 / 1 / 2 / 3; max-width: none; width: calc(100% - 45px); }   /* the row, but for the regexp toggle */
     #re-toggle { grid-area: 1 / 1 / 2 / 3; justify-self: end; align-self: center; }   /* beside the search box, at the row's end */
