@@ -20,6 +20,8 @@ PNG-conversion assertions are skipped when Inkscape is not on PATH.
 
 import asyncio
 import configparser
+import csv
+import json
 import re
 import shutil
 import struct
@@ -302,6 +304,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             qrc_files,
             {
                 "index.theme",
+                "licenses.json",
                 "16x16/actions/dialog-cancel.svg",
                 "22x22/actions/dialog-cancel.svg",
                 "16x16/actions/system-log-out.svg",
@@ -316,6 +319,25 @@ class TestEndToEndPipeline(unittest.TestCase):
         qrc_root = ET.parse(svg_index_qrc).getroot()
         prefixes: set[str] = {qr.get("prefix", "") for qr in qrc_root.findall("qresource")}
         self.assertEqual(prefixes, {"/xdg_icon_themes/TestTango"})
+
+        # ---- licenses.json / licenses.csv: Tango's license, no exceptions --
+        report = json.loads((self.svg_out / "licenses.json").read_text(encoding="utf-8"))
+        self.assertEqual(report["theme"], "TestTango")
+        self.assertEqual(report["licenses"], ["GPL-2.0-only OR GPL-3.0-only"])
+        self.assertEqual(report["sources"], [{
+            "theme": "Tango", "base": None, "license": "GPL-2.0-only OR GPL-3.0-only",
+            "url": "https://github.com/kuanyui/tango-icon-theme", "icon_count": 4, "exceptions": [],
+        }])
+        rows = list(csv.DictReader((self.svg_out / "licenses.csv").open(encoding="utf-8")))
+        self.assertEqual(
+            [(r["icon"], r["theme"], r["source"], r["source_sizes"], r["license"], r["exception"]) for r in rows],
+            [
+                ("actions/dialog-cancel", "Tango", "actions/dialog-cancel", "16 22", "GPL-2.0-only OR GPL-3.0-only", ""),
+                ("actions/system-log-out", "Tango", "actions/system-log-out", "16 32", "GPL-2.0-only OR GPL-3.0-only", ""),
+                ("actions/go-up", "Tango", "actions/go-up", "16", "GPL-2.0-only OR GPL-3.0-only", ""),
+                ("actions/go-down", "Tango", "actions/go-down", "16", "GPL-2.0-only OR GPL-3.0-only", ""),
+            ],
+        )
 
         # ---- PNG output (skip cleanly if Inkscape missing) --------------
         if not inkscape_available:
@@ -376,6 +398,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             png_qrc_files,
             {
                 "index.theme",
+                "licenses.json",
                 # @1x
                 "16x16/actions/dialog-cancel.png",
                 "22x22/actions/dialog-cancel.png",
@@ -418,11 +441,16 @@ class TestEndToEndPipeline(unittest.TestCase):
         for size in ("16x16", "22x22", "32x32", "48x48"):
             self._assert_svg(svg_theme / size / "actions" / "dialog-cancel.svg")
             self._assert_svg(svg_theme / size / "actions" / "logout.svg")
+        # licenses.csv names the renamed icon by its new name, and where it comes from
+        rows = list(csv.DictReader((svg_theme / "licenses.csv").open(encoding="utf-8")))
+        self.assertEqual([(r["icon"], r["source"]) for r in rows],
+                         [("actions/dialog-cancel", "actions/dialog-cancel"), ("actions/logout", "actions/system-log-out")])
 
         self.assertEqual(
             set(self._qrc_file_entries(svg_theme / "index.qrc")),
             {
                 "index.theme",
+                "licenses.json",
                 "16x16/actions/dialog-cancel.svg",
                 "22x22/actions/dialog-cancel.svg",
                 "32x32/actions/dialog-cancel.svg",
@@ -456,6 +484,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             set(self._qrc_file_entries(svg_theme / "index.qrc")),
             {
                 "index.theme",
+                "licenses.json",
                 "16x16/actions/dialog-cancel.svg",
                 "22x22/actions/dialog-cancel.svg",
                 "16x16/actions/system-log-out.svg",
@@ -502,6 +531,58 @@ class TestEndToEndPipeline(unittest.TestCase):
         self.assertIn('Icon "dialog-cancel" of Tango', message)
         self.assertIn("['16', '22', '32', '48']", message)
         self.assertIn("['64'] by --input-svg-sizes", message)
+
+    def _build_again(self, included_text: str) -> bool:
+        """Run every step on `included_text` without cleaning `dist/` first, as a project's build does when its
+        included_icons.txt changes. Return whether Inkscape was there to make the PNG theme."""
+        self._fresh_options.clean_before_build = False
+        self._fresh_options.included_icon_file.write_text(included_text, encoding="utf-8")
+        run_00_copy_icon_themes()
+        run_01_no_symlink_themes()
+        run_02_colorize_themes()
+        run_03_copy_included_icons()
+        run_04_convert_svg_to_xdg_hicolor_theme_dir_structure()
+        inkscape_available: bool = SvgToPngConverter.check_inkscape_exists()
+        if inkscape_available:
+            asyncio.run(run_05_convert_svg_to_png())
+        run_extra_copy()
+        return inkscape_available
+
+    def test_rebuild_removes_an_icon_that_moved_to_another_context(self) -> None:
+        """An output name first taken from an `apps` icon, then from an `actions` one: only the new file is left,
+        in every build folder and output folder, and index.qrc lists only it."""
+        self._build_again("Tango    apps/help-browser    comment    {16}\n")
+        self.assertTrue((self.svg_out / "16x16" / "apps" / "comment.svg").is_file())
+        inkscape_available: bool = self._build_again("Tango    actions/go-up    comment    {16}\n")
+
+        go_up: bytes = (_TANGO_SUBMODULE / "16x16" / "actions" / "go-up.svg").read_bytes()
+        self.assertEqual((self.svg_out / "16x16" / "actions" / "comment.svg").read_bytes(), go_up)
+        outputs: list[Path] = [BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS, BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME, self.svg_out]
+        if inkscape_available:
+            outputs += [BUILD_FOLDERS.FOLDER_05_XDG_PNG_THEME, self.png_out]
+        for folder in outputs:
+            self.assertEqual([p for p in folder.rglob("comment.*") if "apps" in p.parts], [], f"left in {folder}")
+        self.assertEqual(sorted(self._qrc_file_entries(self.svg_out / "index.qrc")),
+                         ["16x16/actions/comment.svg", "index.theme", "licenses.json"])
+        if inkscape_available:
+            self.assertEqual(sorted(self._qrc_file_entries(self.png_out / "index.qrc")),
+                             ["16x16/actions/comment.png", "16x16@2/actions/comment.png", "index.theme", "licenses.json"])
+
+    def test_rebuild_converts_the_png_again_when_the_new_source_is_older(self) -> None:
+        """The same output file from another source: the source SVG is older than the PNG of the first build,
+        but the PNG is still converted again."""
+        if not SvgToPngConverter.check_inkscape_exists():
+            self.skipTest("Inkscape not on PATH")
+        png: Path = self.png_out / "16x16" / "actions" / "comment.png"
+        self._build_again("Tango    actions/go-up      comment    {16}\n")
+        go_up_png: bytes = png.read_bytes()
+        self.assertLess((_TANGO_SUBMODULE / "16x16" / "actions" / "go-down.svg").stat().st_mtime, png.stat().st_mtime)
+        self._build_again("Tango    actions/go-down    comment    {16}\n")
+
+        go_down: bytes = (_TANGO_SUBMODULE / "16x16" / "actions" / "go-down.svg").read_bytes()
+        self.assertEqual((self.svg_out / "16x16" / "actions" / "comment.svg").read_bytes(), go_down)
+        self._assert_png(png)
+        self.assertNotEqual(png.read_bytes(), go_up_png)
 
     def test_full_pipeline_with_extra_icon_theme_from_system_hicolor(self) -> None:
         """`--extra-icon-theme` against a real external XDG-structured theme.

@@ -212,6 +212,13 @@ This project relys on Ubuntu Humanity, and `./build_icons.py` will automatically
 | `InkscapeTango`         | Inkscape      | `GPL v2`                                                       |                                                                                                                                               |
 | `LibreOfficeElementary` | LibreOffice   | `GPL v3` (some icons: `LGPL`)                                  | Names come from LibreOffice: `open`, `insert-annotation`... Rename them in `included_icons.txt` for the standard names (e.g. `document-open`) |
 
+> [!TIP]
+> Tango Remixer's `build_icons.py` will collect the licenses of the icons you picked in `included_icons.txt` into formalized JSON / CSV file, which can be used in your application (e.g. in About dialog):
+>
+> - `licenses.json` (also listed in `index.qrc`): each source theme with its license, and the icons whose own `SPDX-License-Identifier` differs from it.
+> - `licenses.csv`: every icon with its source and license.
+
+
 # `included_icons.txt` Reference
 
 ## Introduction

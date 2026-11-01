@@ -12,6 +12,7 @@ import os
 import re
 import sys
 import asyncio
+import filecmp
 import shutil
 from pathlib import Path
 from dataclasses import dataclass, asdict, field
@@ -21,7 +22,7 @@ import textwrap
 # from lxml.etree import _Element, _ElementTree
 from xml.etree import ElementTree as ET
 from pprint import pprint
-from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple, Optional, cast
+from typing import List, Literal, TypeGuard, get_args, Dict, Final, Coroutine, Callable, Tuple, Optional, Set, cast
 # import cProfile
 # import pstats
 import argparse
@@ -31,6 +32,7 @@ import enum
 from warnings import deprecated
 from lib.color_converter import *
 from lib.included_icons_parser import *
+from lib.icon_licenses import BASE_THEMES, IconFile, IconLicense, icon_licenses, write_license_files
 # from lib.download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
 IconThemeFolderName = str
@@ -109,6 +111,7 @@ Example:
 <RCC version="1.0">
   <qresource prefix="/xdg_icon_themes/Humanity">
     <file>index.theme</file>
+    <file>license.json</file>
   </qresource>
   <qresource prefix="/xdg_icon_themes/Humanity">
     <file alias="apps/16/gtk-info.svg">actions/16/gtk-info.svg</file>
@@ -140,7 +143,7 @@ class QrcCreator():
         self.scaled_qresource_dict: Dict[IconScaleType, QrcQresource] = {}
         """A dictionary to store the list of QrcQresourceFile for each scale factor.
         This cause the outputted .qrc XML file to be more readable. (Each scale factor has its own <qresource> tag.)"""
-        # Add the first <qresource> tag for the only index.theme file.
+        # Add the first <qresource> tag for index.theme and the other non-icon files (see `add_non_icon_file()`).
         resource_for_index_theme = QrcQresource(
             prefix=f"{OPTIONS.qrc_qresource_prefix}{theme_name}",
             files=[QrcQresourceFile(alias="index.theme", file="index.theme")]
@@ -153,11 +156,14 @@ class QrcCreator():
             self.scaled_qresource_dict[scale] = resource
 
 
-    def add_file(self, context: IconContextType, size: IconSizeType, scale: IconScaleType, icon_filename: str) -> None:
+    def add_icon_file(self, context: IconContextType, size: IconSizeType, scale: IconScaleType, icon_filename: str) -> None:
         rel_file_path = f'{get_xdg_size_folder_name(size, scale)}/{context}/{icon_filename}'   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
         file = QrcQresourceFile(file=rel_file_path, alias="")
         self.scaled_qresource_dict[scale].files.append(file)
 
+    def add_non_icon_file(self, file_name: str) -> None:
+        '''A file that is not an icon, at the theme's root beside index.theme (e.g. `licenses.json`).'''
+        self.root.resources[0].files.append(QrcQresourceFile(alias=file_name, file=file_name))
 
     def write_qrc_file(self, output_file_path: Path):
         xml_root = ET.Element("RCC")
@@ -271,7 +277,7 @@ def init_built_in_icon_themes() -> List[RawIconTheme]:
             copied_src_theme_folder=repo_tango,
             authors=[ repo_tango / "AUTHORS" ],
             licenses=[ repo_tango / "COPYING", ],
-            urls=[ "https://github.com/kuanyui/tango-icon-theme-fork" ],
+            urls=[ "https://github.com/kuanyui/tango-icon-theme" ],
         ),
         RawIconTheme(
             copied_dst_theme_name="Nome",
@@ -381,9 +387,9 @@ class BUILD_FOLDERS:
     FOLDER_03_INCLUDED_SVG_ICONS = FOLDER_ROOT / "03_INCLUDED_SVG_ICONS"
     '''`03` Parse `included_icons.txt` to pick necessary SVG source files.
 
-    1. Aggregate and copy the included icons from multiple themes' folders, according to the specified **"icon name + icon size matrix"** (See option `--included-icon-file`).
-    2. Merge into the single `<output_theme_name>/` folder.
-
+    1. Clear the files in folder `<output_theme_name>/`.
+    2. Aggregate and copy the included icons from multiple themes' folders, according to the specified **"icon name + icon size matrix"** (See option `--included-icon-file`),
+       into `<output_theme_name>/` folder. (so it contains only the picked icons.)
 
     - **Folder structure (of the merged theme): will be formalized** to `<context>/<size>` (convension since CVS/SVN era)
 
@@ -396,23 +402,31 @@ class BUILD_FOLDERS:
 
 
     FOLDER_04_XDG_SVG_THEME = FOLDER_ROOT / "04_XDG_SVG_THEME"
-    '''`04` Convert the (CVS/SVN convension) folder structure into XDG folder structure, then generate index.theme and index.qrc.
+    '''`04` Convert the (CVS/SVN convension) folder structure into XDG folder structure, then generate index.theme, index.qrc,
+    and licenses.json + licenses.csv (the icons' licenses, see `lib/icon_licenses.py`; the JSON is in index.qrc too).
 
     - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>` (note: `hicolor` use `<size>x<size>` instead of `<size>`), but `<scale>` is ignore (because this is SVG)
 
     - Size matrix: icons will be **arbitrarily copied** from source folders to destination folders, according to the specified input-sizes and output-sizes.
                  - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will copy `16/` SVG to the `16x16/`, `24x24/`, `32x32/` three output folders)**
 
+    - If an SVG was copied before, but this build no longer needs it, this SVG will be deleted.
+    - If the "content" of the SVG  (in previous folder `03`) is not changed, it will not be copied to this `04` again.
+      (So its mtime is not changed, and `05` will not convert it to PNG again.)
+
     This is already a XDG-compatible icon theme folder.
     '''
 
     FOLDER_05_XDG_PNG_THEME = FOLDER_ROOT / "05_XDG_PNG_THEME"
-    '''`05` Convert SVG files to this folder, generate index.theme and index.qrc
+    '''`05` Convert SVG files to this folder, generate index.theme, index.qrc, licenses.json and licenses.csv
 
     - Folder structure: XDG standard's `hicolor` format `<size>x<size>/<context>` (scale == 1) or `<size>x<size>@<scale>/<context>` (scale >= 2)
 
     - Size matrix: icons will be **rasterized** from source folders to destination folders, according to the specified input-sizes and output-sizes.
                  - **Duplicated input size of the same icon is possible. (ex: `{16>16;16>24;16>32}` will rasterize `16` SVG to PNG into the `16x16/`, `24x24/`, `32x32/` three folders)**
+
+    - A PNG newer than its SVG is not converted again.
+    - If a PNG was converted before, but is not included in the current `included_icons.txt` this time, this PNG will be deleted.
 
     This is already a XDG-compatible icon theme folder.
     '''
@@ -641,6 +655,8 @@ OPTIMIZE: Note that checking the mtime of each SVG files is still somewhat slow,
             required=False,
             help="""After build finished, additionally copy the built XDG-compatible SVG icon theme pack folder (`dist/03_FINAL_SVG_THEME/{THEME_NAME}/`) as another speficied folder path.
 
+Files in that folder which the built theme doesn't have (e.g. left from an earlier build) are removed.
+
 Be careful, don't use the same folder as `--output-png-theme-to-dir` or its result may be against your expectation."""
         )
 
@@ -649,6 +665,8 @@ Be careful, don't use the same folder as `--output-png-theme-to-dir` or its resu
             type=Path,
             required=False,
             help="""After build finished, additionally copy the built XDG-compatible PNG icon theme pack folder (`dist/04_FINAL_PNG_THEME/{THEME_NAME}/`) as another speficied folder path.
+
+Files in that folder which the built theme doesn't have (e.g. left from an earlier build) are removed.
 
 Be careful, don't use the same folder as `--output-svg-theme-to-dir` or its result may be against your expectation."""
         )
@@ -1130,6 +1148,29 @@ def sync_tree(src: Path, dst: Path, symlinks: bool = True) -> None:
                 dst_path.unlink()
 
 
+def copy_if_changed(src: Path, dst: Path) -> None:
+    """
+    - Copy `src` to `dst`
+      - If `dst` is not existed, copy direcly.
+      - If `dst` is existed, and `dst` is
+      - Don't compare mtime here.
+    - After copying, the mtime of `dst` will become the current time (instead of copy the mtime of `src`)."""
+    if dst.is_file() and filecmp.cmp(src, dst, shallow=False):
+        return
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(src, dst)
+
+
+def delete_files_in_folder_then_prune_empty_folders(folder: Path, *, except_for: Set[Path]) -> None:
+    """ Delete every file under `folder` that is not in `except_for`, then delete all empty folders under it (but the `folder` itself is kept)."""
+    for path in sorted(folder.rglob("*"), reverse=True):   # a folder's files come before the folder
+        if path.is_dir() and not path.is_symlink():
+            if not any(path.iterdir()):
+                path.rmdir()
+        elif path not in except_for:
+            path.unlink()
+
+
 def run_00_copy_icon_themes():
     print("00_ORIGINAL_THEMES")
     if OPTIONS.clean_before_build:
@@ -1190,15 +1231,19 @@ def run_02_colorize_themes():
                 copy_svg_file(src_svg_file_path, dst_tango_svg_file_path, "humanity_colorizer")
 
 
+NON_ICON_FILE_NAMES: Final[Tuple[str, ...]] = ("index.qrc", "index.theme", "licenses.json", "licenses.csv")
 
 def run_03_copy_included_icons():
     print("03_INCLUDED_SVG_ICONS")
     this_theme_folder = BUILD_FOLDERS.FOLDER_03_INCLUDED_SVG_ICONS / OPTIONS.output_theme_name
+    # Start empty: run_04 finds icons here by name, so a file left from an earlier build would be picked again.
+    shutil.rmtree(this_theme_folder, ignore_errors=True)
     this_theme_folder.mkdir(parents=True, exist_ok=True)
     # Initialize icon searcher for colorized themes folder.
     src_icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
-    global PARSED_INCLUDED_ICONS_TXT_LINES
+    global PARSED_INCLUDED_ICONS_TXT_LINES, PICKED_ICON_LICENSES
     PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(src_icon_searcher, OPTIONS.included_icon_file, OPTIONS.included_icons_text)
+    picked_files: List[IconFile] = []
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
@@ -1227,6 +1272,32 @@ def run_03_copy_included_icons():
             icon_dst_file_path: Path = this_theme_folder / dst_context / src_icon.size / dst_file_name   # SVN / CVS convension
             icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
+            picked_files.append(IconFile(
+                theme=pline.src_theme,
+                source=f"{src_icon.context}/{src_icon.icon_name}",
+                context=dst_context,
+                name=format_icon_name(pline.dst_icon_name, 'noext'),
+                size=src_icon.size,
+                path=src_icon.src_file_path_resolved,
+            ))
+    PICKED_ICON_LICENSES = icon_licenses(picked_files)
+
+PICKED_ICON_LICENSES: List[IconLicense] = []
+"""The licenses of the icons run_03 picked: run_04 and run_05 write them beside index.theme."""
+
+def theme_urls() -> Dict[str, str]:
+    """Website URL of theme.
+    Returns:
+        Dict[Theme, URL]
+    """
+    urls: Dict[str, str] = {t.copied_dst_theme_name: t.urls[0] for t in BUILT_IN_RAW_ICON_THEMES_PATH if t.urls}
+    urls.update({colorized: urls[base] for colorized, base in BASE_THEMES.items() if base in urls})
+    return urls
+
+def write_theme_license_files(theme_folder: Path, qrc: QrcCreator) -> None:
+    """licenses.json and licenses.csv; the JSON goes into index.qrc too."""
+    write_license_files(theme_folder, OPTIONS.output_theme_name, PICKED_ICON_LICENSES, theme_urls())
+    qrc.add_non_icon_file("licenses.json")
 
 def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
     print("04_XDG_SVG_THEME")
@@ -1237,6 +1308,7 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
 
     qrc = QrcCreator(OPTIONS.output_theme_name)
     index_theme = IndexThemeCreator()
+    written_paths: Set[Path] = {this_theme_folder / name for name in NON_ICON_FILE_NAMES}
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         dst_icon_name = format_icon_name(pline.dst_icon_name, 'noext')
         icon_size_io_list = pline.size_io_matrix.all_data     # all definitions of `input -> output of an icon.
@@ -1255,17 +1327,19 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
                 print("Impossible bug.")
                 continue
             icon_dst_file_path: Path = this_theme_folder / get_xdg_size_folder_name(size_io.output, src_icon_file.scale) / src_icon_file.context / src_icon_file.file_name   # SVN / CVS convension
-            icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(src_icon_file.src_file_path_resolved, icon_dst_file_path)
+            copy_if_changed(src_icon_file.src_file_path_resolved, icon_dst_file_path)
+            written_paths.add(icon_dst_file_path)
 
             # add to qrc
-            qrc.add_file(src_icon_file.context, size_io.output, src_icon_file.scale, src_icon_file.file_name)
+            qrc.add_icon_file(src_icon_file.context, size_io.output, src_icon_file.scale, src_icon_file.file_name)
 
             # index.theme
             index_theme.add_index_theme_ini_section(src_icon_file.context, size_io.output, src_icon_file.scale)
 
+    write_theme_license_files(this_theme_folder, qrc)
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
+    delete_files_in_folder_then_prune_empty_folders(this_theme_folder, except_for=written_paths)
 
 async def run_05_convert_svg_to_png():
     print("05_XDG_PNG_THEME")
@@ -1283,30 +1357,35 @@ async def run_05_convert_svg_to_png():
 
     svg2png = SvgToPngConverter()
     deferred: List[Coroutine[None, None, bool]] = []
+    written_paths: Set[Path] = {dst_theme_folder / name for name in NON_ICON_FILE_NAMES}
     for icon in src_icon_searcher.all_found_icons:
         for scale in OPTIONS.generate_scales:
             # qrc & index.theme
             if icon.size != 'scalable':    # FIXME: source file of scale != 1 is not supported currently
                 if OPTIONS.output_png_sizes and icon.size not in OPTIONS.output_png_sizes:
                     continue
-                qrc.add_file(icon.context, icon.size, scale, f"{icon.icon_name}.png")
+                qrc.add_icon_file(icon.context, icon.size, scale, f"{icon.icon_name}.png")
                 index_theme.add_index_theme_ini_section(icon.context, icon.size, scale)
                 dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(icon.size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                 dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                 deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(icon.size) * int(scale)))
+                written_paths.add(dst_png_file_path)
                 print(f"Convert {dst_png_file_path}")
             else:
                 for fixed_px_size in OPTIONS.output_png_sizes_from_scalable:
                     if fixed_px_size == 'scalable': continue
-                    qrc.add_file(icon.context, fixed_px_size, scale, f"{icon.icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
+                    qrc.add_icon_file(icon.context, fixed_px_size, scale, f"{icon.icon_name}.png")   # OPTIMIZE: Use QRC alias to reduce duplicated PNG files
                     index_theme.add_index_theme_ini_section(icon.context, fixed_px_size, scale)
                     dst_png_file_path = dst_theme_folder / get_xdg_size_folder_name(fixed_px_size, scale) / icon.context / f"{icon.icon_name}.png"   # REFACTOR: a function to assemble path? (for svn convension <-> xdg standard)
                     dst_png_file_path.parent.mkdir(parents=True, exist_ok=True)
                     deferred.append(svg2png.convert(icon.src_file_path_resolved, dst_png_file_path, int(fixed_px_size) * int(scale)))
+                    written_paths.add(dst_png_file_path)
                     print(f"Convert {dst_png_file_path}")
 
+    write_theme_license_files(dst_theme_folder, qrc)
     qrc.write_qrc_file(dst_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(dst_theme_folder / "index.theme")
+    delete_files_in_folder_then_prune_empty_folders(dst_theme_folder, except_for=written_paths)
 
     async def convert_or_raise(conversion: Coroutine[None, None, bool]) -> None:
         if not await conversion:
@@ -1394,10 +1473,10 @@ def parse_size_folder_name(folder_name: str) -> ParsedIconSizeFolder | None:
 def run_extra_copy():
     svg_theme_folder = BUILD_FOLDERS.FOLDER_04_XDG_SVG_THEME / OPTIONS.output_theme_name
     png_theme_folder = BUILD_FOLDERS.FOLDER_05_XDG_PNG_THEME / OPTIONS.output_theme_name
-    if OPTIONS.output_svg_theme_to_dir:
-        shutil.copytree(svg_theme_folder, OPTIONS.output_svg_theme_to_dir, dirs_exist_ok=True)
-    if OPTIONS.output_png_theme_to_dir:
-        shutil.copytree(png_theme_folder, OPTIONS.output_png_theme_to_dir, dirs_exist_ok=True)
+    for built, dst in ((svg_theme_folder, OPTIONS.output_svg_theme_to_dir), (png_theme_folder, OPTIONS.output_png_theme_to_dir)):
+        if dst and built.is_dir():
+            shutil.copytree(built, dst, dirs_exist_ok=True)
+            delete_files_in_folder_then_prune_empty_folders(dst, except_for={dst / p.relative_to(built) for p in built.rglob("*")})
 
 
 def write_stamp_file():
