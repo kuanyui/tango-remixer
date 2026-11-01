@@ -32,7 +32,7 @@ import enum
 from warnings import deprecated
 from lib.color_converter import *
 from lib.included_icons_parser import *
-from lib.icon_licenses import BASE_THEMES, IconFile, IconLicense, icon_licenses, write_license_files
+from lib.icon_licenses import BASE_THEME_OF_COLORIZED_THEME, PickedSvgFile, IconLicenseGroup, read_licenses_then_group_by_icon_and_license, write_licenses_json_and_csv
 # from lib.download_extract_tarballs import ensure_tarballs_downloaded_and_extracted
 
 IconThemeFolderName = str
@@ -111,7 +111,7 @@ Example:
 <RCC version="1.0">
   <qresource prefix="/xdg_icon_themes/Humanity">
     <file>index.theme</file>
-    <file>license.json</file>
+    <file>licenses.json</file>
   </qresource>
   <qresource prefix="/xdg_icon_themes/Humanity">
     <file alias="apps/16/gtk-info.svg">actions/16/gtk-info.svg</file>
@@ -1243,7 +1243,7 @@ def run_03_copy_included_icons():
     src_icon_searcher = IconFileSearcher(BUILD_FOLDERS.FOLDER_02_COLORIZED_THEMES_ROOT)
     global PARSED_INCLUDED_ICONS_TXT_LINES, PICKED_ICON_LICENSES
     PARSED_INCLUDED_ICONS_TXT_LINES = read_included_icons_txt(src_icon_searcher, OPTIONS.included_icon_file, OPTIONS.included_icons_text)
-    picked_files: List[IconFile] = []
+    picked_files: List[PickedSvgFile] = []
     for pline in PARSED_INCLUDED_ICONS_TXT_LINES:
         size_io_specified: bool = not pline.size_io_matrix.is_empty()
         if size_io_specified:
@@ -1272,17 +1272,17 @@ def run_03_copy_included_icons():
             icon_dst_file_path: Path = this_theme_folder / dst_context / src_icon.size / dst_file_name   # SVN / CVS convension
             icon_dst_file_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(src_icon.src_file_path_resolved, icon_dst_file_path)
-            picked_files.append(IconFile(
-                theme=pline.src_theme,
-                source=f"{src_icon.context}/{src_icon.icon_name}",
-                context=dst_context,
-                name=format_icon_name(pline.dst_icon_name, 'noext'),
-                size=src_icon.size,
-                path=src_icon.src_file_path_resolved,
+            picked_files.append(PickedSvgFile(
+                src_theme=pline.src_theme,
+                src_context_and_icon_name=f"{src_icon.context}/{src_icon.icon_name}",
+                dst_context=dst_context,
+                dst_icon_name=format_icon_name(pline.dst_icon_name, 'noext'),
+                src_size=src_icon.size,
+                src_file_path=src_icon.src_file_path_resolved,
             ))
-    PICKED_ICON_LICENSES = icon_licenses(picked_files)
+    PICKED_ICON_LICENSES = read_licenses_then_group_by_icon_and_license(picked_files)
 
-PICKED_ICON_LICENSES: List[IconLicense] = []
+PICKED_ICON_LICENSES: List[IconLicenseGroup] = []
 """The licenses of the icons run_03 picked: run_04 and run_05 write them beside index.theme."""
 
 def theme_urls() -> Dict[str, str]:
@@ -1291,12 +1291,12 @@ def theme_urls() -> Dict[str, str]:
         Dict[Theme, URL]
     """
     urls: Dict[str, str] = {t.copied_dst_theme_name: t.urls[0] for t in BUILT_IN_RAW_ICON_THEMES_PATH if t.urls}
-    urls.update({colorized: urls[base] for colorized, base in BASE_THEMES.items() if base in urls})
+    urls.update({colorized: urls[base] for colorized, base in BASE_THEME_OF_COLORIZED_THEME.items() if base in urls})
     return urls
 
-def write_theme_license_files(theme_folder: Path, qrc: QrcCreator) -> None:
+def write_theme_licenses_json_and_csv(theme_folder: Path, qrc: QrcCreator) -> None:
     """licenses.json and licenses.csv; the JSON goes into index.qrc too."""
-    write_license_files(theme_folder, OPTIONS.output_theme_name, PICKED_ICON_LICENSES, theme_urls())
+    write_licenses_json_and_csv(theme_folder, OPTIONS.output_theme_name, PICKED_ICON_LICENSES, theme_urls())
     qrc.add_non_icon_file("licenses.json")
 
 def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
@@ -1336,7 +1336,7 @@ def run_04_convert_svg_to_xdg_hicolor_theme_dir_structure():
             # index.theme
             index_theme.add_index_theme_ini_section(src_icon_file.context, size_io.output, src_icon_file.scale)
 
-    write_theme_license_files(this_theme_folder, qrc)
+    write_theme_licenses_json_and_csv(this_theme_folder, qrc)
     qrc.write_qrc_file(this_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(this_theme_folder / "index.theme")
     delete_files_in_folder_then_prune_empty_folders(this_theme_folder, except_for=written_paths)
@@ -1382,7 +1382,7 @@ async def run_05_convert_svg_to_png():
                     written_paths.add(dst_png_file_path)
                     print(f"Convert {dst_png_file_path}")
 
-    write_theme_license_files(dst_theme_folder, qrc)
+    write_theme_licenses_json_and_csv(dst_theme_folder, qrc)
     qrc.write_qrc_file(dst_theme_folder / "index.qrc")
     index_theme.write_index_theme_file(dst_theme_folder / "index.theme")
     delete_files_in_folder_then_prune_empty_folders(dst_theme_folder, except_for=written_paths)

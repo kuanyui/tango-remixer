@@ -322,15 +322,15 @@ class TestEndToEndPipeline(unittest.TestCase):
 
         # ---- licenses.json / licenses.csv: Tango's license, no exceptions --
         report = json.loads((self.svg_out / "licenses.json").read_text(encoding="utf-8"))
-        self.assertEqual(report["theme"], "TestTango")
-        self.assertEqual(report["licenses"], ["GPL-2.0-only OR GPL-3.0-only"])
-        self.assertEqual(report["sources"], [{
-            "theme": "Tango", "base": None, "license": "GPL-2.0-only OR GPL-3.0-only",
-            "url": "https://github.com/kuanyui/tango-icon-theme", "icon_count": 4, "exceptions": [],
+        self.assertEqual(report["dst_theme"], "TestTango")
+        self.assertEqual(report["all_icon_licenses"], ["GPL-2.0-only OR GPL-3.0-only"])
+        self.assertEqual(report["src_themes"], [{
+            "src_theme": "Tango", "base_theme": None, "src_theme_license": "GPL-2.0-only OR GPL-3.0-only",
+            "src_theme_url": "https://github.com/kuanyui/tango-icon-theme", "picked_icon_count": 4, "icon_license_exceptions": [],
         }])
         rows = list(csv.DictReader((self.svg_out / "licenses.csv").open(encoding="utf-8")))
         self.assertEqual(
-            [(r["icon"], r["theme"], r["source"], r["source_sizes"], r["license"], r["exception"]) for r in rows],
+            [(r["dst_context_and_icon_name"], r["src_theme"], r["src_context_and_icon_name"], r["src_sizes"], r["icon_license"], r["is_license_exception"]) for r in rows],
             [
                 ("actions/dialog-cancel", "Tango", "actions/dialog-cancel", "16 22", "GPL-2.0-only OR GPL-3.0-only", ""),
                 ("actions/system-log-out", "Tango", "actions/system-log-out", "16 32", "GPL-2.0-only OR GPL-3.0-only", ""),
@@ -443,7 +443,7 @@ class TestEndToEndPipeline(unittest.TestCase):
             self._assert_svg(svg_theme / size / "actions" / "logout.svg")
         # licenses.csv names the renamed icon by its new name, and where it comes from
         rows = list(csv.DictReader((svg_theme / "licenses.csv").open(encoding="utf-8")))
-        self.assertEqual([(r["icon"], r["source"]) for r in rows],
+        self.assertEqual([(r["dst_context_and_icon_name"], r["src_context_and_icon_name"]) for r in rows],
                          [("actions/dialog-cancel", "actions/dialog-cancel"), ("actions/logout", "actions/system-log-out")])
 
         self.assertEqual(
