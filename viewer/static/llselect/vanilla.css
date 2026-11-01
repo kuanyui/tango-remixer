@@ -1,12 +1,51 @@
 /* llselect - vanilla theme: minimal sensible defaults, no framework. */
 
+/* Color variables: the light values. Every color below reads one of these,
+   so a host page restyles the select component by redefining them in a rule
+   that targets .llselect-root (README "Customization"). The dark values are
+   in the block at the end of this file. Roles, one per line. */
+.llselect-root {
+  --llselect-fg: #222; /* text inside the popup: header and footer slot content */
+  --llselect-control-fg: #222; /* text of the trigger and of the filter input */
+  --llselect-fg-soft: #666; /* the arrow and the group labels */
+  --llselect-fg-muted: #888; /* the placeholder, the no-results text, the clear button at rest */
+  --llselect-bg: #fff; /* surface of the trigger, the popup, the filter input, the pinned rows */
+  --llselect-bg-muted: #f5f5f5; /* surface of the group labels */
+  --llselect-trigger-line: #888; /* border of the trigger */
+  --llselect-trigger-hover-line: var(--llselect-trigger-line); /* border of the hovered trigger */
+  --llselect-popup-line: #888; /* border of the popup */
+  --llselect-filter-line: #ccc; /* border of the filter input */
+  --llselect-divider: rgba(0, 0, 0, 0.12); /* dividers before and after action rows and the choose-all row; header, footer and pinned-row edges */
+  --llselect-focus-line: #4a90e2; /* border (vanilla: outline) of the focused or open trigger */
+  --llselect-filter-focus-line: #4a90e2; /* border of the focused filter input */
+  --llselect-focus-ring: transparent; /* ring shadow of the focused or open trigger */
+  --llselect-filter-focus-ring: transparent; /* ring shadow of the focused filter input */
+  --llselect-shadow: rgba(0, 0, 0, 0.08); /* color of the popup shadow */
+  --llselect-control-shadow: transparent; /* color of the inset shadow of the trigger */
+  --llselect-row-fg: var(--llselect-fg); /* text of a row */
+  --llselect-row-hover-bg: #eef4ff; /* surface of a hovered row */
+  --llselect-row-hover-fg: var(--llselect-row-fg); /* text of a hovered row */
+  --llselect-row-focused-bg: #cce4ff; /* surface of the row that keyboard focus is on */
+  --llselect-row-focused-fg: var(--llselect-row-fg); /* text of that row */
+  --llselect-row-focused-hover-bg: var(--llselect-row-focused-bg); /* surface of that row while hovered */
+  --llselect-row-chosen-fg: #1c4d8f; /* text of a chosen row */
+  --llselect-tag-bg: #eee; /* surface of a tag */
+  --llselect-tag-fg: var(--llselect-control-fg); /* text of a tag */
+  --llselect-tag-line: #ddd; /* border of a tag */
+  --llselect-tag-remove-fg: #777; /* the x button of a tag */
+  --llselect-tag-remove-hover-bg: #ddd; /* surface of the hovered x button */
+  --llselect-tag-remove-hover-fg: #333; /* the hovered x button */
+  --llselect-clear-hover-fg: #333; /* the hovered clear button */
+  --llselect-clear-hover-bg: #eee; /* surface of the hovered clear button */
+}
+
 .llselect-root {
   position: relative;
   display: inline-block;
   min-width: 14rem;
   font-family: system-ui, -apple-system, sans-serif;
   font-size: 0.95rem;
-  color: #222;
+  color: var(--llselect-control-fg);
 }
 
 /* --- trigger --------------------------------------------------- */
@@ -17,9 +56,9 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.4rem 0.7rem;
-  border: 1px solid #888;
+  border: 1px solid var(--llselect-trigger-line);
   border-radius: 4px;
-  background: #fff;
+  background: var(--llselect-bg);
   cursor: pointer;
   user-select: none;
   line-height: 1.4;
@@ -27,7 +66,7 @@
 
 .llselect-trigger:focus,
 .llselect-trigger:focus-visible {
-  outline: 2px solid #4a90e2;
+  outline: 2px solid var(--llselect-focus-line);
   outline-offset: 1px;
 }
 
@@ -40,13 +79,13 @@
 }
 
 .llselect-trigger[data-empty='true'] .llselect-trigger-content {
-  color: #888;
+  color: var(--llselect-fg-muted);
 }
 
 .llselect-trigger-arrow {
   display: inline-flex;
   align-items: center;
-  color: #666;
+  color: var(--llselect-fg-soft);
   transition: transform 0.15s;
 }
 
@@ -59,68 +98,66 @@
 /* --- popup ----------------------------------------------------- */
 
 .llselect-popup {
-  background: #fff;
-  border: 1px solid #888;
+  background: var(--llselect-bg);
+  border: 1px solid var(--llselect-popup-line);
   border-radius: 4px;
   z-index: 1000;
   /* Explicit even though these match the defaults: in top-layer (popover)
      mode the UA [popover] chrome (padding: 0.25em; color: CanvasText) would
      otherwise leak in. Author declarations beat UA styles. */
-  color: inherit;
+  color: var(--llselect-fg);
   padding: 0;
 }
 
 .llselect-popup[data-placement='above'] {
-  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 -2px 8px var(--llselect-shadow);
 }
 
 .llselect-popup[data-placement='below'] {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 2px 8px var(--llselect-shadow);
 }
 
 /* --- items ----------------------------------------------------- */
 
-.llselect-item {
+.llselect-popup-list-row {
   padding: 0.35rem 0.7rem;
   cursor: pointer;
   line-height: 1.4;
 }
 
-.llselect-item:hover {
-  background: #eef4ff;
+.llselect-popup-list-row:hover {
+  background: var(--llselect-row-hover-bg);
 }
 
-.llselect-item-focused {
-  background: #cce4ff;
+.llselect-popup-list-row-focused {
+  background: var(--llselect-row-focused-bg);
 }
 
-.llselect-item[aria-selected='true'] {
+.llselect-popup-list-row[aria-selected='true'] {
   font-weight: 600;
-  color: #1c4d8f;
+  color: var(--llselect-row-chosen-fg);
 }
 
 /* --- choose-all row (multi, opt-in) ----------------------------- */
 /* The default row content is just the counting text (its numbers carry the
    tri-state); data-chosen-state is the hook if a theme wants to draw its own
    indicator, createChooseAllRowContentElFn the way to add a real one. The
-   row also carries the plain item class, so hover / focused styling comes
-   from there. */
-
-.llselect-choose-all-row {
-  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
-}
+   row also carries the popup-list-row class, so hover / focused styling comes
+   from there. Its divider is drawn by the block-edge rules under "dividers
+   around the command rows": one line where the block above the items ends,
+   none between the row and a command row that follows it. */
 
 /* --- groups (Phase 10) ----------------------------------------- */
-/* Header is static by default. The scroll math is offsetParent-independent
+/* Label is static by default. The scroll math is offsetParent-independent
    (keyboard.ts uses rect deltas), so a theme MAY make this `position: sticky;
-   top: 0` for a pinned header. */
+   top: 0` for a pinned label. */
 
 .llselect-group-label {
   padding: 0.3rem 0.7rem;
   font-size: 0.8rem;
   font-weight: 600;
-  color: #666;
-  background: #f5f5f5;
+  color: var(--llselect-fg-soft);
+  background: var(--llselect-bg-muted);
 }
 
 .llselect-group[data-disabled='true'] .llselect-group-label {
@@ -134,21 +171,76 @@
   flex: none;
   margin: 0.3rem;
   padding: 0.3rem 0.5rem;
-  border: 1px solid #ccc;
+  border: 1px solid var(--llselect-filter-line);
   border-radius: 3px;
+  background-color: var(--llselect-bg); /* explicit: a host page's dark color-scheme would paint the UA field dark */
+  color: var(--llselect-control-fg);
   font: inherit;
   outline: none;
 }
 
 .llselect-filter-input:focus {
-  border-color: #4a90e2;
+  border-color: var(--llselect-filter-focus-line);
 }
 
 /* --- no-results message ----------------------------------------- */
 
 .llselect-popup-list-no-results {
   padding: 0.35rem 0.7rem;
-  color: #888;
+  color: var(--llselect-fg-muted);
+}
+
+/* --- dividers around the command rows --------------------------- */
+/* The choose-all row and the action rows form one block above the items and
+   one below; they carry .llselect-popup-list-row too, so hover / focused / disabled
+   styling comes from there. Exactly one line marks each block's edge with
+   the items, drawn as the next element's border-top through sibling
+   combinators (`:has` is above the browser floor). No line inside a block:
+   choose-all followed by a command row reads as one group, like the header
+   blocks of ng-select, Element Plus and Vuetify's select-all recipe. */
+
+.llselect-choose-all-row + .llselect-popup-list-row:not(.llselect-popup-list-action-row),
+.llselect-choose-all-row + .llselect-group,
+.llselect-popup-list-action-row + .llselect-popup-list-row:not(.llselect-popup-list-action-row),
+.llselect-popup-list-action-row + .llselect-group,
+.llselect-popup-list-row:not(.llselect-popup-list-action-row):not(.llselect-choose-all-row) + .llselect-popup-list-action-row,
+.llselect-group + .llselect-popup-list-action-row {
+  border-top: 1px solid var(--llselect-divider);
+}
+
+/* --- pinned command blocks --------------------------------------- */
+/* popupListLeadingRowsPinned / popupListTrailingRowsPinned wrap a block in a
+   presentational div that the library makes sticky. The theme gives it an
+   opaque background (the items scroll under it) and the block's edge line,
+   because the sibling rules above cannot see through the wrapper. The line
+   is drawn only toward items: the library sets data-edge-to-items on every
+   render, so two blocks that touch (nothing listed) draw no line at all. */
+
+.llselect-popup-list-pinned-leading-rows,
+.llselect-popup-list-pinned-trailing-rows {
+  background: var(--llselect-bg);
+  z-index: 1;
+}
+.llselect-popup-list-pinned-leading-rows[data-edge-to-items='true'] {
+  border-bottom: 1px solid var(--llselect-divider);
+}
+.llselect-popup-list-pinned-trailing-rows[data-edge-to-items='true'] {
+  border-top: 1px solid var(--llselect-divider);
+}
+
+/* --- popup header / footer slots -------------------------------- */
+/* Pinned above / below the list, outside the scroll area. The elements exist
+   only when their content settings return an element; the divider matches
+   the choose-all row. */
+
+.llselect-popup-header {
+  padding: 0.35rem 0.7rem;
+  border-bottom: 1px solid var(--llselect-divider);
+}
+
+.llselect-popup-footer {
+  padding: 0.35rem 0.7rem;
+  border-top: 1px solid var(--llselect-divider);
 }
 
 /* --- disabled (Phase 9) ---------------------------------------- */
@@ -166,12 +258,12 @@
   cursor: not-allowed;
 }
 
-.llselect-item-disabled {
+.llselect-popup-list-row-disabled {
   opacity: 0.45;
   cursor: not-allowed;
 }
 
-.llselect-item-disabled:hover {
+.llselect-popup-list-row-disabled:hover {
   background: none;
 }
 
@@ -197,8 +289,8 @@
   /* Logical: mirrors under dir="rtl" (text side start, x-button side end). */
   padding-block: 0.05rem;
   padding-inline: 0.4rem 0.15rem;
-  background: #eee;
-  border: 1px solid #ddd;
+  background: var(--llselect-tag-bg);
+  border: 1px solid var(--llselect-tag-line);
   border-radius: 3px;
   font-size: 0.85rem;
   line-height: 1.5;
@@ -214,7 +306,7 @@
   border: none;
   border-radius: 2px;
   background: transparent;
-  color: #777;
+  color: var(--llselect-tag-remove-fg);
   cursor: pointer;
   font: inherit;
   line-height: 1;
@@ -223,8 +315,8 @@
 .llselect-tag-remove-button:empty::before { content: '\00d7'; font-size: 1.15em; }
 
 .llselect-tag-remove-button:hover {
-  background: #ddd;
-  color: #333;
+  background: var(--llselect-tag-remove-hover-bg);
+  color: var(--llselect-tag-remove-hover-fg);
 }
 
 /* A disabled item's chip: greyed, its x inert (the JS click guard is the real block). */
@@ -250,7 +342,7 @@
   border: none;
   border-radius: 2px;
   background: transparent;
-  color: #888;
+  color: var(--llselect-fg-muted);
   cursor: pointer;
   font: inherit;
   line-height: 1;
@@ -258,6 +350,76 @@
 
 .llselect-trigger-clear-button:empty::before { content: '\00d7'; font-size: 1.2em; }
 
-.llselect-trigger-clear-button:hover { color: #333; background: #eee; }
+.llselect-trigger-clear-button:hover { color: var(--llselect-clear-hover-fg); background: var(--llselect-clear-hover-bg); }
 
 .llselect-trigger[data-empty='true'] .llselect-trigger-clear-button { display: none; }
+
+/* --- dark color scheme ----------------------------------------------------- */
+/* The library resolves the scheme and writes data-llselect-color-scheme on the
+   root (DESIGN.md "Color scheme (light / dark) in the themes"); hosts never
+   write that attribute. Variables not listed here keep their light value or
+   their alias. */
+.llselect-root[data-llselect-color-scheme='dark'] {
+  --llselect-fg: #e4e4e4;
+  --llselect-control-fg: #e4e4e4;
+  --llselect-fg-soft: #a8a8a8;
+  --llselect-fg-muted: #8c8c8c;
+  --llselect-bg: #1e1e1e;
+  --llselect-bg-muted: #2a2a2a;
+  --llselect-trigger-line: #6b6b6b;
+  --llselect-popup-line: #6b6b6b;
+  --llselect-filter-line: #6b6b6b;
+  --llselect-divider: rgba(255, 255, 255, 0.12);
+  --llselect-focus-line: #6ea8e8;
+  --llselect-filter-focus-line: #6ea8e8;
+  --llselect-shadow: rgba(0, 0, 0, 0.5);
+  --llselect-row-hover-bg: #2b3545;
+  --llselect-row-focused-bg: #1f3f6b;
+  --llselect-row-chosen-fg: #8ab8ff;
+  --llselect-tag-bg: #333;
+  --llselect-tag-line: #4a4a4a;
+  --llselect-tag-remove-fg: #a0a0a0;
+  --llselect-tag-remove-hover-bg: #4a4a4a;
+  --llselect-tag-remove-hover-fg: #f0f0f0;
+  --llselect-clear-hover-fg: #f0f0f0;
+  --llselect-clear-hover-bg: #333;
+}
+
+/* Browser-painted parts, such as the popup scrollbar and a native control a
+   host puts in the trigger or the popup, follow the resolved scheme. Never
+   on .llselect-root: the resolver reads the computed color-scheme there. The
+   child combinator keeps an outer select component's scheme off the trigger
+   and the popup of a select component nested in it. */
+.llselect-root[data-llselect-color-scheme='light'] > .llselect-trigger,
+.llselect-root[data-llselect-color-scheme='light'] > .llselect-popup {
+  color-scheme: light;
+}
+.llselect-root[data-llselect-color-scheme='dark'] > .llselect-trigger,
+.llselect-root[data-llselect-color-scheme='dark'] > .llselect-popup {
+  color-scheme: dark;
+}
+
+/* --- built-in dark marks ---------------------------------------------------- */
+/* Each rule sets the CSS variable the resolver reads on the element that
+   carries the mark; the nearest ancestor wins by inheritance. Rule order
+   settles two marks on one element: an attribute beats a class name, and
+   data-color-scheme beats everything. Origins: .dark Tailwind CSS and
+   VitePress; .theme-dark Bulma 1; .dark-mode the Nuxt color-mode module;
+   data-theme daisyUI, Pico CSS 2 and Bulma 1; data-bs-theme Bootstrap 5.3;
+   data-color-scheme this project's pages, and any element a host marks. */
+.dark,
+.theme-dark,
+.dark-mode {
+  --llselect-color-scheme: dark;
+}
+.theme-light,
+.light-mode {
+  --llselect-color-scheme: light;
+}
+[data-theme='dark'] { --llselect-color-scheme: dark; }
+[data-theme='light'] { --llselect-color-scheme: light; }
+[data-bs-theme='dark'] { --llselect-color-scheme: dark; }
+[data-bs-theme='light'] { --llselect-color-scheme: light; }
+[data-color-scheme='dark'] { --llselect-color-scheme: dark; }
+[data-color-scheme='light'] { --llselect-color-scheme: light; }
+[data-color-scheme='auto'] { --llselect-color-scheme: auto; }

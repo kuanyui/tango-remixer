@@ -16,7 +16,7 @@ body .readme img { cursor: var(--cursor-arrow); }
 /* The hand where the sheets above say pointer: links, buttons, the rows and cells one clicks, labels, the combo
    boxes and their items. (GTK 2 showed the hand on links only; the rows are this project's choice.) */
 body a, body button:not(:disabled), body label, body .row, body .cell, body .file, body .exp-row, body #dark-toggle,
-body .llselect-trigger, body .llselect-item, body .llselect-choose-all-row { cursor: var(--cursor-hand); }
+body .llselect-trigger, body .llselect-popup-list-row, body .llselect-choose-all-row { cursor: var(--cursor-hand); }
 /* The arrow again where the sheets above chose the browser's default: menus and their items (links in the panel's
    main menu too), the panel's buttons, disabled buttons. `body` in every selector puts these above the sheets'
    own rules whatever the order the pages load them in. */

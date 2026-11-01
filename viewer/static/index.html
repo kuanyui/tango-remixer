@@ -20,7 +20,7 @@
 <link rel="icon" href="icons/Tango/32x32/places/start-here.svg" sizes="32x32" type="image/svg+xml">
 <link rel="icon" href="icons/Tango/48x48/places/start-here.svg" sizes="48x48" type="image/svg+xml">
 <link rel="icon" href="icons/Tango/48x48/places/start-here.svg" sizes="any" type="image/svg+xml">
-<!-- @llselect/core 0.0.8 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
+<!-- @llselect/core 0.0.12 (MIT), vendored verbatim: static/llselect/{index.umd.js,vanilla.css,LICENSE} -->
 <link rel="stylesheet" href="static/llselect/vanilla.css">
 <script src="static/llselect/index.umd.js"></script>
 <!-- The window frame (desktop, title bar, menu bar, status bar, buttons, tooltip, About) and its script: shared
@@ -51,12 +51,12 @@
   .theme-opt small { display: block; color: var(--muted); }
   /* One control look for llselect, buttons and the search box: same border, radius, padding, focus ring. */
   .llselect-root { color: var(--fg); }
-  /* Dropdown arrow in the text colour (the vanilla theme pins it to #666, which disappears on the dark
-     background); the triangle itself (.arrow) is window.css's. */
+  /* Dropdown arrow in the text colour (the vanilla theme draws it a softer grey); the triangle itself (.arrow)
+     is window.css's. */
   .llselect-trigger-arrow { color: var(--fg); }
   .llselect-trigger, .llselect-popup { background: var(--ctl-bg); color: var(--fg); border-color: var(--ctl-border); }
-  .llselect-item:hover, .llselect-item-focused { background: var(--ctl-hover); color: var(--fg); }
-  .llselect-item[aria-selected='true'] { background: var(--sel); color: var(--fg); }
+  .llselect-popup-list-row:hover, .llselect-popup-list-row-focused { background: var(--ctl-hover); color: var(--fg); }
+  .llselect-popup-list-row[aria-selected='true'] { background: var(--sel); color: var(--fg); }
   .llselect-choose-all-row, .llselect-group-label { background: var(--hover); color: var(--muted); }
   input[type=search]::placeholder { color: var(--muted); }
   input[type=checkbox] { accent-color: var(--accent); }
@@ -446,7 +446,7 @@ function multiSelect(id, label, items, chosen, opts = {}) {
     chooseAllRow: true,
     itemToGroupKeyFn: opts.groupOf || null,
     createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),   // drawn by CSS, follows the theme colours
-    createItemContentElFn: item => content(item),
+    createPopupListItemContentElFn: item => content(item),
     createChooseAllRowContentElFn: (state, chosenCount, totalCount) => el('span', { className: 'opt' },
       checkbox(state), `All (${chosenCount}/${totalCount})`),
     createTriggerContentElFn: ({ chosenItems, items }) => el('span', {}, `${label}: ` +
@@ -937,7 +937,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
     ariaLabel: 'Show at',
     createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
     createTriggerContentElFn: ({ chosenItem }) => el('span', {}, `${chosenItem} px`),
-    createItemContentElFn: item => el('span', {}, `${item} px`),
+    createPopupListItemContentElFn: item => el('span', {}, `${item} px`),
     onChange: () => render(),
   });
   showAtSel.setItems(steps);
@@ -947,7 +947,7 @@ List: one column per ticked size. Grid: draws only from ticked sizes.`,
     createTriggerArrowContentElFn: () => el('span', { className: 'arrow' }),
     createTriggerContentElFn: ({ chosenItem }) => el('span', {}, !chosenItem ? ''   // rendered once before an item is chosen
       : `As: ${tier('small') ? APIS[chosenItem].short.split(' ', 2).join(' ') : APIS[chosenItem].short}`),   // 900 px and under: just the toolkit, "Qt 6"
-    createItemContentElFn: item => el('span', { className: 'api-opt', title: APIS[item].rules }, APIS[item].label),   // each with its rules as its tooltip
+    createPopupListItemContentElFn: item => el('span', { className: 'api-opt', title: APIS[item].rules }, APIS[item].label),   // each with its rules as its tooltip
     onChange: () => { $('pick-as-box').title = APIS[apiSel.getChosenItem()].rules; render(); },
   });
   apiSel.setItems(Object.keys(APIS));
