@@ -114,6 +114,10 @@
   .aliases-box { margin-top: 6px; }   /* the aliases in a scroll box (showDetail): some icons have dozens; the box takes the note's margin */
   .note.aliases-note { margin-top: 0; max-height: 8em; }   /* (.note's margin, which comes later, would win over a single class) */
   #detail h3 { margin: 0; }
+  /* The icon's name, with the Search button at the row's end (also on a phone, where the name itself is in the title bar). */
+  .detail-head { display: flex; align-items: flex-start; gap: 8px; }
+  .detail-head h3 { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+  .detail-head button { flex: none; margin-left: auto; }
   .file { padding: 6px 0; border-top: 1px solid var(--line); display: flex; gap: 10px; align-items: flex-start; }
   .file:hover { background: var(--hover); }
   .file.selected { background: var(--sel); }   /* the file whose window was opened last */
@@ -378,6 +382,7 @@ const UI_ICONS = {
   reveal: 'Nome/apps/16/system-file-manager.svg',
   dir: 'Tango/16x16/status/folder-open.svg',
   copy: 'Nome/actions/16/edit-copy.svg',
+  find: 'Tango/16x16/actions/edit-find.svg',
   copied: 'Nome/emblems/16/emblem-default.svg',
   inkscape: 'InkscapeTango/actions/scalable/inkscape-logo.svg',
   web: 'Nome/apps/16/web-browser.svg',   // the static site's link to the file on GitHub
@@ -675,7 +680,9 @@ function showDetail(icon, row, open = false) {
   $('list').querySelector('.selected')?.classList.remove('selected');   // the previous row or grid cell
   row?.classList.add('selected');
   $('detail').replaceChildren(
-    el('h3', {}, icon.name),
+    el('div', { className: 'detail-head' }, el('h3', {}, icon.name),
+      iconButton('find', 'Search icon name', () => { searchName(icon.name); $('detail-window').close(); },
+        'Search this name: the list shows it in every theme that has it.')),
     el('div', { style: 'color:var(--muted)' }, `${icon.theme}/${icon.context}`),
     el('div', { className: 'note', title: themeLicenseTip(icon.theme) }, `Theme license: ${themeInfo[icon.theme].license}`),
     el('div', { className: 'included' }, ...includedBox(icon)),
@@ -977,9 +984,11 @@ $('list').addEventListener('contextmenu', e => {
   const icon = icons.find(i => keyOf(i) === node.dataset.key);
   openContextMenu(() => [
     { label: '_Copy Icon Name', icon: UI_ICONS.copy, run: () => { copyText(icon.name); flashStatus(`Copied ${icon.name}`); } },
-    { label: '_Search Icon Name', icon: 'Tango/16x16/actions/edit-find.svg', run: () => { $('q').value = icon.name; render(); } },
+    { label: '_Search Icon Name', icon: UI_ICONS.find, run: () => searchName(icon.name) },
   ], e.clientX, e.clientY);
 });
+// Put a name in the search box: the list then shows that name in every theme that has it.
+function searchName(name) { $('q').value = name; render(); }
 // A short notice in the status bar, then the status text again.
 let flashTimer;
 function flashStatus(text) { $('status').textContent = text; clearTimeout(flashTimer); flashTimer = setTimeout(showStatus, 1500); }
